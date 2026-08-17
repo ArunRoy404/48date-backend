@@ -12,10 +12,10 @@ The canonical requirements document is `docs/48Date-Backend-Tech-Stack.docx` —
 
 ## Requirements
 
-- **Node.js 22 LTS** — required. Do not use odd-numbered "Current" releases (e.g. 23, 25) — Prisma and several dependencies are tested against LTS only. Use `nvm` to manage this:
+- **Node.js 22 LTS** — required. Do not use odd-numbered "Current" releases (e.g. 23, 25) — Prisma and several dependencies are tested against LTS only. The version is pinned in `.nvmrc` (source of truth); use `nvm` to manage it:
 ```bash
-  nvm install 22
-  nvm use 22
+  nvm install   # reads .nvmrc
+  nvm use       # reads .nvmrc
   nvm alias default 22
 ```
 - **Docker** (Docker Desktop or Docker Engine) — runs local Postgres + Redis.
@@ -144,9 +144,9 @@ src/
 - **Secrets via environment variables** — never commit real credentials or `.env`. (`.env` is gitignored by default in the NestJS scaffold — verify this in `.gitignore` before adding real secrets.)
 - Match existing code style (Prettier + ESLint configs are already present).
 
-## Environment Variables (to be defined at setup)
+## Environment Variables
 
-Expected shape (exact names settled when services are integrated):
+`.env.example` (committed) is the canonical list of every variable name with placeholder values — copy it to `.env` and fill in real values. Never commit `.env` (it is gitignored).
 PORT
 DATABASE_URL # PostgreSQL
 REDIS_URL
