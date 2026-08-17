@@ -1,0 +1,23 @@
+enum Gender {
+  MALE
+  FEMALE
+  PREFER_NOT_TO_SAY
+}
+
+enum HabitFrequency {
+  REGULAR
+  OCCASIONALLY
+  NONE
+}
+
+enum KidsStatus {
+  HAVE
+  DONT_HAVE
+}
+
+enum LookingFor {
+  REAL_RELATIONSHIP
+  SOMETHING_MEANINGFUL
+  SEE_WHERE_IT_GOES
+  NEW_FRIENDS_FIRST
+}
