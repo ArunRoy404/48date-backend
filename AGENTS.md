@@ -137,6 +137,8 @@ src/
 
 ## Conventions
 
+- **Unified response envelope** — every endpoint returns `{ success: boolean, message: string, messages: string[], data? }` on success and `{ success: false, message, messages, statusCode }` on error. Use `successResponse()` / `errorResponse()` from `src/common/response/api-response.util.ts`; errors are wrapped automatically by the global `AllExceptionsFilter` (`src/common/filters/`), so controllers only wrap success payloads. `message` must be a short, non-technical summary.
+- **ESM project** — `package.json` has `"type": "module"` (Prisma 7's generated client requires ESM). All relative imports must use `.js` extensions (e.g. `import { AppModule } from './app.module.js'`). Jest is configured for ESM via `NODE_OPTIONS=--experimental-vm-modules` in the test scripts; keep the `moduleNameMapper`/`extensionsToTreatAsEsm` entries in both Jest configs if you touch them.
 - **Feature-first modules** — each domain gets its own NestJS module with controller, service, and (where relevant) gateway/processor.
 - **Use libraries already in the project** before pulling in new dependencies; the stack above is fixed unless explicitly changed.
 - **Prisma for all DB access and migrations** — no raw SQL unless necessary.

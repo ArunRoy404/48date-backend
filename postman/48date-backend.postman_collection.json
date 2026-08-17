@@ -1,0 +1,606 @@
+{
+  "info": {
+    "name": "48Date Backend API",
+    "description": "# 48Date Backend API\n\nREST API for the 48Date dating app backend (NestJS + Prisma + PostgreSQL).\n\n## Base URL\n\nUse the collection variable `baseUrl` (default `http://localhost:3000`).\n\n## Unified response envelope\n\n**Every** endpoint returns the same shape:\n\n### Success\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Account created successfully\",\n  \"messages\": [],\n  \"data\": { }\n}\n```\n\n- `success` — always `true` for 2xx responses\n- `message` — one short, human-readable summary (non-technical)\n- `messages` — array of extra messages (usually empty on success)\n- `data` — the actual payload (user, tokens, profile, ...)\n\n### Error\n\n```json\n{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"phone must be a valid international number\", \"password must be at least 8 characters\"],\n  \"statusCode\": 400\n}\n```\n\n- `success` — always `false`\n- `message` — one short, human-readable summary\n- `messages` — every individual message (each validation failure, etc.)\n- `statusCode` — the HTTP status code\n\n## Formatted user response\n\nAnywhere a user profile is returned (Register, Login, Verify OTP, Me), `data.user` (or `data` for Me) is **categorized** so clients can render sections directly:\n\n| Section | Contents |\n|---|---|\n| `auth` | phone, email, role, `isEmailVerified`, `isPhoneVerified`, `isUserVerified` |\n| `basicProfile` | name, firstName, lastName, username, birthDate, occupation, gender, interestedIn |\n| `lifestyle` | smoker, alcohol, kids, wantsKids, lookingFor |\n| `location` | locations (array), lastLocation |\n| `body` | heightCm, weightKg |\n| `interests` | creativity[], sports[], moviesAndDramas[] |\n| `media` | images[], selfieUrl, selfieVerified, notificationsEnabled |\n| `meta` | subscriptionId, lastLoginAt, createdAt, updatedAt |\n\n`passwordHash` is never included in any response.\n\n## Authentication\n\n- **Access token** — short-lived (15 min), carries `{ sub: userId, role }`. Required for protected endpoints (`Me`, `Logout`) via `Authorization: Bearer <accessToken>`.\n- **Refresh token** — long-lived (7 days), used only at `POST /auth/refresh` to get a new token pair.\n- **OTP / verification endpoints are PUBLIC** — `request-otp`, `verify-otp`, `forgot-password`, `verify-forgot-password`, `reset-password` take phone/email + channel directly and do **not** require a Bearer token.\n\nThe collection auto-saves `accessToken`, `refreshToken`, and `resetToken` from responses via test scripts — run Register/Login first and the protected requests just work.\n\n## Dummy OTP (development)\n\nEmail/phone verification is stubbed for now. `POST /auth/request-otp` and `POST /auth/forgot-password` always return the fixed code `123456`; `verify-otp` / `verify-forgot-password` accept it. No real SMS/email is sent. Real integrations (Twilio Verify / SMTP) will replace this later.\n\n## Verification flags\n\n- `isEmailVerified` — true after a successful email OTP verification\n- `isPhoneVerified` — true after a successful phone OTP verification\n- `isUserVerified` — true when **either** email or phone has been verified\n\n## Sending form-data\n\nAll current auth endpoints expect **raw JSON** bodies (Content-Type: `application/json`). No endpoint uses `multipart/form-data` yet.\n\nWhen a future endpoint needs form-data (e.g. uploading a selfie or image URL), configure the request like this in Postman:\n\n1. Set the HTTP method (usually `POST` or `PUT`).\n2. Select the **Body** tab.\n3. Choose **form-data** (not raw).\n4. Add key-value rows. For each field:\n   - Text fields: enter the key, switch the value type to **Text**, type the value.\n   - File fields (image uploads): enter the key, switch the value type to **File**, click *Select Files*.\n5. Postman automatically sets `Content-Type: multipart/form-data; boundary=...` and encodes the body — do not set the Content-Type header manually for form-data.\n6. Leave the **raw JSON** mode for the JSON endpoints in this collection.\n\n## Common error responses\n\n| Status | `message` | When |\n|---|---|---|\n| `400 Bad Request` | `Validation failed` — `messages` lists each field error | Invalid request body (missing/incorrect fields) |\n| `401 Unauthorized` | `Invalid credentials` / `Unauthorized` / `Invalid OTP` | Wrong login, missing/invalid token, wrong OTP |\n| `404 Not Found` | `No account found with this phone/email` | verify/reset OTP for an unregistered identifier |\n| `409 Conflict` | `Phone number is already registered` / `Email is already registered` / `Username is already taken` | Duplicate unique value — the message names the exact field |\n\n## Request serials\n\nEvery request carries a stable serial ID for integration and testing: `<Folder>-<NN>` (A = Auth, NN = zero-padded sequence). Serials never change once assigned — they are stable references for tickets, test reports, and Flutter/admin-panel integration. Future domains continue the scheme: `B-01 ...` (Users), `C-01 ...` (Matches), `D-01 ...` (Chat), etc.\n\n## Endpoints\n\n| Serial | Method | Path | Auth | Description |\n|---|---|---|---|---|\n| A-01 | POST | `/auth/register` | — | Create an account (all profile fields required), returns categorized profile + tokens |\n| A-02 | POST | `/auth/login` | — | Login with phone + password, returns categorized profile + tokens |\n| A-03 | POST | `/auth/request-otp` | — | Request a dummy OTP for an account (phone or email + channel) |\n| A-04 | POST | `/auth/verify-otp` | — | Verify the OTP, marks the channel (and the user) verified |\n| A-05 | POST | `/auth/forgot-password` | — | Request a dummy reset OTP (phone or email + channel) |\n| A-06 | POST | `/auth/verify-forgot-password` | — | Verify the reset OTP, returns a short-lived `resetToken` |\n| A-07 | POST | `/auth/reset-password` | — | Set a new password using the `resetToken` |\n| A-08 | POST | `/auth/refresh` | — | Exchange refresh token for a new token pair |\n| A-09 | POST | `/auth/logout` | Bearer | Invalidate the session client-side (stateless) |\n| A-10 | GET | `/auth/me` | Bearer | Get the authenticated user's categorized profile + images |",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "resetToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints: register → verify OTP → login → refresh → password reset → logout.\n\n**Suggested flow to try the whole collection (serials in parentheses):**\n1. `A-01 Register` (auto-saves tokens)\n2. `A-03 Request OTP` (returns the dummy code `123456`)\n3. `A-04 Verify OTP` (marks the channel + user verified)\n4. `A-02 Login` (auto-saves a fresh token pair)\n5. `A-10 Me` (see the categorized profile)\n6. `A-08 Refresh` (rotate the refresh token)\n7. `A-09 Logout`\n8. `A-05 Forgot Password` → `A-06 Verify Forgot Password` → `A-07 Reset Password`\n\nEvery response uses the unified envelope: `{ success, message, messages, data }` on success, `{ success: false, message, messages, statusCode }` on error.\n\nUser profiles in responses are grouped into sections: `auth`, `basicProfile`, `lifestyle`, `location`, `body`, `interests`, `media`, `meta`.",
+      "item": [
+        {
+          "name": "A-01 Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Creates a new user account. **Every field is required** (no optional fields) — this matches the registration screens. Returns the categorized profile (no password hash) plus a JWT access/refresh token pair inside the envelope's `data`.\n\n### Request Body — raw JSON\n\n```json\n{\n  // --- Auth / identity ---\n  \"phone\": \"+8801700000000\",          // REQUIRED — E.164 format (e.g. +8801XXXXXXXXX). Unique.\n  \"email\": \"test@48date.com\",         // REQUIRED — valid email. Unique.\n  \"password\": \"password123\",          // REQUIRED — minimum 8 characters. Stored as a bcrypt hash.\n\n  // --- Basic profile ---\n  \"name\": \"Test User\",                // REQUIRED — full/display name.\n  \"firstName\": \"Test\",                // REQUIRED\n  \"lastName\": \"User\",                 // REQUIRED\n  \"username\": \"testuser123\",          // REQUIRED — nickname, shown on profile. Unique.\n  \"birthDate\": \"1998-05-12\",          // REQUIRED — ISO date, must be in the past.\n  \"occupation\": \"Engineer\",           // REQUIRED\n  \"gender\": \"MALE\",                   // REQUIRED — MALE | FEMALE | PREFER_NOT_TO_SAY\n  \"interestedIn\": \"FEMALE\",           // REQUIRED — \"who are you here to meet\": same values as gender.\n\n  // --- Lifestyle ---\n  \"smoker\": \"NONE\",                   // REQUIRED — REGULAR | OCCASIONALLY | NONE\n  \"alcohol\": \"OCCASIONALLY\",          // REQUIRED — same values as smoker.\n  \"kids\": \"DONT_HAVE\",                // REQUIRED — HAVE | DONT_HAVE\n  \"wantsKids\": true,                   // REQUIRED — boolean, future plan about kids.\n  \"lookingFor\": \"REAL_RELATIONSHIP\",  // REQUIRED — REAL_RELATIONSHIP | SOMETHING_MEANINGFUL | SEE_WHERE_IT_GOES | NEW_FRIENDS_FIRST\n\n  // --- Location ---\n  \"locations\": [\"Dhaka\", \"Chattogram\"], // REQUIRED — array of strings.\n  \"lastLocation\": \"Dhaka\",            // REQUIRED\n\n  // --- Body ---\n  \"heightCm\": 175,                     // REQUIRED — integer, 50–250.\n  \"weightKg\": 70,                      // REQUIRED — integer, 20–300.\n\n  // --- Interests (fixed option lists) ---\n  \"creativity\": [\"Art\", \"Photography\"],       // REQUIRED — Art | Design | Makeup | Photography | Singing\n  \"sports\": [\"Cricket\", \"Gym\"],               // REQUIRED — Running | Gym | Soccer | Cricket | Tennis | Basketball\n  \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"],   // REQUIRED — TV Shows | Romance | Comedy | K-Drama | Horror | Thriller | Sci-Fi | Fantasy | Anime | Zombie\n\n  // --- Media ---\n  \"images\": [                           // REQUIRED — array, 1 to 6 photos. EXACTLY ONE must have isMain: true.\n    { \"url\": \"https://cdn.example.com/photos/main.jpg\", \"isMain\": true, \"sortOrder\": 0 },\n    { \"url\": \"https://cdn.example.com/photos/2.jpg\", \"isMain\": false, \"sortOrder\": 1 }\n  ],\n  \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\", // REQUIRED — valid URL.\n  \"notificationsEnabled\": true          // REQUIRED — boolean.\n}\n```\n\n> The body must be sent as **raw JSON** with `Content-Type: application/json` (Body tab → raw → JSON). Do not use form-data for this endpoint.\n\n### Notes\n\n- Missing any field → `400 Validation failed` with each missing field in `messages`.\n- Values outside the fixed lists (e.g. `\"sports\": [\"Ping Pong\"]`) → `400`.\n- Zero main images or more than one main image → `400`.\n- Duplicate phone / email / username → `409 Conflict`.\n- This request auto-saves `accessToken` and `refreshToken` into collection variables (see the *Tests* tab), so the protected requests below work immediately.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+8801700000000\",\n  \"email\": \"test@48date.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"username\": \"testuser123\",\n  \"birthDate\": \"1998-05-12\",\n  \"occupation\": \"Engineer\",\n  \"gender\": \"MALE\",\n  \"interestedIn\": \"FEMALE\",\n  \"smoker\": \"NONE\",\n  \"alcohol\": \"OCCASIONALLY\",\n  \"kids\": \"DONT_HAVE\",\n  \"wantsKids\": true,\n  \"lookingFor\": \"REAL_RELATIONSHIP\",\n  \"locations\": [\"Dhaka\", \"Chattogram\"],\n  \"lastLocation\": \"Dhaka\",\n  \"heightCm\": 175,\n  \"weightKg\": 70,\n  \"creativity\": [\"Art\", \"Photography\"],\n  \"sports\": [\"Cricket\", \"Gym\"],\n  \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"],\n  \"images\": [\n    { \"url\": \"https://cdn.example.com/photos/main.jpg\", \"isMain\": true, \"sortOrder\": 0 },\n    { \"url\": \"https://cdn.example.com/photos/2.jpg\", \"isMain\": false, \"sortOrder\": 1 }\n  ],\n  \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\",\n  \"notificationsEnabled\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/register" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Account created successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"test@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": false,\n        \"isPhoneVerified\": false,\n        \"isUserVerified\": false\n      },\n      \"basicProfile\": {\n        \"name\": \"Test User\",\n        \"firstName\": \"Test\",\n        \"lastName\": \"User\",\n        \"username\": \"testuser123\",\n        \"birthDate\": \"1998-05-12T00:00:00.000Z\",\n        \"occupation\": \"Engineer\",\n        \"gender\": \"MALE\",\n        \"interestedIn\": \"FEMALE\"\n      },\n      \"lifestyle\": {\n        \"smoker\": \"NONE\",\n        \"alcohol\": \"OCCASIONALLY\",\n        \"kids\": \"DONT_HAVE\",\n        \"wantsKids\": true,\n        \"lookingFor\": \"REAL_RELATIONSHIP\"\n      },\n      \"location\": {\n        \"locations\": [\"Dhaka\", \"Chattogram\"],\n        \"lastLocation\": \"Dhaka\"\n      },\n      \"body\": {\n        \"heightCm\": 175,\n        \"weightKg\": 70\n      },\n      \"interests\": {\n        \"creativity\": [\"Art\", \"Photography\"],\n        \"sports\": [\"Cricket\", \"Gym\"],\n        \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"]\n      },\n      \"media\": {\n        \"images\": [\n          { \"id\": \"img_1\", \"url\": \"https://cdn.example.com/photos/main.jpg\", \"hash\": null, \"width\": null, \"height\": null, \"isMain\": true, \"sortOrder\": 0, \"createdAt\": \"2026-08-17T08:55:00.000Z\" },\n          { \"id\": \"img_2\", \"url\": \"https://cdn.example.com/photos/2.jpg\", \"hash\": null, \"width\": null, \"height\": null, \"isMain\": false, \"sortOrder\": 1, \"createdAt\": \"2026-08-17T08:55:00.000Z\" }\n        ],\n        \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\",\n        \"selfieVerified\": false,\n        \"notificationsEnabled\": true\n      },\n      \"meta\": {\n        \"subscriptionId\": null,\n        \"lastLoginAt\": null,\n        \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n        \"updatedAt\": \"2026-08-17T08:55:00.000Z\"\n      }\n    },\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/register" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"phone must be a valid international number in E.164 format (e.g. +8801...)\",\n    \"password must be longer than or equal to 8 characters\",\n    \"images can contain at most 6 photos\"\n  ],\n  \"statusCode\": 400\n}"
+            },
+            {
+              "name": "Error — 409 Conflict (duplicate field)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/register" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Username is already taken\",\n  \"messages\": [\"Username is already taken\"],\n  \"statusCode\": 409\n}"
+            },
+            {
+              "name": "Error — 409 Conflict (duplicate email)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/register" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Email is already registered\",\n  \"messages\": [\"Email is already registered\"],\n  \"statusCode\": 409\n}"
+            },
+            {
+              "name": "Error — 409 Conflict (duplicate phone)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/register" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Phone number is already registered\",\n  \"messages\": [\"Phone number is already registered\"],\n  \"statusCode\": 409\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.accessToken) pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "if (json.data?.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A-02 Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Logs in with phone + password. On success returns the categorized profile, a fresh token pair (inside `data`), and updates the user's `lastLoginAt`.\n\n### Request Body — raw JSON\n\n```json\n{\n  \"phone\": \"+8801700000000\", // REQUIRED — the registered phone number.\n  \"password\": \"password123\"  // REQUIRED — the account password.\n}\n```\n\n> Send as **raw JSON** with `Content-Type: application/json`.\n\n### Notes\n\n- Wrong phone or wrong password both return `401` with `message: \"Invalid credentials\"` (no account enumeration).\n- This request auto-saves a fresh `accessToken` / `refreshToken` into collection variables.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+8801700000000\",\n  \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/login" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Logged in successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"test@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": false,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": { \"name\": \"Test User\", \"firstName\": \"Test\", \"lastName\": \"User\", \"username\": \"testuser123\", \"birthDate\": \"1998-05-12T00:00:00.000Z\", \"occupation\": \"Engineer\", \"gender\": \"MALE\", \"interestedIn\": \"FEMALE\" },\n      \"lifestyle\": { \"smoker\": \"NONE\", \"alcohol\": \"OCCASIONALLY\", \"kids\": \"DONT_HAVE\", \"wantsKids\": true, \"lookingFor\": \"REAL_RELATIONSHIP\" },\n      \"location\": { \"locations\": [\"Dhaka\", \"Chattogram\"], \"lastLocation\": \"Dhaka\" },\n      \"body\": { \"heightCm\": 175, \"weightKg\": 70 },\n      \"interests\": { \"creativity\": [\"Art\", \"Photography\"], \"sports\": [\"Cricket\", \"Gym\"], \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"] },\n      \"media\": { \"images\": [], \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\", \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"meta\": { \"subscriptionId\": null, \"lastLoginAt\": \"2026-08-17T09:10:00.000Z\", \"createdAt\": \"2026-08-17T08:55:00.000Z\", \"updatedAt\": \"2026-08-17T09:10:00.000Z\" }\n    },\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
+            },
+            {
+              "name": "Error — 401 Invalid credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/login" }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid credentials\",\n  \"messages\": [\"Invalid credentials\"],\n  \"statusCode\": 401\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/login" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"password must be a string\"],\n  \"statusCode\": 400\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.accessToken) pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "if (json.data?.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A-03 Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "request-otp"]
+            },
+            "description": "Requests a verification code for an account. **Public endpoint — no Bearer token required.** Identifies the account by the phone or email that matches the chosen channel. **Dummy implementation:** no message is sent; the fixed code `123456` is returned inside `data` for development.\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"phone\",              // REQUIRED — which channel to verify: \"email\" or \"phone\".\n  \"phone\": \"+8801700000000\"        // REQUIRED when channel is \"phone\" — E.164 format.\n  // \"email\": \"test@48date.com\"    // REQUIRED instead when channel is \"email\".\n}\n```\n\n### Notes\n\n- Provide **exactly one** identifier matching the channel: `phone` with `channel: \"phone\"`, or `email` with `channel: \"email\"`. Mismatches return `400`.\n- The endpoint deliberately does not check whether the account exists (no account enumeration) — `verify-otp` will return `404` for unknown identifiers.\n- When Twilio Verify / SMTP are integrated, this endpoint will actually send the code and stop returning it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"phone\",\n  \"phone\": \"+8801700000000\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/request-otp" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OTP sent successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"channel\": \"phone\",\n    \"otp\": \"123456\",\n    \"message\": \"Dummy OTP — development only, no message was sent\"\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Channel/identifier mismatch",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/request-otp" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"email must be a valid email address when channel is \\\"email\\\"\",\n    \"channel must be either \\\"email\\\" or \\\"phone\\\"\"\n  ],\n  \"statusCode\": 400\n}"
+            }
+          ]
+        },
+        {
+          "name": "A-04 Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "verify-otp"]
+            },
+            "description": "Verifies the OTP for an account and flips the matching verification flag. **Public endpoint — no Bearer token required.**\n\n- `channel: \"phone\"` + valid OTP → `isPhoneVerified: true`\n- `channel: \"email\"` + valid OTP → `isEmailVerified: true`\n- Either one also sets `isUserVerified: true` (the user is verified when **any** channel is verified)\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"phone\",              // REQUIRED — which channel you are verifying: \"email\" or \"phone\".\n  \"phone\": \"+8801700000000\",       // REQUIRED when channel is \"phone\" — the account identifier.\n  // \"email\": \"test@48date.com\",   // REQUIRED instead when channel is \"email\".\n  \"otp\": \"123456\"                  // REQUIRED — exactly 6 digits. The dummy code is always 123456.\n}\n```\n\n### Notes\n\n- A wrong code returns `401` with `message: \"Invalid OTP\"`.\n- An identifier with no matching account returns `404` (`No account found with this phone/email`).\n- Verified channels stay verified — repeating the call is harmless but unnecessary.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"phone\",\n  \"phone\": \"+8801700000000\",\n  \"otp\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/verify-otp" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"test@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": false,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": { \"name\": \"Test User\", \"firstName\": \"Test\", \"lastName\": \"User\", \"username\": \"testuser123\", \"birthDate\": \"1998-05-12T00:00:00.000Z\", \"occupation\": \"Engineer\", \"gender\": \"MALE\", \"interestedIn\": \"FEMALE\" },\n      \"lifestyle\": { \"smoker\": \"NONE\", \"alcohol\": \"OCCASIONALLY\", \"kids\": \"DONT_HAVE\", \"wantsKids\": true, \"lookingFor\": \"REAL_RELATIONSHIP\" },\n      \"location\": { \"locations\": [\"Dhaka\", \"Chattogram\"], \"lastLocation\": \"Dhaka\" },\n      \"body\": { \"heightCm\": 175, \"weightKg\": 70 },\n      \"interests\": { \"creativity\": [\"Art\", \"Photography\"], \"sports\": [\"Cricket\", \"Gym\"], \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"] },\n      \"media\": { \"images\": [], \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\", \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"meta\": { \"subscriptionId\": null, \"lastLoginAt\": null, \"createdAt\": \"2026-08-17T08:55:00.000Z\", \"updatedAt\": \"2026-08-17T09:05:00.000Z\" }\n    },\n    \"verified\": true\n  }\n}"
+            },
+            {
+              "name": "Error — 401 Invalid OTP",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/verify-otp" }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP\",\n  \"messages\": [\"Invalid OTP\"],\n  \"statusCode\": 401\n}"
+            },
+            {
+              "name": "Error — 404 No account found",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/verify-otp" }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"No account found with this phone\",\n  \"messages\": [\"No account found with this phone\"],\n  \"statusCode\": 404\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/verify-otp" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"otp must be exactly 6 digits\"],\n  \"statusCode\": 400\n}"
+            }
+          ]
+        },
+        {
+          "name": "A-05 Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "forgot-password"]
+            },
+            "description": "Requests a password-reset OTP for an account. **Public endpoint — no Bearer token required.** Identifies the account by phone or email matching the chosen channel. **Dummy implementation:** returns the fixed code `123456`; no message is sent.\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"email\",              // REQUIRED — which channel to send the reset code through: \"email\" or \"phone\".\n  \"email\": \"test@48date.com\"       // REQUIRED when channel is \"email\".\n  // \"phone\": \"+8801700000000\"     // REQUIRED instead when channel is \"phone\".\n}\n```\n\n### Notes\n\n- Same channel/identifier rules as `request-otp`: provide exactly one identifier matching the channel, else `400`.\n- The endpoint does not reveal whether the account exists (no account enumeration) — the next step (`verify-forgot-password`) returns `404` for unknown identifiers.\n- Next step: send the OTP to `verify-forgot-password` to get a `resetToken`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"email\": \"test@48date.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/forgot-password" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Reset OTP sent successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"channel\": \"email\",\n    \"otp\": \"123456\",\n    \"message\": \"Dummy OTP — development only, no message was sent\"\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/forgot-password" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"phone must be a valid international number in E.164 format when channel is \\\"phone\\\"\"\n  ],\n  \"statusCode\": 400\n}"
+            }
+          ]
+        },
+        {
+          "name": "A-06 Verify Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "verify-forgot-password"]
+            },
+            "description": "Verifies the password-reset OTP and issues a **short-lived reset token** (15 minutes) used by `reset-password`. **Public endpoint — no Bearer token required.**\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"phone\",              // REQUIRED — the channel you requested the reset code through.\n  \"phone\": \"+8801700000000\",       // REQUIRED when channel is \"phone\".\n  // \"email\": \"test@48date.com\",   // REQUIRED instead when channel is \"email\".\n  \"otp\": \"123456\"                  // REQUIRED — exactly 6 digits. The dummy code is always 123456.\n}\n```\n\n### Notes\n\n- Wrong OTP → `401 Invalid OTP`; unknown identifier → `404`.\n- The response auto-saves `resetToken` into the collection variable (see the *Tests* tab) — `reset-password` is pre-filled with `{{resetToken}}`.\n- The token expires after 15 minutes; expired tokens return `401` at `reset-password`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"phone\",\n  \"phone\": \"+8801700000000\",\n  \"otp\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/verify-forgot-password" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified — you can now reset your password\",\n  \"messages\": [],\n  \"data\": {\n    \"resetToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"expiresIn\": \"15m\"\n  }\n}"
+            },
+            {
+              "name": "Error — 401 Invalid OTP",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/verify-forgot-password" }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP\",\n  \"messages\": [\"Invalid OTP\"],\n  \"statusCode\": 401\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.resetToken) pm.collectionVariables.set('resetToken', json.data.resetToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A-07 Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "reset-password"]
+            },
+            "description": "Sets a new password using the reset token from `verify-forgot-password`. **Public endpoint — no Bearer token required.**\n\n### Request Body — raw JSON\n\n```json\n{\n  \"resetToken\": \"{{resetToken}}\", // REQUIRED — from verify-forgot-password. Pre-filled via collection variable.\n  \"newPassword\": \"newpassword456\"  // REQUIRED — minimum 8 characters.\n}\n```\n\n### Notes\n\n- Invalid or expired reset token → `401 Invalid or expired reset token`.\n- After a successful reset, log in with the new password.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"newpassword456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/reset-password" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Password reset successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"message\": \"Password updated successfully\"\n  }\n}"
+            },
+            {
+              "name": "Error — 401 Invalid or expired reset token",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/reset-password" }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or expired reset token\",\n  \"messages\": [\"Invalid or expired reset token\"],\n  \"statusCode\": 401\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/reset-password" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"newPassword must be longer than or equal to 8 characters\"],\n  \"statusCode\": 400\n}"
+            }
+          ]
+        },
+        {
+          "name": "A-08 Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Exchanges a valid refresh token for a new access/refresh token pair. Use this when the access token expires (after 15 minutes).\n\n### Request Body — raw JSON\n\n```json\n{\n  \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\" // REQUIRED — the refresh token from Register/Login. Uses {{refreshToken}} if left empty.\n}\n```\n\n> The request is pre-filled with the collection variable `{{refreshToken}}` (auto-saved by Register/Login).\n\n### Notes\n\n- Expired or invalid refresh tokens return `401`.\n- The response auto-saves the new token pair, so the protected requests keep working.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/refresh" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Tokens refreshed successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
+            },
+            {
+              "name": "Error — 401 Invalid or expired refresh token",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/refresh" }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or expired refresh token\",\n  \"messages\": [\"Invalid or expired refresh token\"],\n  \"statusCode\": 401\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.accessToken) pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "if (json.data?.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A-09 Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logs the user out. Requires a valid Bearer token (the endpoint confirms it), after which the client should **discard its stored tokens**.\n\n### Headers\n\n- `Authorization: Bearer {{accessToken}}` — required (auto-filled from Register/Login).\n\n### Body\n\n- None. Do not attach a body.\n\n### Notes\n\n- Logout is stateless for now (JWT tokens can't be revoked server-side without extra infrastructure). A Redis blacklist can be added later to make it server-enforced.",
+            "body": { "mode": "raw", "raw": "" }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/auth/logout" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Logged out successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"message\": \"Logged out successfully\"\n  }\n}"
+            },
+            {
+              "name": "Error — 401 Missing/invalid token",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/auth/logout" }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Unauthorized\",\n  \"messages\": [\"Unauthorized\"],\n  \"statusCode\": 401\n}"
+            }
+          ]
+        },
+        {
+          "name": "A-10 Me (Profile)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Returns the authenticated user's full profile inside `data`, **categorized** into sections (`auth`, `basicProfile`, `lifestyle`, `location`, `body`, `interests`, `media`, `meta`), including uploaded images (ordered by `sortOrder`).\n\n### Headers\n\n- `Authorization: Bearer {{accessToken}}` — required (auto-filled from Register/Login).\n\n### Body\n\n- None. This is a GET request — do not attach a body.\n\n### Notes\n\n- The response never includes `passwordHash`.\n- `media.images` is an array of the user's photo records; empty until photos are added.",
+            "body": { "mode": "raw", "raw": "" }
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": { "raw": "{{baseUrl}}/auth/me" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile fetched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"auth\": {\n      \"phone\": \"+8801700000000\",\n      \"email\": \"test@48date.com\",\n      \"role\": \"USER\",\n      \"isEmailVerified\": false,\n      \"isPhoneVerified\": true,\n      \"isUserVerified\": true\n    },\n    \"basicProfile\": {\n      \"name\": \"Test User\",\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"username\": \"testuser123\",\n      \"birthDate\": \"1998-05-12T00:00:00.000Z\",\n      \"occupation\": \"Engineer\",\n      \"gender\": \"MALE\",\n      \"interestedIn\": \"FEMALE\"\n    },\n    \"lifestyle\": {\n      \"smoker\": \"NONE\",\n      \"alcohol\": \"OCCASIONALLY\",\n      \"kids\": \"DONT_HAVE\",\n      \"wantsKids\": true,\n      \"lookingFor\": \"REAL_RELATIONSHIP\"\n    },\n    \"location\": {\n      \"locations\": [\"Dhaka\", \"Chattogram\"],\n      \"lastLocation\": \"Dhaka\"\n    },\n    \"body\": {\n      \"heightCm\": 175,\n      \"weightKg\": 70\n    },\n    \"interests\": {\n      \"creativity\": [\"Art\", \"Photography\"],\n      \"sports\": [\"Cricket\", \"Gym\"],\n      \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"]\n    },\n    \"media\": {\n      \"images\": [\n        { \"id\": \"img_1\", \"url\": \"https://cdn.example.com/photos/main.jpg\", \"hash\": null, \"width\": null, \"height\": null, \"isMain\": true, \"sortOrder\": 0, \"createdAt\": \"2026-08-17T08:55:00.000Z\" }\n      ],\n      \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\",\n      \"selfieVerified\": false,\n      \"notificationsEnabled\": true\n    },\n    \"meta\": {\n      \"subscriptionId\": null,\n      \"lastLoginAt\": \"2026-08-17T09:10:00.000Z\",\n      \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n      \"updatedAt\": \"2026-08-17T09:20:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Error — 401 Missing/invalid token",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/auth/me" }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Unauthorized\",\n  \"messages\": [\"Unauthorized\"],\n  \"statusCode\": 401\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,98 +1,103 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 48Date Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend API for the **48Date** dating app — NestJS (TypeScript), PostgreSQL + Prisma, Redis, JWT auth. Flutter user app and React admin panel consume this API.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> **Status:** auth module is implemented and tested (register → OTP verify → login → refresh → logout → password reset). Next up: users/profile, images, matches, chat…
 
-## Description
+## Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Layer | Tech |
+|---|---|
+| Framework | NestJS 11 (TypeScript, ESM) |
+| Database | PostgreSQL 16 (local via Docker Compose) |
+| ORM | Prisma 7 (multi-file schema, migrations) |
+| Cache/queue store | Redis 7 (running locally; used by future modules) |
+| Auth | JWT (`@nestjs/passport`) — access + refresh tokens, role-based guards |
+| OTP (dev) | Dummy code `123456` — Twilio/SMTP integration comes later |
 
-## Project setup
+## Quick start
+
+**Prerequisites:** Node.js 22 LTS (`nvm use 22`), Docker.
 
 ```bash
-$ npm install
+# 1. Start Postgres + Redis
+docker compose up -d
+docker ps                     # both containers should be "Up"
+
+# 2. Install dependencies
+npm install
+
+# 3. Create .env from the template and fill in the two JWT secrets
+cp .env.example .env          # then edit .env (see "Environment" below)
+
+# 4. Create the database tables + generate the Prisma client
+npx prisma migrate dev --name init
+npx prisma generate           # required in Prisma 7 (migrate doesn't auto-generate)
+
+# 5. Run the dev server (watch mode, port 3000)
+npm run start:dev
 ```
 
-## Compile and run the project
+## Auth endpoints
+
+All responses use the envelope `{ success, message, messages, data }` (errors: `{ success: false, message, messages, statusCode }`). User profiles are returned categorized (`auth`, `basicProfile`, `lifestyle`, `location`, `body`, `interests`, `media`, `meta`) and never include `passwordHash`.
+
+| Serial | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| A-01 | POST | `/auth/register` | — | Create account (all profile fields required), returns profile + tokens |
+| A-02 | POST | `/auth/login` | — | Phone + password → profile + tokens |
+| A-03 | POST | `/auth/request-otp` | — | Request dummy OTP (phone/email + channel) |
+| A-04 | POST | `/auth/verify-otp` | — | Verify OTP → sets `isPhoneVerified`/`isEmailVerified` + `isUserVerified` |
+| A-05 | POST | `/auth/forgot-password` | — | Request dummy reset OTP |
+| A-06 | POST | `/auth/verify-forgot-password` | — | Verify reset OTP → `resetToken` (15 min) |
+| A-07 | POST | `/auth/reset-password` | — | Set new password with `resetToken` |
+| A-08 | POST | `/auth/refresh` | — | Refresh token → new token pair |
+| A-09 | POST | `/auth/logout` | Bearer | Log out (client discards tokens) |
+| A-10 | GET | `/auth/me` | Bearer | Categorized profile + images |
+
+Try them instantly in Postman: import `postman/48date-backend.postman_collection.json` — it auto-captures tokens and includes success/error examples for every endpoint.
+
+## Common commands
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev      # dev server (watch)
+npm run build          # type-check + compile to dist/
+npm run start:prod     # run compiled dist/main.js
+npm run lint           # eslint (auto-fix)
+npm run test           # unit tests
+npm run test:e2e       # e2e tests
+npx prisma validate    # check schema syntax
+npx prisma migrate dev --name <desc>   # create + apply a migration (local)
+npx prisma migrate deploy              # apply committed migrations (prod/CI)
+npx prisma generate    # regenerate client after schema changes (Prisma 7)
 ```
 
-## Run tests
+> ⚠️ `npx prisma migrate reset --force` wipes all local data — dev only, never production.
 
-```bash
-# unit tests
-$ npm run test
+## Project structure
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```
+prisma/            # schema (models/, enums/), migrations/, prisma.config.ts
+src/
+├── main.ts        # bootstrap: global validation pipe + error filter
+├── app.module.ts  # root module (Config + Prisma)
+├── common/        # prisma service, response envelope, guards, filters, user-formatter
+└── auth/          # auth module: controller, service, DTOs, JWT strategy
+docs/              # project-guide.md (deep dive), 48Date-Backend-Tech-Stack.docx
 ```
 
-## Deployment
+## Environment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+`cp .env.example .env` — the only variables needed **now** are `PORT`, `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (fill the two secrets with long random strings). The rest (Twilio, R2, SMTP, Mapbox, RevenueCat…) are placeholders for future modules.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Docs
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+- `docs/project-guide.md` — **read this first if you're new to NestJS/Postgres/Prisma**: stack translation (Mongo/Express → here), file-by-file explanation, every auth endpoint end to end, Prisma/migration workflow, commands, .env.
+- `AGENTS.md` — project rules and conventions (authoritative).
+- `docs/48Date-Backend-Tech-Stack.docx` — canonical requirements & tech-stack decisions.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Notes for contributors
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- The project runs **ESM** (`"type": "module"`) because Prisma 7's client is ESM-only — keep `.js` extensions on relative imports.
+- Import Prisma from `src/generated/prisma/` (gitignored, regenerated), not `@prisma/client`.
+- Run `npm run lint` + `npm run build` (and relevant tests) before finishing changes.
