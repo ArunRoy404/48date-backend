@@ -1,0 +1,15 @@
+model Image {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url       String // full URL — images live on an external server, we only store the link
+  hash      String? // optional metadata for later dedupe; empty for now
+  width     Int?
+  height    Int?
+  isMain    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("images")
+}
