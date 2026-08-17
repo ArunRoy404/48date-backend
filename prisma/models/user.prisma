@@ -4,9 +4,10 @@ model User {
   phone         String   @unique
   email         String?  @unique
   passwordHash  String?
-  role          Role     @default(USER)
-  emailVerified Boolean  @default(false)
-  phoneVerified Boolean  @default(false)
+  role            Role     @default(USER)
+  isEmailVerified Boolean  @default(false)
+  isPhoneVerified Boolean  @default(false)
+  isUserVerified  Boolean  @default(false) // true when email OR phone is verified
 
   // --- Basic profile ---
   name          String?
