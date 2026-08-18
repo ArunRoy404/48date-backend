@@ -1,7 +1,7 @@
 model User {
   // --- Auth / identity ---
   id            String   @id @default(uuid())
-  phone         String   @unique
+  phone         String?  @unique
   email         String?  @unique
   passwordHash  String?
   role            Role     @default(USER)

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
-import { successResponse } from '../common/response/api-response.util.js';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { successResponse } from '../../common/response/api-response.util.js';
 import { AuthService } from './auth.service.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -11,6 +11,7 @@ import { RequestOtpDto } from './dto/request-otp.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { VerifyForgotPasswordDto } from './dto/verify-forgot-password.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
+import { GoogleLoginDto } from './dto/google-login.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -26,6 +27,12 @@ export class AuthController {
   async login(@Body() dto: LoginDto) {
     const data = await this.authService.login(dto);
     return successResponse(data, 'Logged in successfully');
+  }
+
+  @Post('google')
+  async googleLogin(@Body() dto: GoogleLoginDto) {
+    const data = await this.authService.googleLogin(dto);
+    return successResponse(data, 'Logged in with Google successfully');
   }
 
   @Post('request-otp')

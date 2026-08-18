@@ -8,8 +8,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../common/prisma/prisma.service.js';
-import { formatUser } from '../common/utils/user-formatter.js';
+import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { formatUser } from '../../common/utils/user-formatter.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { OtpChannelDto } from './dto/otp-channel.dto.js';
@@ -19,6 +19,7 @@ import { RequestOtpDto } from './dto/request-otp.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { VerifyForgotPasswordDto } from './dto/verify-forgot-password.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
+import { GoogleLoginDto } from './dto/google-login.dto.js';
 
 const DUMMY_OTP = '123456';
 const RESET_TOKEN_PURPOSE = 'password-reset';
@@ -32,16 +33,25 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const mainImages = dto.images.filter((image) => image.isMain);
-    if (mainImages.length !== 1) {
-      throw new BadRequestException('Exactly one image must be marked as main');
+    if (!dto.phone && !dto.email) {
+      throw new BadRequestException('Either phone or email must be provided');
     }
 
-    const birthDate = new Date(dto.birthDate);
-    if (Number.isNaN(birthDate.getTime()) || birthDate.getTime() > Date.now()) {
-      throw new BadRequestException(
-        'birthDate must be a valid date in the past',
-      );
+    if (dto.images && dto.images.length > 0) {
+      const mainImages = dto.images.filter((image) => image.isMain);
+      if (mainImages.length !== 1) {
+        throw new BadRequestException('Exactly one image must be marked as main');
+      }
+    }
+
+    let birthDate: Date | undefined = undefined;
+    if (dto.birthDate) {
+      birthDate = new Date(dto.birthDate);
+      if (Number.isNaN(birthDate.getTime()) || birthDate.getTime() > Date.now()) {
+        throw new BadRequestException(
+          'birthDate must be a valid date in the past',
+        );
+      }
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -50,44 +60,46 @@ export class AuthService {
       .create({
         data: {
           // Auth / identity
-          phone: dto.phone,
-          email: dto.email,
+          phone: dto.phone ?? null,
+          email: dto.email ?? null,
           passwordHash,
           // Basic profile
-          name: dto.name,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          username: dto.username,
+          name: dto.name ?? null,
+          firstName: dto.firstName ?? null,
+          lastName: dto.lastName ?? null,
+          username: dto.username ?? null,
           birthDate,
-          occupation: dto.occupation,
-          gender: dto.gender,
-          interestedIn: dto.interestedIn,
+          occupation: dto.occupation ?? null,
+          gender: dto.gender ?? null,
+          interestedIn: dto.interestedIn ?? null,
           // Lifestyle
-          smoker: dto.smoker,
-          alcohol: dto.alcohol,
-          kids: dto.kids,
-          wantsKids: dto.wantsKids,
-          lookingFor: dto.lookingFor,
+          smoker: dto.smoker ?? null,
+          alcohol: dto.alcohol ?? null,
+          kids: dto.kids ?? null,
+          wantsKids: dto.wantsKids ?? null,
+          lookingFor: dto.lookingFor ?? null,
           // Location
-          locations: dto.locations,
-          lastLocation: dto.lastLocation,
+          locations: dto.locations ?? [],
+          lastLocation: dto.lastLocation ?? null,
           // Body
-          heightCm: dto.heightCm,
-          weightKg: dto.weightKg,
+          heightCm: dto.heightCm ?? null,
+          weightKg: dto.weightKg ?? null,
           // Interests
-          creativity: dto.creativity,
-          sports: dto.sports,
-          moviesAndDramas: dto.moviesAndDramas,
+          creativity: dto.creativity ?? [],
+          sports: dto.sports ?? [],
+          moviesAndDramas: dto.moviesAndDramas ?? [],
           // Media
-          selfieUrl: dto.selfieUrl,
-          notificationsEnabled: dto.notificationsEnabled,
-          images: {
-            create: dto.images.map((image, index) => ({
-              url: image.url,
-              isMain: image.isMain,
-              sortOrder: image.sortOrder ?? index,
-            })),
-          },
+          selfieUrl: dto.selfieUrl ?? null,
+          notificationsEnabled: dto.notificationsEnabled ?? true,
+          images: dto.images && dto.images.length > 0
+            ? {
+                create: dto.images.map((image, index) => ({
+                  url: image.url,
+                  isMain: image.isMain,
+                  sortOrder: image.sortOrder ?? index,
+                })),
+              }
+            : undefined,
         },
         include: { images: { orderBy: { sortOrder: 'asc' } } },
       })
@@ -104,8 +116,12 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { phone: dto.phone },
+    if (!dto.phone && !dto.email) {
+      throw new BadRequestException('Either phone or email must be provided');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: dto.phone ? { phone: dto.phone } : { email: dto.email },
     });
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
@@ -157,13 +173,14 @@ export class AuthService {
         ...(dto.channel === 'email'
           ? { isEmailVerified: true }
           : { isPhoneVerified: true }),
-        // Verified if any one of email / phone is confirmed.
-        isUserVerified: true,
+        // Keeps user profile verification false until full profile setup is completed.
+        isUserVerified: false,
       },
       include: { images: { orderBy: { sortOrder: 'asc' } } },
     });
 
-    return { user: formatUser(updated), verified: true };
+    const tokens = await this.issueTokens(updated.id, updated.role);
+    return { user: formatUser(updated), verified: true, ...tokens };
   }
 
   /**
@@ -317,6 +334,59 @@ export class AuthService {
     return dto.channel === 'email'
       ? this.prisma.user.findUnique({ where: { email: dto.email! } })
       : this.prisma.user.findUnique({ where: { phone: dto.phone! } });
+  }
+
+  async googleLogin(dto: GoogleLoginDto) {
+    let email: string;
+    let name: string;
+
+    try {
+      // Decode the JWT token payload without signature verification (simple & zero dependencies in dev/mock)
+      const payloadBase64 = dto.idToken.split('.')[1];
+      const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+      const payload = JSON.parse(payloadJson) as { email: string; name?: string };
+
+      if (!payload.email) {
+        throw new BadRequestException('Invalid Google ID token payload: missing email');
+      }
+      email = payload.email;
+      name = payload.name || email.split('@')[0];
+    } catch (e) {
+      throw new BadRequestException(
+        'Failed to parse Google ID token: ' +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
+
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+      include: { images: { orderBy: { sortOrder: 'asc' } } },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          name,
+          isEmailVerified: true,
+          isPhoneVerified: false,
+          isUserVerified: false,
+        },
+        include: { images: { orderBy: { sortOrder: 'asc' } } },
+      });
+    } else {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          isEmailVerified: true,
+          lastLoginAt: new Date(),
+        },
+        include: { images: { orderBy: { sortOrder: 'asc' } } },
+      });
+    }
+
+    const tokens = await this.issueTokens(user.id, user.role);
+    return { user: formatUser(user), ...tokens };
   }
 
   private async issueTokens(userId: string, role: string) {

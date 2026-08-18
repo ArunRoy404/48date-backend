@@ -7,7 +7,7 @@ import type { Image, User } from '../../generated/prisma/client.js';
 export interface FormattedUser {
   id: string;
   auth: {
-    phone: string;
+    phone: string | null;
     email: string | null;
     role: 'USER' | 'ADMIN';
     isEmailVerified: boolean;
