@@ -1,0 +1,11 @@
+model Block {
+  id            String   @id @default(uuid())
+  blockerId     String
+  blocker       User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedUserId String
+  blockedUser   User     @relation("Blocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([blockerId, blockedUserId])
+  @@map("blocks")
+}

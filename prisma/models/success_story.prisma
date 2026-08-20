@@ -1,0 +1,20 @@
+model SuccessStory {
+  id        String      @id @default(uuid())
+  authorId  String
+  author    User        @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  partnerId String
+  partner   User        @relation("StoryPartner", fields: [partnerId], references: [id], onDelete: Cascade)
+  matchId   String?     @unique
+  match     Match?      @relation(fields: [matchId], references: [id])
+  title     String
+  story     String
+  images    String[] // r2 keys
+  status    StoryStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  likes    SuccessStoryLike[]
+  comments SuccessStoryComment[]
+
+  @@map("success_stories")
+}

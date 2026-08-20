@@ -1,0 +1,14 @@
+model GameSession {
+  id          String        @id @default(uuid())
+  gameId      String
+  game        Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  matchId     String
+  match       Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  status      SessionStatus @default(IN_PROGRESS)
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+
+  answers GameAnswer[]
+
+  @@map("game_sessions")
+}

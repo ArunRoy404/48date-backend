@@ -40,14 +40,19 @@ export class AuthService {
     if (dto.images && dto.images.length > 0) {
       const mainImages = dto.images.filter((image) => image.isMain);
       if (mainImages.length !== 1) {
-        throw new BadRequestException('Exactly one image must be marked as main');
+        throw new BadRequestException(
+          'Exactly one image must be marked as main',
+        );
       }
     }
 
     let birthDate: Date | undefined = undefined;
     if (dto.birthDate) {
       birthDate = new Date(dto.birthDate);
-      if (Number.isNaN(birthDate.getTime()) || birthDate.getTime() > Date.now()) {
+      if (
+        Number.isNaN(birthDate.getTime()) ||
+        birthDate.getTime() > Date.now()
+      ) {
         throw new BadRequestException(
           'birthDate must be a valid date in the past',
         );
@@ -91,15 +96,16 @@ export class AuthService {
           // Media
           selfieUrl: dto.selfieUrl ?? null,
           notificationsEnabled: dto.notificationsEnabled ?? true,
-          images: dto.images && dto.images.length > 0
-            ? {
-                create: dto.images.map((image, index) => ({
-                  url: image.url,
-                  isMain: image.isMain,
-                  sortOrder: image.sortOrder ?? index,
-                })),
-              }
-            : undefined,
+          images:
+            dto.images && dto.images.length > 0
+              ? {
+                  create: dto.images.map((image, index) => ({
+                    r2Key: image.url,
+                    isPrimary: image.isMain,
+                    sortOrder: image.sortOrder ?? index,
+                  })),
+                }
+              : undefined,
         },
         include: { images: { orderBy: { sortOrder: 'asc' } } },
       })
@@ -343,11 +349,18 @@ export class AuthService {
     try {
       // Decode the JWT token payload without signature verification (simple & zero dependencies in dev/mock)
       const payloadBase64 = dto.idToken.split('.')[1];
-      const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-      const payload = JSON.parse(payloadJson) as { email: string; name?: string };
+      const payloadJson = Buffer.from(payloadBase64, 'base64').toString(
+        'utf-8',
+      );
+      const payload = JSON.parse(payloadJson) as {
+        email: string;
+        name?: string;
+      };
 
       if (!payload.email) {
-        throw new BadRequestException('Invalid Google ID token payload: missing email');
+        throw new BadRequestException(
+          'Invalid Google ID token payload: missing email',
+        );
       }
       email = payload.email;
       name = payload.name || email.split('@')[0];

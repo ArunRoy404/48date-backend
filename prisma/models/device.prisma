@@ -1,0 +1,11 @@
+model Device {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fcmToken     String   @unique
+  platform     Platform
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@map("devices")
+}

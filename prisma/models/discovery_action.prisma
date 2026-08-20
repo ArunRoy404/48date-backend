@@ -1,0 +1,14 @@
+model DiscoveryAction {
+  id           String     @id @default(uuid())
+  actorId      String
+  actor        User       @relation("DiscoveryActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetUserId String
+  targetUser   User       @relation("DiscoveryTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  action       ActionType
+  createdAt    DateTime   @default(now())
+
+  // one swipe per direction per pair — re-swiping updates this row, it doesn't duplicate
+  @@unique([actorId, targetUserId])
+  @@index([targetUserId])
+  @@map("discovery_actions")
+}
