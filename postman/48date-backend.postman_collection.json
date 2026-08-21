@@ -27,10 +27,10 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "register"]
             },
-            "description": "Creates a new user account. **Every field is required** (no optional fields) — this matches the registration screens. Returns the categorized profile (no password hash) plus a JWT access/refresh token pair inside the envelope's `data`.\n\n### Request Body — raw JSON\n\n```json\n{\n  // --- Auth / identity ---\n  \"phone\": \"+8801700000000\",          // REQUIRED — E.164 format (e.g. +8801XXXXXXXXX). Unique.\n  \"email\": \"test@48date.com\",         // REQUIRED — valid email. Unique.\n  \"password\": \"password123\",          // REQUIRED — minimum 8 characters. Stored as a bcrypt hash.\n\n  // --- Basic profile ---\n  \"name\": \"Test User\",                // REQUIRED — full/display name.\n  \"firstName\": \"Test\",                // REQUIRED\n  \"lastName\": \"User\",                 // REQUIRED\n  \"username\": \"testuser123\",          // REQUIRED — nickname, shown on profile. Unique.\n  \"birthDate\": \"1998-05-12\",          // REQUIRED — ISO date, must be in the past.\n  \"occupation\": \"Engineer\",           // REQUIRED\n  \"gender\": \"MALE\",                   // REQUIRED — MALE | FEMALE | PREFER_NOT_TO_SAY\n  \"interestedIn\": \"FEMALE\",           // REQUIRED — \"who are you here to meet\": same values as gender.\n\n  // --- Lifestyle ---\n  \"smoker\": \"NONE\",                   // REQUIRED — REGULAR | OCCASIONALLY | NONE\n  \"alcohol\": \"OCCASIONALLY\",          // REQUIRED — same values as smoker.\n  \"kids\": \"DONT_HAVE\",                // REQUIRED — HAVE | DONT_HAVE\n  \"wantsKids\": true,                   // REQUIRED — boolean, future plan about kids.\n  \"lookingFor\": \"REAL_RELATIONSHIP\",  // REQUIRED — REAL_RELATIONSHIP | SOMETHING_MEANINGFUL | SEE_WHERE_IT_GOES | NEW_FRIENDS_FIRST\n\n  // --- Location ---\n  \"locations\": [\"Dhaka\", \"Chattogram\"], // REQUIRED — array of strings.\n  \"lastLocation\": \"Dhaka\",            // REQUIRED\n\n  // --- Body ---\n  \"heightCm\": 175,                     // REQUIRED — integer, 50–250.\n  \"weightKg\": 70,                      // REQUIRED — integer, 20–300.\n\n  // --- Interests (fixed option lists) ---\n  \"creativity\": [\"Art\", \"Photography\"],       // REQUIRED — Art | Design | Makeup | Photography | Singing\n  \"sports\": [\"Cricket\", \"Gym\"],               // REQUIRED — Running | Gym | Soccer | Cricket | Tennis | Basketball\n  \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"],   // REQUIRED — TV Shows | Romance | Comedy | K-Drama | Horror | Thriller | Sci-Fi | Fantasy | Anime | Zombie\n\n  // --- Media ---\n  \"images\": [                           // REQUIRED — array, 1 to 6 photos. EXACTLY ONE must have isMain: true.\n    { \"url\": \"https://cdn.example.com/photos/main.jpg\", \"isMain\": true, \"sortOrder\": 0 },\n    { \"url\": \"https://cdn.example.com/photos/2.jpg\", \"isMain\": false, \"sortOrder\": 1 }\n  ],\n  \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\", // REQUIRED — valid URL.\n  \"notificationsEnabled\": true          // REQUIRED — boolean.\n}\n```\n\n> The body must be sent as **raw JSON** with `Content-Type: application/json` (Body tab → raw → JSON). Do not use form-data for this endpoint.\n\n### Notes\n\n- Missing any field → `400 Validation failed` with each missing field in `messages`.\n- Values outside the fixed lists (e.g. `\"sports\": [\"Ping Pong\"]`) → `400`.\n- Zero main images or more than one main image → `400`.\n- Duplicate phone / email / username → `409 Conflict`.\n- This request auto-saves `accessToken` and `refreshToken` into collection variables (see the *Tests* tab), so the protected requests below work immediately.",
+            "description": "Creates a new user account. Only phone/email and password are required. Returns the categorized profile (no password hash) plus a JWT access/refresh token pair inside the envelope's `data`.\n\n### Request Body — raw JSON\n\n```json\n{\n  \"phone\": \"+8801700000000\",\n  \"email\": \"test@48date.com\",\n  \"password\": \"password123\"\n}\n```",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"phone\": \"+8801700000000\",\n  \"email\": \"test@48date.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"username\": \"testuser123\",\n  \"birthDate\": \"1998-05-12\",\n  \"occupation\": \"Engineer\",\n  \"gender\": \"MALE\",\n  \"interestedIn\": \"FEMALE\",\n  \"smoker\": \"NONE\",\n  \"alcohol\": \"OCCASIONALLY\",\n  \"kids\": \"DONT_HAVE\",\n  \"wantsKids\": true,\n  \"lookingFor\": \"REAL_RELATIONSHIP\",\n  \"locations\": [\"Dhaka\", \"Chattogram\"],\n  \"lastLocation\": \"Dhaka\",\n  \"heightCm\": 175,\n  \"weightKg\": 70,\n  \"creativity\": [\"Art\", \"Photography\"],\n  \"sports\": [\"Cricket\", \"Gym\"],\n  \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"],\n  \"images\": [\n    { \"url\": \"https://cdn.example.com/photos/main.jpg\", \"isMain\": true, \"sortOrder\": 0 },\n    { \"url\": \"https://cdn.example.com/photos/2.jpg\", \"isMain\": false, \"sortOrder\": 1 }\n  ],\n  \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\",\n  \"notificationsEnabled\": true\n}",
+              "raw": "{\n  \"phone\": \"+8801700000000\",\n  \"email\": \"test@48date.com\",\n  \"password\": \"password123\"\n}",
               "options": { "raw": { "language": "json" } }
             }
           },
@@ -239,7 +239,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "verify-otp"]
             },
-            "description": "Verifies the OTP for an account and flips the matching verification flag. **Public endpoint — no Bearer token required.**\n\n- `channel: \"phone\"` + valid OTP → `isPhoneVerified: true`\n- `channel: \"email\"` + valid OTP → `isEmailVerified: true`\n- Either one also sets `isUserVerified: true` (the user is verified when **any** channel is verified)\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"phone\",              // REQUIRED — which channel you are verifying: \"email\" or \"phone\".\n  \"phone\": \"+8801700000000\",       // REQUIRED when channel is \"phone\" — the account identifier.\n  // \"email\": \"test@48date.com\",   // REQUIRED instead when channel is \"email\".\n  \"otp\": \"123456\"                  // REQUIRED — exactly 6 digits. The dummy code is always 123456.\n}\n```\n\n### Notes\n\n- A wrong code returns `401` with `message: \"Invalid OTP\"`.\n- An identifier with no matching account returns `404` (`No account found with this phone/email`).\n- Verified channels stay verified — repeating the call is harmless but unnecessary.",
+            "description": "Verifies the OTP for an account and flips the matching verification flag. **Public endpoint — no Bearer token required.** Generates and returns access & refresh tokens on success.\n\n- `channel: \"phone\"` + valid OTP → `isPhoneVerified: true`\n- `channel: \"email\"` + valid OTP → `isEmailVerified: true`\n- Both cases keep `isUserVerified: false` until profile setup is complete.\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"phone\",              // REQUIRED — \"email\" or \"phone\".\n  \"phone\": \"+8801700000000\",       // REQUIRED when channel is \"phone\".\n  \"otp\": \"123456\"                  // REQUIRED — exactly 6 digits (dummy is 123456).\n}\n```",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"channel\": \"phone\",\n  \"phone\": \"+8801700000000\",\n  \"otp\": \"123456\"\n}",
@@ -257,7 +257,7 @@
               "status": "Created",
               "code": 201,
               "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
-              "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"test@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": false,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": { \"name\": \"Test User\", \"firstName\": \"Test\", \"lastName\": \"User\", \"username\": \"testuser123\", \"birthDate\": \"1998-05-12T00:00:00.000Z\", \"occupation\": \"Engineer\", \"gender\": \"MALE\", \"interestedIn\": \"FEMALE\" },\n      \"lifestyle\": { \"smoker\": \"NONE\", \"alcohol\": \"OCCASIONALLY\", \"kids\": \"DONT_HAVE\", \"wantsKids\": true, \"lookingFor\": \"REAL_RELATIONSHIP\" },\n      \"location\": { \"locations\": [\"Dhaka\", \"Chattogram\"], \"lastLocation\": \"Dhaka\" },\n      \"body\": { \"heightCm\": 175, \"weightKg\": 70 },\n      \"interests\": { \"creativity\": [\"Art\", \"Photography\"], \"sports\": [\"Cricket\", \"Gym\"], \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"] },\n      \"media\": { \"images\": [], \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\", \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"meta\": { \"subscriptionId\": null, \"lastLoginAt\": null, \"createdAt\": \"2026-08-17T08:55:00.000Z\", \"updatedAt\": \"2026-08-17T09:05:00.000Z\" }\n    },\n    \"verified\": true\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"test@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": false,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": false\n      },\n      \"basicProfile\": { \"name\": null, \"firstName\": null, \"lastName\": null, \"username\": null, \"birthDate\": null, \"occupation\": null, \"gender\": null, \"interestedIn\": null },\n      \"lifestyle\": { \"smoker\": null, \"alcohol\": null, \"kids\": null, \"wantsKids\": null, \"lookingFor\": null },\n      \"location\": { \"locations\": [], \"lastLocation\": null },\n      \"body\": { \"heightCm\": null, \"weightKg\": null },\n      \"interests\": { \"creativity\": [], \"sports\": [], \"moviesAndDramas\": [] },\n      \"media\": { \"images\": [], \"selfieUrl\": null, \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"meta\": { \"subscriptionId\": null, \"lastLoginAt\": null, \"createdAt\": \"2026-08-17T08:55:00.000Z\", \"updatedAt\": \"2026-08-17T09:05:00.000Z\" }\n    },\n    \"verified\": true,\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
             },
             {
               "name": "Error — 401 Invalid OTP",
@@ -294,6 +294,19 @@
               "code": 400,
               "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
               "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"otp must be exactly 6 digits\"],\n  \"statusCode\": 400\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.accessToken) pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "if (json.data?.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);"
+                ]
+              }
             }
           ]
         },
@@ -597,6 +610,53 @@
               "code": 401,
               "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
               "body": "{\n  \"success\": false,\n  \"message\": \"Unauthorized\",\n  \"messages\": [\"Unauthorized\"],\n  \"statusCode\": 401\n}"
+            }
+          ]
+        },
+        {
+          "name": "A-11 Google Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"]
+            },
+            "description": "Logs in / registers a user using a Google ID token. Decodes the token to obtain email and name. If it's a new email, it registers the account as verified by email (isEmailVerified: true), but keeps isUserVerified: false (needs profile setup). Returns categorized user profile + JWT tokens.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyBlbWFpbCI6ICJnb29nbGV1c2VyQDRkZGF0ZS5jb20iLCBuYW1lOiAiR29vZ2xlIFVzZXIiIH0.dummy_signature\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": { "raw": "{{baseUrl}}/auth/google" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Logged in with Google successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": null,\n        \"email\": \"googleuser@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": true,\n        \"isPhoneVerified\": false,\n        \"isUserVerified\": false\n      },\n      \"basicProfile\": { \"name\": \"Google User\", \"firstName\": null, \"lastName\": null, \"username\": null, \"birthDate\": null, \"occupation\": null, \"gender\": null, \"interestedIn\": null },\n      \"lifestyle\": { \"smoker\": null, \"alcohol\": null, \"kids\": null, \"wantsKids\": null, \"lookingFor\": null },\n      \"location\": { \"locations\": [], \"lastLocation\": null },\n      \"body\": { \"heightCm\": null, \"weightKg\": null },\n      \"interests\": { \"creativity\": [], \"sports\": [], \"moviesAndDramas\": [] },\n      \"media\": { \"images\": [], \"selfieUrl\": null, \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"media\": { \"images\": [], \"selfieUrl\": null, \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"meta\": { \"subscriptionId\": null, \"lastLoginAt\": null, \"createdAt\": \"2026-08-17T08:55:00.000Z\", \"updatedAt\": \"2026-08-17T09:05:00.000Z\" }\n    },\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.accessToken) pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "if (json.data?.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);"
+                ]
+              }
             }
           ]
         }

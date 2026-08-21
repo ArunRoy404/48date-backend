@@ -1,55 +1,97 @@
 model User {
   // --- Auth / identity ---
-  id            String   @id @default(uuid())
-  phone         String   @unique
-  email         String?  @unique
-  passwordHash  String?
+  id              String   @id @default(uuid())
+  phone           String?  @unique
+  email           String?  @unique
+  passwordHash    String?
   role            Role     @default(USER)
   isEmailVerified Boolean  @default(false)
   isPhoneVerified Boolean  @default(false)
   isUserVerified  Boolean  @default(false) // true when email OR phone is verified
 
   // --- Basic profile ---
-  name          String?
-  firstName     String?
-  lastName      String?
-  username      String?  @unique // nickname
-  birthDate     DateTime?
-  occupation    String?
-  gender        Gender?
-  interestedIn  Gender? // "who are you here to meet" — same options as gender
+  name         String?
+  firstName    String?
+  lastName     String?
+  username     String?   @unique
+  birthDate    DateTime?
+  occupation   String?
+  gender       Gender?
+  interestedIn Gender?
 
   // --- Lifestyle ---
-  smoker        HabitFrequency?
-  alcohol       HabitFrequency?
-  kids          KidsStatus?
-  wantsKids     Boolean? // future plan about kids
-  lookingFor    LookingFor?
+  smoker      HabitFrequency?
+  alcohol     HabitFrequency?
+  kids        KidsStatus?
+  wantsKids   Boolean?
+  lookingFor  LookingFor?
 
   // --- Location ---
-  locations     String[]
-  lastLocation  String?
+  locations    String[]
+  lastLocation String?
+  latitude  Float?
+  longitude Float?
 
   // --- Body ---
-  heightCm      Int?
-  weightKg      Int?
+  heightCm Int?
+  weightKg Int?
 
-  // --- Interests (fixed option lists, validated in app code) ---
-  creativity      String[] // Art, Design, Makeup, Photography, Singing
-  sports          String[] // Running, Gym, Soccer, Cricket, Tennis, Basketball
-  moviesAndDramas String[] // TV Shows, Romance, Comedy, K-Drama, Horror, Thriller, Sci-Fi, Fantasy, Anime, Zombie
+  // --- Interests ---
+  creativity      String[]
+  sports          String[]
+  moviesAndDramas String[]
 
   // --- Verification / media ---
-  images            Image[]
-  selfieUrl         String?
-  selfieVerified    Boolean  @default(false) // real verification comes later
-  notificationsEnabled Boolean @default(true)
+  images                Image[]
+  selfieUrl             String?
+  selfieVerified        Boolean @default(false)
+  notificationsEnabled  Boolean @default(true)
 
   // --- Billing / meta ---
   subscriptionId String?
   lastLoginAt    DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  // --- Discovery ---
+  discoveryPreference      DiscoveryPreference?
+  discoveryActionsGiven    DiscoveryAction[]    @relation("DiscoveryActor")
+  discoveryActionsReceived DiscoveryAction[]    @relation("DiscoveryTarget")
+
+  // --- Matching / chat ---
+  matchesAsLow  Match[]   @relation("MatchLow")
+  matchesAsHigh Match[]   @relation("MatchHigh")
+  messages      Message[]
+
+  // --- Games ---
+  gameAnswers GameAnswer[]
+
+  // --- Dates ---
+  datePlansProposed   DatePlan[]   @relation("DateProposer")
+  datePlansReceived   DatePlan[]   @relation("DateReceiver")
+  dateRatingsGiven    DateRating[] @relation("DateReviewer")
+  dateRatingsReceived DateRating[] @relation("DateReviewed")
+
+  // --- Trust ---
+  trustScore       TrustScore?
+  trustScoreEvents TrustScoreEvent[]
+
+  // --- Billing / platform ---
+  subscriptions Subscription[]
+  notifications Notification[]
+  devices       Device[]
+
+  // --- Safety ---
+  blocksGiven    Block[]  @relation("Blocker")
+  blocksReceived Block[]  @relation("Blocked")
+  reportsFiled   Report[] @relation("Reporter")
+  reportsReceived Report[] @relation("Reported")
+
+  // --- Social ---
+  successStoriesAuthored SuccessStory[]         @relation("StoryAuthor")
+  successStoriesFeatured SuccessStory[]         @relation("StoryPartner")
+  successStoryLikes      SuccessStoryLike[]
+  successStoryComments   SuccessStoryComment[]
 
   @@map("users")
 }

@@ -1,0 +1,7 @@
+enum LookingFor {
+  LONG_TERM
+  SHORT_TERM
+  FRIENDSHIP
+  CASUAL
+  STILL_FIGURING_OUT
+}

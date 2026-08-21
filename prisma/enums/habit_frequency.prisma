@@ -1,0 +1,6 @@
+enum HabitFrequency {
+  NEVER
+  SOMETIMES
+  OFTEN
+  DAILY
+}

@@ -1,0 +1,20 @@
+model Match {
+  id          String      @id @default(uuid())
+  userLowId   String
+  userLow     User        @relation("MatchLow", fields: [userLowId], references: [id], onDelete: Cascade)
+  userHighId  String
+  userHigh    User        @relation("MatchHigh", fields: [userHighId], references: [id], onDelete: Cascade)
+  status      MatchStatus @default(ACTIVE)
+  matchedAt   DateTime    @default(now())
+  unmatchedAt DateTime?
+
+  conversation Conversation?
+  gameSessions GameSession[]
+  datePlans    DatePlan[]
+  successStory SuccessStory?
+
+  // userLowId is always the smaller UUID of the pair — enforced in app code,
+  // this constraint is what stops Alice+Bob and Bob+Alice becoming two rows
+  @@unique([userLowId, userHighId])
+  @@map("matches")
+}
