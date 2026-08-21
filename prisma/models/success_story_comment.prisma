@@ -1,0 +1,12 @@
+model SuccessStoryComment {
+  id        String       @id @default(uuid())
+  storyId   String
+  story     SuccessStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime     @default(now())
+  deletedAt DateTime?
+
+  @@map("success_story_comments")
+}

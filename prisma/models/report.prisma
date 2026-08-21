@@ -1,0 +1,16 @@
+model Report {
+  id              String       @id @default(uuid())
+  reporterId      String
+  reporter        User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUserId  String
+  reportedUser    User         @relation("Reported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reason          String
+  description     String?
+  status          ReportStatus @default(PENDING)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  resolution      String?
+  createdAt       DateTime     @default(now())
+
+  @@map("reports")
+}

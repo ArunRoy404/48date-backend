@@ -1,0 +1,12 @@
+model DiscoveryPreference {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  minAge          Int      @default(18)
+  maxAge          Int      @default(60)
+  maxDistanceKm   Int      @default(50)
+  preferredGender Gender?
+  updatedAt       DateTime @updatedAt
+
+  @@map("discovery_preferences")
+}

@@ -1,0 +1,10 @@
+model Game {
+  id        String         @id @default(uuid())
+  type      GameType
+  name      String
+  isActive  Boolean        @default(true)
+  questions GameQuestion[]
+  sessions  GameSession[]
+
+  @@map("games")
+}

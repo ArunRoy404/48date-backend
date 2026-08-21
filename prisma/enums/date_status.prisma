@@ -1,0 +1,9 @@
+enum DateStatus {
+  DRAFT
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}

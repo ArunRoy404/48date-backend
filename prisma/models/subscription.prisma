@@ -1,0 +1,17 @@
+model Subscription {
+  id          String             @id @default(uuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        SubscriptionPlan
+  provider    String // "apple" | "google" | "revenuecat"
+  productId   String
+  priceUsd    Decimal?           @db.Decimal(10, 2)
+  status      SubscriptionStatus @default(ACTIVE)
+  startedAt   DateTime           @default(now())
+  expiresAt   DateTime?
+  cancelledAt DateTime?
+
+  events SubscriptionEvent[]
+
+  @@map("subscriptions")
+}

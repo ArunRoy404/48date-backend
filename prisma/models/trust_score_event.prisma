@@ -1,0 +1,12 @@
+model TrustScoreEvent {
+  id        String         @id @default(uuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      TrustEventType
+  points    Int
+  reason    String?
+  createdAt DateTime       @default(now())
+
+  @@index([userId])
+  @@map("trust_score_events")
+}

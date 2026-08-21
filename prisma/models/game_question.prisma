@@ -1,0 +1,14 @@
+model GameQuestion {
+  id       String  @id @default(uuid())
+  gameId   String
+  game     Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  question String
+  optionA  String
+  optionB  String
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  answers GameAnswer[]
+
+  @@map("game_questions")
+}

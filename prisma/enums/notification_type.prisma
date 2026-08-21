@@ -1,0 +1,8 @@
+enum NotificationType {
+  MATCH
+  MESSAGE
+  DATE_REMINDER
+  DATE_INVITE
+  SUBSCRIPTION
+  SYSTEM
+}
