@@ -9,6 +9,7 @@ model GameSession {
   completedAt DateTime?
 
   answers GameAnswer[]
+  messages Message[]
 
   @@map("game_sessions")
 }

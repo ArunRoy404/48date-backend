@@ -22,6 +22,7 @@ model DatePlan {
   updatedAt DateTime   @updatedAt
 
   ratings DateRating[]
+  messages Message[]
 
   @@map("date_plans")
 }

@@ -2,5 +2,6 @@ enum MessageType {
   TEXT
   IMAGE
   DATE_INVITE
+  GAME
   SYSTEM
 }

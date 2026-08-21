@@ -11,6 +11,11 @@ model Message {
   editedAt       DateTime?
   deletedAt      DateTime?
 
+  datePlanId     String?
+  datePlan       DatePlan?    @relation(fields: [datePlanId], references: [id], onDelete: SetNull)
+  gameSessionId  String?
+  gameSession    GameSession? @relation(fields: [gameSessionId], references: [id], onDelete: SetNull)
+
   @@index([conversationId])
   @@map("messages")
 }
