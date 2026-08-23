@@ -4,6 +4,8 @@ import { PrismaModule } from './common/prisma/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { ImagesModule } from './modules/images/images.module.js';
+import { DiscoveryModule } from './modules/discovery/discovery.module.js';
+import { MatchesModule } from './modules/matches/matches.module.js';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { ImagesModule } from './modules/images/images.module.js';
     AuthModule,
     UsersModule,
     ImagesModule,
+    DiscoveryModule,
+    MatchesModule,
   ],
 })
 export class AppModule {}

@@ -661,6 +661,719 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Users",
+      "description": "User profile management endpoints: setting up profile, fetching profile.",
+      "item": [
+        {
+          "name": "B-01 Setup Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"username\": \"janedoe123\",\n  \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n  \"occupation\": \"Software Engineer\",\n  \"gender\": \"FEMALE\",\n  \"interestedIn\": \"MALE\",\n  \"smoker\": \"NEVER\",\n  \"alcohol\": \"SOMETIMES\",\n  \"kids\": \"DOESNT_HAVE_KIDS\",\n  \"wantsKids\": true,\n  \"lookingFor\": \"LONG_TERM\",\n  \"locations\": [\"Dhaka\"],\n  \"lastLocation\": \"Dhaka\",\n  \"latitude\": 23.8103,\n  \"longitude\": 90.4125,\n  \"heightCm\": 165,\n  \"weightKg\": 55,\n  \"creativity\": [\"Art\", \"Photography\"],\n  \"sports\": [\"Gym\", \"Tennis\"],\n  \"moviesAndDramas\": [\"Romance\", \"Comedy\"],\n  \"images\": [\n    {\n      \"url\": \"http://localhost:3000/uploads/example-image.png\",\n      \"isMain\": true,\n      \"sortOrder\": 0\n    }\n  ],\n  \"selfieUrl\": \"http://localhost:3000/uploads/example-selfie.png\",\n  \"notificationsEnabled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile-setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "profile-setup"
+              ]
+            },
+            "description": "Updates the user profile fields. If all required profile fields (name/firstName+lastName, username, birthDate, gender, interestedIn, lookingFor, locations, images) are filled, the user's `isUserVerified` flag is automatically set to `true`."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/profile-setup"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile updated successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"auth\": {\n      \"phone\": \"+8801700000000\",\n      \"email\": \"test@48date.com\",\n      \"role\": \"USER\",\n      \"isEmailVerified\": false,\n      \"isPhoneVerified\": true,\n      \"isUserVerified\": true\n    },\n    \"basicProfile\": {\n      \"name\": \"Jane Doe\",\n      \"firstName\": \"Jane\",\n      \"lastName\": \"Doe\",\n      \"username\": \"janedoe123\",\n      \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n      \"occupation\": \"Software Engineer\",\n      \"gender\": \"FEMALE\",\n      \"interestedIn\": \"MALE\"\n    },\n    \"lifestyle\": {\n      \"smoker\": \"NEVER\",\n      \"alcohol\": \"SOMETIMES\",\n      \"kids\": \"DOESNT_HAVE_KIDS\",\n      \"wantsKids\": true,\n      \"lookingFor\": \"LONG_TERM\"\n    },\n    \"location\": {\n      \"locations\": [\"Dhaka\"],\n      \"lastLocation\": \"Dhaka\"\n    },\n    \"body\": {\n      \"heightCm\": 165,\n      \"weightKg\": 55\n    },\n    \"interests\": {\n      \"creativity\": [\"Art\", \"Photography\"],\n      \"sports\": [\"Gym\", \"Tennis\"],\n      \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n    },\n    \"media\": {\n      \"images\": [\n        {\n          \"id\": \"img_1\",\n          \"url\": \"http://localhost:3000/uploads/example-image.png\",\n          \"hash\": null,\n          \"width\": null,\n          \"height\": null,\n          \"isMain\": true,\n          \"sortOrder\": 0,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n        }\n      ],\n      \"selfieUrl\": \"http://localhost:3000/uploads/example-selfie.png\",\n      \"selfieVerified\": false,\n      \"notificationsEnabled\": true\n    },\n    \"meta\": {\n      \"subscriptionId\": null,\n      \"lastLoginAt\": \"2026-08-17T09:10:00.000Z\",\n      \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n      \"updatedAt\": \"2026-08-17T09:20:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/profile-setup"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"birthDate must be a valid ISO date\",\n    \"gender must be one of: MALE, FEMALE, NON_BINARY, OTHER\"\n  ],\n  \"statusCode\": 400\n}"
+            },
+            {
+              "name": "Error — 409 Conflict (username taken)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/profile-setup"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Username is already taken\",\n  \"messages\": [\n    \"Username is already taken\"\n  ],\n  \"statusCode\": 409\n}"
+            }
+          ]
+        },
+        {
+          "name": "B-02 Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "profile"
+              ]
+            },
+            "description": "Fetches the current logged in user's profile info."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/profile"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile fetched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"auth\": {\n      \"phone\": \"+8801700000000\",\n      \"email\": \"test@48date.com\",\n      \"role\": \"USER\",\n      \"isEmailVerified\": false,\n      \"isPhoneVerified\": true,\n      \"isUserVerified\": true\n    },\n    \"basicProfile\": {\n      \"name\": \"Jane Doe\",\n      \"firstName\": \"Jane\",\n      \"lastName\": \"Doe\",\n      \"username\": \"janedoe123\",\n      \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n      \"occupation\": \"Software Engineer\",\n      \"gender\": \"FEMALE\",\n      \"interestedIn\": \"MALE\"\n    },\n    \"lifestyle\": {\n      \"smoker\": \"NEVER\",\n      \"alcohol\": \"SOMETIMES\",\n      \"kids\": \"DOESNT_HAVE_KIDS\",\n      \"wantsKids\": true,\n      \"lookingFor\": \"LONG_TERM\"\n    },\n    \"location\": {\n      \"locations\": [\"Dhaka\"],\n      \"lastLocation\": \"Dhaka\"\n    },\n    \"body\": {\n      \"heightCm\": 165,\n      \"weightKg\": 55\n    },\n    \"interests\": {\n      \"creativity\": [\"Art\", \"Photography\"],\n      \"sports\": [\"Gym\", \"Tennis\"],\n      \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n    },\n    \"media\": {\n      \"images\": [\n        {\n          \"id\": \"img_1\",\n          \"url\": \"http://localhost:3000/uploads/example-image.png\",\n          \"hash\": null,\n          \"width\": null,\n          \"height\": null,\n          \"isMain\": true,\n          \"sortOrder\": 0,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n        }\n      ],\n      \"selfieUrl\": \"http://localhost:3000/uploads/example-selfie.png\",\n      \"selfieVerified\": false,\n      \"notificationsEnabled\": true\n    },\n    \"meta\": {\n      \"subscriptionId\": null,\n      \"lastLoginAt\": \"2026-08-17T09:10:00.000Z\",\n      \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n      \"updatedAt\": \"2026-08-17T09:20:00.000Z\"\n    }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Images",
+      "description": "Image management endpoints: upload photos.",
+      "item": [
+        {
+          "name": "C-01 Upload Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/images/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "images",
+                "upload"
+              ]
+            },
+            "description": "Uploads an image file using `multipart/form-data`. On success, returns the public URL and R2/local storage key."
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/images/upload"
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Image uploaded successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"url\": \"http://localhost:3000/uploads/6e088a8d-b0ad-4d43-a616-86c3d9ef961e-1724395600000.png\",\n    \"key\": \"local/uploads/6e088a8d-b0ad-4d43-a616-86c3d9ef961e-1724395600000.png\"\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Invalid Mimetype",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/images/upload"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed. Received: application/octet-stream\",\n  \"messages\": [\n    \"Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed. Received: application/octet-stream\"\n  ],\n  \"statusCode\": 400\n}"
+            },
+            {
+              "name": "Error — 401 Missing Token",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/images/upload"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Unauthorized\",\n  \"messages\": [\n    \"Unauthorized\"\n  ],\n  \"statusCode\": 401\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Discovery",
+      "description": "Discovery endpoints: get candidate profiles, manage discovery preferences, swipe LIKE/PASS/SUPER_LIKE.",
+      "item": [
+        {
+          "name": "D-01 Get Discovery Candidates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/discovery",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery"
+              ]
+            },
+            "description": "Fetches verified discovery candidates matching the user's preferences (gender, age). Excludes already swiped users and blocked users. Results are shuffled randomly."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Discovery profiles fetched successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": null,\n        \"email\": \"testuser@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": true,\n        \"isPhoneVerified\": false,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": {\n        \"name\": \"Jane Doe\",\n        \"firstName\": \"Jane\",\n        \"lastName\": \"Doe\",\n        \"username\": \"janedoe123\",\n        \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n        \"occupation\": \"Software Engineer\",\n        \"gender\": \"FEMALE\",\n        \"interestedIn\": \"MALE\"\n      },\n      \"lifestyle\": {\n        \"smoker\": \"NEVER\",\n        \"alcohol\": \"SOMETIMES\",\n        \"kids\": \"DOESNT_HAVE_KIDS\",\n        \"wantsKids\": true,\n        \"lookingFor\": \"LONG_TERM\"\n      },\n      \"location\": {\n        \"locations\": [\"Dhaka\"],\n        \"lastLocation\": \"Dhaka\"\n      },\n      \"body\": {\n        \"heightCm\": 165,\n        \"weightKg\": 55\n      },\n      \"interests\": {\n        \"creativity\": [\"Art\", \"Photography\"],\n        \"sports\": [\"Gym\", \"Tennis\"],\n        \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n      },\n      \"media\": {\n        \"images\": [\n          {\n            \"id\": \"img_1\",\n            \"url\": \"http://localhost:3000/uploads/jane.jpg\",\n            \"hash\": null,\n            \"width\": null,\n            \"height\": null,\n            \"isMain\": true,\n            \"sortOrder\": 0,\n            \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n          }\n        ],\n        \"selfieUrl\": null,\n        \"selfieVerified\": false,\n        \"notificationsEnabled\": true\n      },\n      \"meta\": {\n        \"subscriptionId\": null,\n        \"lastLoginAt\": null,\n        \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n        \"updatedAt\": \"2026-08-17T09:05:00.000Z\"\n      }\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-02 Get Discovery Preferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/discovery/preferences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery",
+                "preferences"
+              ]
+            },
+            "description": "Gets the current user's discovery preferences. If they do not exist yet, they are automatically created with default values."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/preferences"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Discovery preferences fetched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"pref_uuid\",\n    \"userId\": \"user_uuid\",\n    \"minAge\": 18,\n    \"maxAge\": 60,\n    \"maxDistanceKm\": 50,\n    \"preferredGender\": null,\n    \"updatedAt\": \"2026-08-23T06:12:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-03 Update Discovery Preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minAge\": 20,\n  \"maxAge\": 35,\n  \"maxDistanceKm\": 30,\n  \"preferredGender\": \"FEMALE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/discovery/preferences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery",
+                "preferences"
+              ]
+            },
+            "description": "Updates target age bounds, distance, and preferred gender filter."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/preferences"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Discovery preferences updated successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"pref_uuid\",\n    \"userId\": \"user_uuid\",\n    \"minAge\": 20,\n    \"maxAge\": 35,\n    \"maxDistanceKm\": 30,\n    \"preferredGender\": \"FEMALE\",\n    \"updatedAt\": \"2026-08-23T06:15:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-04 Get Public Profile Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/discovery/cd9c425f-2daa-4a55-9b00-b0a470a86727",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery",
+                "cd9c425f-2daa-4a55-9b00-b0a470a86727"
+              ]
+            },
+            "description": "Retrieves the detail public view of another user's profile."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/cd9c425f-2daa-4a55-9b00-b0a470a86727"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile details fetched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"auth\": {\n      \"phone\": null,\n      \"email\": \"testuser@48date.com\",\n      \"role\": \"USER\",\n      \"isEmailVerified\": true,\n      \"isPhoneVerified\": false,\n      \"isUserVerified\": true\n    },\n    \"basicProfile\": {\n      \"name\": \"Jane Doe\",\n      \"firstName\": \"Jane\",\n      \"lastName\": \"Doe\",\n      \"username\": \"janedoe123\",\n      \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n      \"occupation\": \"Software Engineer\",\n      \"gender\": \"FEMALE\",\n      \"interestedIn\": \"MALE\"\n    },\n    \"lifestyle\": {\n      \"smoker\": \"NEVER\",\n      \"alcohol\": \"SOMETIMES\",\n      \"kids\": \"DOESNT_HAVE_KIDS\",\n      \"wantsKids\": true,\n      \"lookingFor\": \"LONG_TERM\"\n    },\n    \"location\": {\n      \"locations\": [\"Dhaka\"],\n      \"lastLocation\": \"Dhaka\"\n    },\n    \"body\": {\n      \"heightCm\": 165,\n      \"weightKg\": 55\n    },\n    \"interests\": {\n      \"creativity\": [\"Art\", \"Photography\"],\n      \"sports\": [\"Gym\", \"Tennis\"],\n      \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n    },\n    \"media\": {\n      \"images\": [\n        {\n          \"id\": \"img_1\",\n          \"url\": \"http://localhost:3000/uploads/jane.jpg\",\n          \"hash\": null,\n          \"width\": null,\n          \"height\": null,\n          \"isMain\": true,\n          \"sortOrder\": 0,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n        }\n      ],\n      \"selfieUrl\": null,\n      \"selfieVerified\": false,\n      \"notificationsEnabled\": true\n    },\n    \"meta\": {\n      \"subscriptionId\": null,\n      \"lastLoginAt\": null,\n      \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n      \"updatedAt\": \"2026-08-17T09:05:00.000Z\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-05 Swipe (Like / Pass / Super Like)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetUserId\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n  \"action\": \"LIKE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/discovery/swipe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery",
+                "swipe"
+              ]
+            },
+            "description": "Registers a swipe action (LIKE, PASS, SUPER_LIKE). If both users like each other, creates a Match and Conversation."
+          },
+          "response": [
+            {
+              "name": "Success — Swipe Recorded (No Match)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/swipe"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Swipe recorded successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"isMatch\": false\n  }\n}"
+            },
+            {
+              "name": "Success — It's a Match!",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/swipe"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"It's a match!\",\n  \"messages\": [],\n  \"data\": {\n    \"isMatch\": true,\n    \"match\": {\n      \"id\": \"match_uuid\",\n      \"conversationId\": \"convo_uuid\",\n      \"matchedUser\": {\n        \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n        \"auth\": {\n          \"phone\": null,\n          \"email\": \"testuser@48date.com\",\n          \"role\": \"USER\",\n          \"isEmailVerified\": true,\n          \"isPhoneVerified\": false,\n          \"isUserVerified\": true\n        },\n        \"basicProfile\": {\n          \"name\": \"Jane Doe\",\n          \"firstName\": \"Jane\",\n          \"lastName\": \"Doe\",\n          \"username\": \"janedoe123\",\n          \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n          \"occupation\": \"Software Engineer\",\n          \"gender\": \"FEMALE\",\n          \"interestedIn\": \"MALE\"\n        },\n        \"lifestyle\": {\n          \"smoker\": \"NEVER\",\n          \"alcohol\": \"SOMETIMES\",\n          \"kids\": \"DOESNT_HAVE_KIDS\",\n          \"wantsKids\": true,\n          \"lookingFor\": \"LONG_TERM\"\n        },\n        \"location\": {\n          \"locations\": [\"Dhaka\"],\n          \"lastLocation\": \"Dhaka\"\n        },\n        \"body\": {\n          \"heightCm\": 165,\n          \"weightKg\": 55\n        },\n        \"interests\": {\n          \"creativity\": [\"Art\", \"Photography\"],\n          \"sports\": [\"Gym\", \"Tennis\"],\n          \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n        },\n        \"media\": {\n          \"images\": [\n            {\n              \"id\": \"img_1\",\n              \"url\": \"http://localhost:3000/uploads/jane.jpg\",\n              \"hash\": null,\n              \"width\": null,\n              \"height\": null,\n              \"isMain\": true,\n              \"sortOrder\": 0,\n              \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n            }\n          ],\n          \"selfieUrl\": null,\n          \"selfieVerified\": false,\n          \"notificationsEnabled\": true\n        },\n        \"meta\": {\n          \"subscriptionId\": null,\n          \"lastLoginAt\": null,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n          \"updatedAt\": \"2026-08-17T09:05:00.000Z\"\n        }\n      }\n    }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Matches",
+      "description": "Matches endpoints: list active matches, unmatch profiles.",
+      "item": [
+        {
+          "name": "E-01 Get Active Matches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/matches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matches"
+              ]
+            },
+            "description": "Retrieves all active matches for the logged-in user, including the match details, linked conversation ID, and the counterpart user's profile details."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/matches"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Matches retrieved successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"matchId\": \"match_uuid\",\n      \"conversationId\": \"convo_uuid\",\n      \"matchedUser\": {\n        \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n        \"auth\": {\n          \"phone\": null,\n          \"email\": \"testuser@48date.com\",\n          \"role\": \"USER\",\n          \"isEmailVerified\": true,\n          \"isPhoneVerified\": false,\n          \"isUserVerified\": true\n        },\n        \"basicProfile\": {\n          \"name\": \"Jane Doe\",\n          \"firstName\": \"Jane\",\n          \"lastName\": \"Doe\",\n          \"username\": \"janedoe123\",\n          \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n          \"occupation\": \"Software Engineer\",\n          \"gender\": \"FEMALE\",\n          \"interestedIn\": \"MALE\"\n        },\n        \"lifestyle\": {\n          \"smoker\": \"NEVER\",\n          \"alcohol\": \"SOMETIMES\",\n          \"kids\": \"DOESNT_HAVE_KIDS\",\n          \"wantsKids\": true,\n          \"lookingFor\": \"LONG_TERM\"\n        },\n        \"location\": {\n          \"locations\": [\"Dhaka\"],\n          \"lastLocation\": \"Dhaka\"\n        },\n        \"body\": {\n          \"heightCm\": 165,\n          \"weightKg\": 55\n        },\n        \"interests\": {\n          \"creativity\": [\"Art\", \"Photography\"],\n          \"sports\": [\"Gym\", \"Tennis\"],\n          \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n        },\n        \"media\": {\n          \"images\": [\n            {\n              \"id\": \"img_1\",\n              \"url\": \"http://localhost:3000/uploads/jane.jpg\",\n              \"hash\": null,\n              \"width\": null,\n              \"height\": null,\n              \"isMain\": true,\n              \"sortOrder\": 0,\n              \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n            }\n          ],\n          \"selfieUrl\": null,\n          \"selfieVerified\": false,\n          \"notificationsEnabled\": true\n        },\n        \"meta\": {\n          \"subscriptionId\": null,\n          \"lastLoginAt\": null,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n          \"updatedAt\": \"2026-08-17T09:05:00.000Z\"\n        }\n      },\n      \"matchedAt\": \"2026-08-23T06:12:00.000Z\",\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "E-02 Unmatch User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/matches/match_uuid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matches",
+                "match_uuid"
+              ]
+            },
+            "description": "Unmatches the user, setting the match status to UNMATCHED."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/matches/match_uuid"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Unmatched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"message\": \"Unmatched successfully\"\n  }\n}"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
