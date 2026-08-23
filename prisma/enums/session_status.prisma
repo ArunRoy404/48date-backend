@@ -1,0 +1,4 @@
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+}

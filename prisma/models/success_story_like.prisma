@@ -1,0 +1,10 @@
+model SuccessStoryLike {
+  storyId   String
+  story     SuccessStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@id([storyId, userId])
+  @@map("success_story_likes")
+}

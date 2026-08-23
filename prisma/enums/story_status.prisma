@@ -1,0 +1,5 @@
+enum StoryStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}

@@ -1,0 +1,20 @@
+model DateRating {
+  id               String   @id @default(uuid())
+  datePlanId       String
+  datePlan         DatePlan @relation(fields: [datePlanId], references: [id], onDelete: Cascade)
+  reviewerId       String
+  reviewer         User     @relation("DateReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewedUserId   String
+  reviewedUser     User     @relation("DateReviewed", fields: [reviewedUserId], references: [id], onDelete: Cascade)
+  behaviorScore    Int
+  punctualityScore Int
+  safetyScore      Int
+  overallScore     Int
+  comment          String?
+  isAnonymous      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  // max one rating per reviewer per date
+  @@unique([datePlanId, reviewerId])
+  @@map("date_ratings")
+}

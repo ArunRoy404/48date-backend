@@ -1,0 +1,14 @@
+model GameAnswer {
+  id             String       @id @default(uuid())
+  gameSessionId  String
+  gameSession    GameSession  @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  questionId     String
+  question       GameQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selectedOption String
+  answeredAt     DateTime     @default(now())
+
+  @@unique([gameSessionId, questionId, userId])
+  @@map("game_answers")
+}

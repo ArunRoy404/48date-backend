@@ -1,0 +1,16 @@
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  type           MessageType  @default(TEXT)
+  content        String
+  mediaUrl       String?
+  createdAt      DateTime     @default(now())
+  editedAt       DateTime?
+  deletedAt      DateTime?
+
+  @@index([conversationId])
+  @@map("messages")
+}

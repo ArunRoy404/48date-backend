@@ -1,0 +1,5 @@
+enum KidsStatus {
+  HAS_KIDS
+  DOESNT_HAVE_KIDS
+  PREFER_NOT_TO_SAY
+}

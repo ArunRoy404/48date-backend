@@ -1,0 +1,4 @@
+enum GameType {
+  THIS_OR_THAT
+  ICEBREAKER
+}

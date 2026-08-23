@@ -1,0 +1,9 @@
+model TrustScore {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int      @default(50)
+  updatedAt DateTime @updatedAt
+
+  @@map("trust_scores")
+}

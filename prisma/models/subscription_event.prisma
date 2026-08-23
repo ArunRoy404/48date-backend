@@ -1,0 +1,12 @@
+model SubscriptionEvent {
+  id              String       @id @default(uuid())
+  subscriptionId  String
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  externalEventId String       @unique
+  eventType       String
+  payload         Json?
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+
+  @@map("subscription_events")
+}
