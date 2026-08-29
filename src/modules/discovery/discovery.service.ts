@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { formatUser } from '../../common/utils/user-formatter.js';
 import { MatchesService } from '../matches/matches.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { SwipeDto } from './dto/swipe.dto.js';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto.js';
 
@@ -14,6 +15,7 @@ export class DiscoveryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly matchesService: MatchesService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -216,6 +218,12 @@ export class DiscoveryService {
           targetUserId,
         );
 
+        // Queue mutual match notifications in background
+        await this.notificationsService.queueMatchNotification(
+          userId,
+          targetUserId,
+        );
+
         const fullTargetUser = await this.prisma.user.findUnique({
           where: { id: targetUserId },
           include: { images: { orderBy: { sortOrder: 'asc' } } },
@@ -229,6 +237,12 @@ export class DiscoveryService {
             matchedUser: formatUser(fullTargetUser!),
           },
         };
+      } else if (action === 'SUPER_LIKE') {
+        // Queue super like notification if not matched
+        await this.notificationsService.queueSuperLikeNotification(
+          userId,
+          targetUserId,
+        );
       }
     }
 
