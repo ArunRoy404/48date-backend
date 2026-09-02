@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "48Date Backend API",
-    "description": "# 48Date Backend API\n\nREST API for the 48Date dating app backend (NestJS + Prisma + PostgreSQL).\n\n## Base URL\n\nUse the collection variable `baseUrl` (default `http://localhost:3000`).\n\n## Unified response envelope\n\n**Every** endpoint returns the same shape:\n\n### Success\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Account created successfully\",\n  \"messages\": [],\n  \"data\": { }\n}\n```\n\n- `success` — always `true` for 2xx responses\n- `message` — one short, human-readable summary (non-technical)\n- `messages` — array of extra messages (usually empty on success)\n- `data` — the actual payload (user, tokens, profile, ...)\n\n### Error\n\n```json\n{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"phone must be a valid international number\", \"password must be at least 8 characters\"],\n  \"statusCode\": 400\n}\n```\n\n- `success` — always `false`\n- `message` — one short, human-readable summary\n- `messages` — every individual message (each validation failure, etc.)\n- `statusCode` — the HTTP status code\n\n## Formatted user response\n\nAnywhere a user profile is returned (Register, Login, Google Login, Verify OTP, Me), `data.user` (or `data` for Me) is **categorized** so clients can render sections directly:\n\n| Section | Contents |\n|---|---|\n| `auth` | phone, email, role, `isEmailVerified`, `isPhoneVerified`, `isUserVerified` |\n| `basicProfile` | name, firstName, lastName, username, birthDate, occupation, gender, interestedIn |\n| `lifestyle` | smoker, alcohol, kids, wantsKids, lookingFor |\n| `location` | locations (array), lastLocation |\n| `body` | heightCm, weightKg |\n| `interests` | creativity[], sports[], moviesAndDramas[] |\n| `media` | images[], selfieUrl, selfieVerified, notificationsEnabled |\n| `meta` | subscriptionId, lastLoginAt, createdAt, updatedAt |\n\n`passwordHash` is never included in any response.\n\n## Authentication\n\n- **Access token** — short-lived (15 min), carries `{ sub: userId, role }`. Required for protected endpoints (`Me`, `Logout`) via `Authorization: Bearer <accessToken>`.\n- **Refresh token** — long-lived (7 days), used only at `POST /auth/refresh` to get a new token pair.\n- **OTP / verification endpoints are PUBLIC** — `request-otp`, `verify-otp`, `forgot-password`, `verify-forgot-password`, `reset-password` take phone/email + channel directly and do **not** require a Bearer token.\n\nThe collection auto-saves `accessToken`, `refreshToken`, and `resetToken` from responses via test scripts — run Register/Login first and the protected requests just work.\n\n## Dummy OTP (development)\n\nEmail/phone verification is stubbed for now. `POST /auth/request-otp` and `POST /auth/forgot-password` always return the fixed code `123456`; `verify-otp` / `verify-forgot-password` accept it. No real SMS/email is sent. Real integrations (Twilio Verify / SMTP) will replace this later.\n\n## Verification flags\n\n- `isEmailVerified` — true after a successful email OTP verification or Google login\n- `isPhoneVerified` — true after a successful phone OTP verification\n- `isUserVerified` — remains false until full profile setup / verification is completed\n\n## Sending form-data\n\nAll current auth endpoints expect **raw JSON** bodies (Content-Type: `application/json`). No endpoint uses `multipart/form-data` yet.\n\nWhen a future endpoint needs form-data (e.g. uploading a selfie or image URL), configure the request like this in Postman:\n\n1. Set the HTTP method (usually `POST` or `PUT`).\n2. Select the **Body** tab.\n3. Choose **form-data** (not raw).\n4. Add key-value rows. For each field:\n   - Text fields: enter the key, switch the value type to **Text**, type the value.\n   - File fields (image uploads): enter the key, switch the value type to **File**, click *Select Files*.\n5. Postman automatically sets `Content-Type: multipart/form-data; boundary=...` and encodes the body — do not set the Content-Type header manually for form-data.\n6. Leave the **raw JSON** mode for the JSON endpoints in this collection.\n\n## Common error responses\n\n| Status | `message` | When |\n|---|---|---|\n| `400 Bad Request` | `Validation failed` — `messages` lists each field error | Invalid request body (missing/incorrect fields) |\n| `401 Unauthorized` | `Invalid credentials` / `Unauthorized` / `Invalid OTP` | Wrong login, missing/invalid token, wrong OTP |\n| `404 Not Found` | `No account found with this phone/email` | verify/reset OTP for an unregistered identifier |\n| `409 Conflict` | `Phone number is already registered` / `Email is already registered` / `Username is already taken` | Duplicate unique value — the message names the exact field |\n\n## Request serials\n\nEvery request carries a stable serial ID for integration and testing: `<Folder>-<NN>` (A = Auth, NN = zero-padded sequence). Serials never change once assigned — they are stable references for tickets, test reports, and Flutter/admin-panel integration. Future domains continue the scheme: `B-01 ...` (Users), `C-01 ...` (Matches), `D-01 ...` (Chat), etc.\n\n## Endpoints\n\n| Serial | Method | Path | Auth | Description |\n|---|---|---|---|---|\n| A-01 | POST | `/auth/register` | — | Create an account (phone or email + password required; profile fields optional), returns categorized profile + tokens |\n| A-02 | POST | `/auth/login` | — | Login with phone or email + password, returns categorized profile + tokens |\n| A-03 | POST | `/auth/request-otp` | — | Request a dummy OTP for an account (phone or email + channel) |\n| A-04 | POST | `/auth/verify-otp` | — | Verify the OTP, marks the channel verified |\n| A-05 | POST | `/auth/forgot-password` | — | Request a dummy reset OTP (phone or email + channel) |\n| A-06 | POST | `/auth/verify-forgot-password` | — | Verify the reset OTP, returns a short-lived `resetToken` |\n| A-07 | POST | `/auth/reset-password` | — | Set a new password using the `resetToken` |\n| A-08 | POST | `/auth/refresh` | — | Exchange refresh token for a new token pair |\n| A-09 | POST | `/auth/logout` | Bearer | Invalidate the session client-side (stateless) |\n| A-10 | GET | `/auth/me` | Bearer | Get the authenticated user's categorized profile + images |\n| A-11 | POST | `/auth/google` | — | Login or register with Google OAuth ID token, returns categorized profile + tokens |",
+    "description": "# 48Date Backend API\n\nREST API for the 48Date dating app backend (NestJS + Prisma + PostgreSQL).\n\n## Base URL\n\nUse the collection variable `baseUrl` (default `http://localhost:3000`).\n\n## Unified response envelope\n\n**Every** endpoint returns the same shape:\n\n### Success\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Account created successfully\",\n  \"messages\": [],\n  \"data\": { }\n}\n```\n\n- `success` — always `true` for 2xx responses\n- `message` — one short, human-readable summary (non-technical)\n- `messages` — array of extra messages (usually empty on success)\n- `data` — the actual payload (user, tokens, profile, ...)\n\n### Error\n\n```json\n{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"phone must be a valid international number\", \"password must be at least 8 characters\"],\n  \"statusCode\": 400\n}\n```\n\n- `success` — always `false`\n- `message` — one short, human-readable summary\n- `messages` — every individual message (each validation failure, etc.)\n- `statusCode` — the HTTP status code\n\n## Formatted user response\n\nAnywhere a user profile is returned (Register, Login, Google Login, Verify OTP, Me, Profile, Discovery), `data.user` (or `data`) is **categorized** so clients can render sections directly:\n\n| Section | Contents |\n|---|---|\n| `auth` | phone, email, role, `isEmailVerified`, `isPhoneVerified`, `isUserVerified` |\n| `basicProfile` | name, firstName, lastName, username, birthDate, occupation, gender, interestedIn |\n| `lifestyle` | smoker, alcohol, kids, wantsKids, lookingFor |\n| `location` | locations (array), lastLocation, latitude, longitude |\n| `body` | heightCm, weightKg |\n| `interests` | creativity[], sports[], moviesAndDramas[] |\n| `media` | images[], selfieUrl, selfieVerified, notificationsEnabled |\n| `meta` | subscriptionId, lastLoginAt, createdAt, updatedAt |\n\n`passwordHash` is never included in any response.\n\n## Authentication\n\n- **Access token** — short-lived (15 min), carries `{ sub: userId, role }`. Required for protected endpoints via `Authorization: Bearer <accessToken>`.\n- **Refresh token** — long-lived (7 days), used only at `POST /auth/refresh` to get a new token pair.\n- **OTP / verification endpoints are PUBLIC** — `request-otp`, `verify-otp`, `forgot-password`, `verify-forgot-password`, `reset-password` take phone/email + channel directly and do **not** require a Bearer token.\n\nThe collection auto-saves `accessToken`, `refreshToken`, and `resetToken` from responses via test scripts — run Register/Login first and the protected requests just work.\n\n## Request serials & Domain Folders\n\nEvery request carries a stable serial ID: `<Folder>-<NN>`.\n\n| Folder | Prefix | Description |\n|---|---|---|\n| **Auth** | `A-NN` | Registration, login, OTP verification, password recovery, refresh, profile me |\n| **Users** | `B-NN` | Profile setup & updates, complete profile fetching |\n| **Images** | `C-NN` | Multipart photo uploads to Cloudflare R2 / local disk |\n| **Discovery** | `D-NN` | Candidate browsing, preference filters, swiping (LIKE/PASS/SUPER_LIKE) |\n| **Matches** | `E-NN` | Active mutual matches list and unmatching |\n| **Chat** | `F-NN` | Conversation rooms, paginated message histories (+ WebSockets Gateway) |\n| **Games** | `G-NN` | In-chat mini-games, answer submissions, compatibility calculation |\n\n## Endpoints Summary\n\n| Serial | Method | Path | Auth | Description |\n|---|---|---|---|---|\n| **A-01** | POST | `/auth/register` | — | Create account, returns categorized profile + tokens |\n| **A-02** | POST | `/auth/login` | — | Login with phone or email + password |\n| **A-03** | POST | `/auth/request-otp` | — | Request verification OTP |\n| **A-04** | POST | `/auth/verify-otp` | — | Verify OTP and set verification flags |\n| **A-05** | POST | `/auth/forgot-password` | — | Request password-reset OTP |\n| **A-06** | POST | `/auth/verify-forgot-password` | — | Verify reset OTP, receive `resetToken` |\n| **A-07** | POST | `/auth/reset-password` | — | Set new password with `resetToken` |\n| **A-08** | POST | `/auth/refresh` | — | Exchange refresh token for new token pair |\n| **A-09** | POST | `/auth/logout` | Bearer | Invalidate session client-side |\n| **A-10** | GET | `/auth/me` | Bearer | Get authenticated user profile |\n| **A-11** | POST | `/auth/google` | — | Login/register with Google OAuth token |\n| **B-01** | PATCH | `/users/profile-setup` | Bearer | Update profile, auto-verifies when complete |\n| **B-02** | GET | `/users/profile` | Bearer | Fetch authenticated user profile |\n| **C-01** | POST | `/images/upload` | Bearer | Upload photo via multipart/form-data |\n| **D-01** | GET | `/discovery` | Bearer | Fetch candidate discovery profiles |\n| **D-02** | GET | `/discovery/preferences` | Bearer | Get discovery filters |\n| **D-03** | PATCH | `/discovery/preferences` | Bearer | Update discovery filters |\n| **D-04** | GET | `/discovery/:id` | Bearer | Get candidate profile details |\n| **D-05** | POST | `/discovery/swipe` | Bearer | Swipe LIKE / PASS / SUPER_LIKE |\n| **E-01** | GET | `/matches` | Bearer | List active mutual matches |\n| **E-02** | DELETE | `/matches/:id` | Bearer | Unmatch user |\n| **F-01** | GET | `/chat/conversations` | Bearer | List active conversation rooms |\n| **F-02** | GET | `/chat/conversations/:id/messages` | Bearer | Fetch message history (`?limit=50&offset=0`) |\n| **G-01** | GET | `/games` | Bearer | List active games & questions |\n| **G-02** | POST | `/games/sessions` | Bearer | Start/resume game session for match |\n| **G-03** | GET | `/games/sessions/:id` | Bearer | Get game session state |\n| **G-04** | POST | `/games/sessions/:id/answers` | Bearer | Submit question answer |",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -1839,11 +1839,11 @@
       ]
     },
     {
-      "name": "Chat & Games",
-      "description": "Endpoints for real-time WebSockets chat listings, message history, and interactive in-chat games.",
+      "name": "Chat",
+      "description": "Endpoints for real-time WebSockets chat listings, message history, and conversation rooms.",
       "item": [
         {
-          "name": "D-01 Get Conversations",
+          "name": "F-01 Get Conversations",
           "request": {
             "method": "GET",
             "header": [
@@ -1916,7 +1916,7 @@
           ]
         },
         {
-          "name": "D-02 Get Message History",
+          "name": "F-02 Get Message History",
           "request": {
             "method": "GET",
             "header": [
@@ -1999,9 +1999,15 @@
               "body": "{\n  \"success\": false,\n  \"message\": \"Conversation not found\",\n  \"messages\": [\n    \"Conversation not found\"\n  ],\n  \"statusCode\": 404\n}"
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "name": "Games",
+      "description": "Endpoints for in-chat interactive mini-games, multi-round session coordination, and compatibility scoring.",
+      "item": [
         {
-          "name": "F-01 Get Active Games",
+          "name": "G-01 Get Active Games",
           "request": {
             "method": "GET",
             "header": [
@@ -2049,7 +2055,7 @@
           ]
         },
         {
-          "name": "F-02 Start Game Session",
+          "name": "G-02 Start Game Session",
           "request": {
             "method": "POST",
             "header": [
@@ -2151,7 +2157,7 @@
           ]
         },
         {
-          "name": "F-03 Get Game Session State",
+          "name": "G-03 Get Game Session State",
           "request": {
             "method": "GET",
             "header": [
@@ -2225,7 +2231,7 @@
           ]
         },
         {
-          "name": "F-04 Submit Game Answer",
+          "name": "G-04 Submit Game Answer",
           "request": {
             "method": "POST",
             "header": [
