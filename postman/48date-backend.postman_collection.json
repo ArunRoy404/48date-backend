@@ -5,10 +5,22 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000" },
-    { "key": "accessToken", "value": "" },
-    { "key": "refreshToken", "value": "" },
-    { "key": "resetToken", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "resetToken",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -20,18 +32,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             },
             "description": "Creates a new user account. Only phone or email and password are required. Additional profile fields can optionally be provided during registration. Returns the categorized profile (no password hash) plus a JWT access/refresh token pair inside the envelope's `data`.\n\n### Request Body — raw JSON (Minimal)\n\n```json\n{\n  \"phone\": \"+8801700000000\",\n  \"email\": \"test@48date.com\",\n  \"password\": \"password123\"\n}\n```\n\n### Field Reference\n\n- **Required**:\n  - `password` (string, min 8 characters)\n  - At least one of `phone` (E.164 format, e.g. `+8801700000000`) or `email` (valid email address)\n- **Optional Basic Profile**:\n  - `name`, `firstName`, `lastName`, `username`, `occupation` (strings)\n  - `birthDate` (ISO 8601 date string in the past)\n  - `gender` (`MALE`, `FEMALE`, `PREFER_NOT_TO_SAY`)\n  - `interestedIn` (`MALE`, `FEMALE`, `PREFER_NOT_TO_SAY`)\n- **Optional Lifestyle**:\n  - `smoker` (`REGULAR`, `OCCASIONALLY`, `NONE`)\n  - `alcohol` (`REGULAR`, `OCCASIONALLY`, `NONE`)\n  - `kids` (`HAVE`, `DONT_HAVE`)\n  - `wantsKids` (boolean)\n  - `lookingFor` (`REAL_RELATIONSHIP`, `SOMETHING_MEANINGFUL`, `SEE_WHERE_IT_GOES`, `NEW_FRIENDS_FIRST`)\n- **Optional Location & Body**:\n  - `locations` (string array), `lastLocation` (string)\n  - `heightCm` (integer, 50–250), `weightKg` (integer, 20–300)\n- **Optional Interests**:\n  - `creativity` (subset of: `Art`, `Design`, `Makeup`, `Photography`, `Singing`)\n  - `sports` (subset of: `Running`, `Gym`, `Soccer`, `Cricket`, `Tennis`, `Basketball`)\n  - `moviesAndDramas` (subset of: `TV Shows`, `Romance`, `Comedy`, `K-Drama`, `Horror`, `Thriller`, `Sci-Fi`, `Fantasy`, `Anime`, `Zombie`)\n- **Optional Media**:\n  - `images` (array of 1–6 objects: `{ url: string, isMain: boolean, sortOrder?: number }`, exactly one `isMain: true`)\n  - `selfieUrl` (valid URL string)\n  - `notificationsEnabled` (boolean)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"phone\": \"+8801700000000\",\n  \"email\": \"test@48date.com\",\n  \"password\": \"password123\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -39,60 +63,120 @@
               "name": "Success — 201 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/register" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register"
+                }
               },
               "status": "Created",
               "code": 201,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Account created successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"test@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": false,\n        \"isPhoneVerified\": false,\n        \"isUserVerified\": false\n      },\n      \"basicProfile\": {\n        \"name\": \"Test User\",\n        \"firstName\": \"Test\",\n        \"lastName\": \"User\",\n        \"username\": \"testuser123\",\n        \"birthDate\": \"1998-05-12T00:00:00.000Z\",\n        \"occupation\": \"Engineer\",\n        \"gender\": \"MALE\",\n        \"interestedIn\": \"FEMALE\"\n      },\n      \"lifestyle\": {\n        \"smoker\": \"NONE\",\n        \"alcohol\": \"OCCASIONALLY\",\n        \"kids\": \"DONT_HAVE\",\n        \"wantsKids\": true,\n        \"lookingFor\": \"REAL_RELATIONSHIP\"\n      },\n      \"location\": {\n        \"locations\": [\"Dhaka\", \"Chattogram\"],\n        \"lastLocation\": \"Dhaka\"\n      },\n      \"body\": {\n        \"heightCm\": 175,\n        \"weightKg\": 70\n      },\n      \"interests\": {\n        \"creativity\": [\"Art\", \"Photography\"],\n        \"sports\": [\"Cricket\", \"Gym\"],\n        \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"]\n      },\n      \"media\": {\n        \"images\": [\n          { \"id\": \"img_1\", \"url\": \"https://cdn.example.com/photos/main.jpg\", \"hash\": null, \"width\": null, \"height\": null, \"isMain\": true, \"sortOrder\": 0, \"createdAt\": \"2026-08-17T08:55:00.000Z\" },\n          { \"id\": \"img_2\", \"url\": \"https://cdn.example.com/photos/2.jpg\", \"hash\": null, \"width\": null, \"height\": null, \"isMain\": false, \"sortOrder\": 1, \"createdAt\": \"2026-08-17T08:55:00.000Z\" }\n        ],\n        \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\",\n        \"selfieVerified\": false,\n        \"notificationsEnabled\": true\n      },\n      \"meta\": {\n        \"subscriptionId\": null,\n        \"lastLoginAt\": null,\n        \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n        \"updatedAt\": \"2026-08-17T08:55:00.000Z\"\n      }\n    },\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
             },
             {
               "name": "Error — 400 Validation",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/register" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register"
+                }
               },
               "status": "Bad Request",
               "code": 400,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"phone must be a valid international number in E.164 format (e.g. +8801...)\",\n    \"password must be longer than or equal to 8 characters\",\n    \"images can contain at most 6 photos\"\n  ],\n  \"statusCode\": 400\n}"
             },
             {
               "name": "Error — 409 Conflict (duplicate field)",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/register" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register"
+                }
               },
               "status": "Conflict",
               "code": 409,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Username is already taken\",\n  \"messages\": [\"Username is already taken\"],\n  \"statusCode\": 409\n}"
             },
             {
               "name": "Error — 409 Conflict (duplicate email)",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/register" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register"
+                }
               },
               "status": "Conflict",
               "code": 409,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Email is already registered\",\n  \"messages\": [\"Email is already registered\"],\n  \"statusCode\": 409\n}"
             },
             {
               "name": "Error — 409 Conflict (duplicate phone)",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/register" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register"
+                }
               },
               "status": "Conflict",
               "code": 409,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Phone number is already registered\",\n  \"messages\": [\"Phone number is already registered\"],\n  \"statusCode\": 409\n}"
             }
           ],
@@ -115,18 +199,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Logs in with phone or email + password. On success returns the categorized profile, a fresh token pair (inside `data`), and updates the user's `lastLoginAt`.\n\n### Request Body — raw JSON (Phone)\n\n```json\n{\n  \"phone\": \"+8801700000000\", // E.164 format\n  \"password\": \"password123\"\n}\n```\n\n### Request Body — raw JSON (Email)\n\n```json\n{\n  \"email\": \"test@48date.com\",\n  \"password\": \"password123\"\n}\n```\n\n> Send as **raw JSON** with `Content-Type: application/json`.\n\n### Notes\n\n- Provide either `phone` or `email` along with `password`.\n- Wrong phone/email or wrong password returns `401` with `message: \"Invalid credentials\"` (no account enumeration).\n- This request auto-saves a fresh `accessToken` / `refreshToken` into collection variables.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"phone\": \"+8801700000000\",\n  \"password\": \"password123\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -134,36 +230,72 @@
               "name": "Success — 200 OK",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/login" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login"
+                }
               },
               "status": "OK",
               "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Logged in successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"test@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": false,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": { \"name\": \"Test User\", \"firstName\": \"Test\", \"lastName\": \"User\", \"username\": \"testuser123\", \"birthDate\": \"1998-05-12T00:00:00.000Z\", \"occupation\": \"Engineer\", \"gender\": \"MALE\", \"interestedIn\": \"FEMALE\" },\n      \"lifestyle\": { \"smoker\": \"NONE\", \"alcohol\": \"OCCASIONALLY\", \"kids\": \"DONT_HAVE\", \"wantsKids\": true, \"lookingFor\": \"REAL_RELATIONSHIP\" },\n      \"location\": { \"locations\": [\"Dhaka\", \"Chattogram\"], \"lastLocation\": \"Dhaka\" },\n      \"body\": { \"heightCm\": 175, \"weightKg\": 70 },\n      \"interests\": { \"creativity\": [\"Art\", \"Photography\"], \"sports\": [\"Cricket\", \"Gym\"], \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"] },\n      \"media\": { \"images\": [], \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\", \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"meta\": { \"subscriptionId\": null, \"lastLoginAt\": \"2026-08-17T09:10:00.000Z\", \"createdAt\": \"2026-08-17T08:55:00.000Z\", \"updatedAt\": \"2026-08-17T09:10:00.000Z\" }\n    },\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
             },
             {
               "name": "Error — 401 Invalid credentials",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/login" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login"
+                }
               },
               "status": "Unauthorized",
               "code": 401,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Invalid credentials\",\n  \"messages\": [\"Invalid credentials\"],\n  \"statusCode\": 401\n}"
             },
             {
               "name": "Error — 400 Validation",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/login" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login"
+                }
               },
               "status": "Bad Request",
               "code": 400,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"password must be a string\"],\n  \"statusCode\": 400\n}"
             }
           ],
@@ -186,18 +318,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/request-otp",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "request-otp"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-otp"
+              ]
             },
             "description": "Requests a verification code for an account. **Public endpoint — no Bearer token required.** Identifies the account by the phone or email that matches the chosen channel. **Dummy implementation:** no message is sent; the fixed code `123456` is returned inside `data` for development.\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"phone\",              // REQUIRED — which channel to verify: \"email\" or \"phone\".\n  \"phone\": \"+8801700000000\"        // REQUIRED when channel is \"phone\" — E.164 format.\n  // \"email\": \"test@48date.com\"    // REQUIRED instead when channel is \"email\".\n}\n```\n\n### Notes\n\n- Provide **exactly one** identifier matching the channel: `phone` with `channel: \"phone\"`, or `email` with `channel: \"email\"`. Mismatches return `400`.\n- The endpoint deliberately does not check whether the account exists (no account enumeration) — `verify-otp` will return `404` for unknown identifiers.\n- When Twilio Verify / SMTP are integrated, this endpoint will actually send the code and stop returning it.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"channel\": \"phone\",\n  \"phone\": \"+8801700000000\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -205,24 +349,48 @@
               "name": "Success — 201 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/request-otp" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/request-otp"
+                }
               },
               "status": "Created",
               "code": 201,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"OTP sent successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"channel\": \"phone\",\n    \"otp\": \"123456\",\n    \"message\": \"Dummy OTP — development only, no message was sent\"\n  }\n}"
             },
             {
               "name": "Error — 400 Channel/identifier mismatch",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/request-otp" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/request-otp"
+                }
               },
               "status": "Bad Request",
               "code": 400,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"email must be a valid email address when channel is \\\"email\\\"\",\n    \"channel must be either \\\"email\\\" or \\\"phone\\\"\"\n  ],\n  \"statusCode\": 400\n}"
             }
           ]
@@ -232,18 +400,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/verify-otp",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "verify-otp"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
             },
             "description": "Verifies the OTP for an account and flips the matching verification flag. **Public endpoint — no Bearer token required.** Generates and returns access & refresh tokens on success.\n\n- `channel: \"phone\"` + valid OTP → `isPhoneVerified: true`\n- `channel: \"email\"` + valid OTP → `isEmailVerified: true`\n- Both cases keep `isUserVerified: false` until profile setup is complete.\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"phone\",              // REQUIRED — \"email\" or \"phone\".\n  \"phone\": \"+8801700000000\",       // REQUIRED when channel is \"phone\".\n  \"otp\": \"123456\"                  // REQUIRED — exactly 6 digits (dummy is 123456).\n}\n```",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"channel\": \"phone\",\n  \"phone\": \"+8801700000000\",\n  \"otp\": \"123456\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -251,48 +431,96 @@
               "name": "Success — 201 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/verify-otp" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/verify-otp"
+                }
               },
               "status": "Created",
               "code": 201,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"test@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": false,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": false\n      },\n      \"basicProfile\": { \"name\": null, \"firstName\": null, \"lastName\": null, \"username\": null, \"birthDate\": null, \"occupation\": null, \"gender\": null, \"interestedIn\": null },\n      \"lifestyle\": { \"smoker\": null, \"alcohol\": null, \"kids\": null, \"wantsKids\": null, \"lookingFor\": null },\n      \"location\": { \"locations\": [], \"lastLocation\": null },\n      \"body\": { \"heightCm\": null, \"weightKg\": null },\n      \"interests\": { \"creativity\": [], \"sports\": [], \"moviesAndDramas\": [] },\n      \"media\": { \"images\": [], \"selfieUrl\": null, \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"meta\": { \"subscriptionId\": null, \"lastLoginAt\": null, \"createdAt\": \"2026-08-17T08:55:00.000Z\", \"updatedAt\": \"2026-08-17T09:05:00.000Z\" }\n    },\n    \"verified\": true,\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
             },
             {
               "name": "Error — 401 Invalid OTP",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/verify-otp" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/verify-otp"
+                }
               },
               "status": "Unauthorized",
               "code": 401,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP\",\n  \"messages\": [\"Invalid OTP\"],\n  \"statusCode\": 401\n}"
             },
             {
               "name": "Error — 404 No account found",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/verify-otp" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/verify-otp"
+                }
               },
               "status": "Not Found",
               "code": 404,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"No account found with this phone\",\n  \"messages\": [\"No account found with this phone\"],\n  \"statusCode\": 404\n}"
             },
             {
               "name": "Error — 400 Validation",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/verify-otp" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/verify-otp"
+                }
               },
               "status": "Bad Request",
               "code": 400,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"otp must be exactly 6 digits\"],\n  \"statusCode\": 400\n}"
             }
           ],
@@ -315,18 +543,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/forgot-password",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "forgot-password"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "forgot-password"
+              ]
             },
             "description": "Requests a password-reset OTP for an account. **Public endpoint — no Bearer token required.** Identifies the account by phone or email matching the chosen channel. **Dummy implementation:** returns the fixed code `123456`; no message is sent.\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"email\",              // REQUIRED — which channel to send the reset code through: \"email\" or \"phone\".\n  \"email\": \"test@48date.com\"       // REQUIRED when channel is \"email\".\n  // \"phone\": \"+8801700000000\"     // REQUIRED instead when channel is \"phone\".\n}\n```\n\n### Notes\n\n- Same channel/identifier rules as `request-otp`: provide exactly one identifier matching the channel, else `400`.\n- The endpoint does not reveal whether the account exists (no account enumeration) — the next step (`verify-forgot-password`) returns `404` for unknown identifiers.\n- Next step: send the OTP to `verify-forgot-password` to get a `resetToken`.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"channel\": \"email\",\n  \"email\": \"test@48date.com\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -334,24 +574,48 @@
               "name": "Success — 201 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/forgot-password" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/forgot-password"
+                }
               },
               "status": "Created",
               "code": 201,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Reset OTP sent successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"channel\": \"email\",\n    \"otp\": \"123456\",\n    \"message\": \"Dummy OTP — development only, no message was sent\"\n  }\n}"
             },
             {
               "name": "Error — 400 Validation",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/forgot-password" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/forgot-password"
+                }
               },
               "status": "Bad Request",
               "code": 400,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"phone must be a valid international number in E.164 format when channel is \\\"phone\\\"\"\n  ],\n  \"statusCode\": 400\n}"
             }
           ]
@@ -361,18 +625,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/verify-forgot-password",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "verify-forgot-password"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-forgot-password"
+              ]
             },
             "description": "Verifies the password-reset OTP and issues a **short-lived reset token** (15 minutes) used by `reset-password`. **Public endpoint — no Bearer token required.**\n\n### Request Body — raw JSON\n\n```json\n{\n  \"channel\": \"phone\",              // REQUIRED — the channel you requested the reset code through.\n  \"phone\": \"+8801700000000\",       // REQUIRED when channel is \"phone\".\n  // \"email\": \"test@48date.com\",   // REQUIRED instead when channel is \"email\".\n  \"otp\": \"123456\"                  // REQUIRED — exactly 6 digits. The dummy code is always 123456.\n}\n```\n\n### Notes\n\n- Wrong OTP → `401 Invalid OTP`; unknown identifier → `404`.\n- The response auto-saves `resetToken` into the collection variable (see the *Tests* tab) — `reset-password` is pre-filled with `{{resetToken}}`.\n- The token expires after 15 minutes; expired tokens return `401` at `reset-password`.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"channel\": \"phone\",\n  \"phone\": \"+8801700000000\",\n  \"otp\": \"123456\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -380,24 +656,48 @@
               "name": "Success — 201 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/verify-forgot-password" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/verify-forgot-password"
+                }
               },
               "status": "Created",
               "code": 201,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"OTP verified — you can now reset your password\",\n  \"messages\": [],\n  \"data\": {\n    \"resetToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"expiresIn\": \"15m\"\n  }\n}"
             },
             {
               "name": "Error — 401 Invalid OTP",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/verify-forgot-password" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/verify-forgot-password"
+                }
               },
               "status": "Unauthorized",
               "code": 401,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP\",\n  \"messages\": [\"Invalid OTP\"],\n  \"statusCode\": 401\n}"
             }
           ],
@@ -419,18 +719,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/reset-password",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "reset-password"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "reset-password"
+              ]
             },
             "description": "Sets a new password using the reset token from `verify-forgot-password`. **Public endpoint — no Bearer token required.**\n\n### Request Body — raw JSON\n\n```json\n{\n  \"resetToken\": \"{{resetToken}}\", // REQUIRED — from verify-forgot-password. Pre-filled via collection variable.\n  \"newPassword\": \"newpassword456\"  // REQUIRED — minimum 8 characters.\n}\n```\n\n### Notes\n\n- Invalid or expired reset token → `401 Invalid or expired reset token`.\n- After a successful reset, log in with the new password.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"newpassword456\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -438,36 +750,72 @@
               "name": "Success — 201 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/reset-password" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/reset-password"
+                }
               },
               "status": "Created",
               "code": 201,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Password reset successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"message\": \"Password updated successfully\"\n  }\n}"
             },
             {
               "name": "Error — 401 Invalid or expired reset token",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/reset-password" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/reset-password"
+                }
               },
               "status": "Unauthorized",
               "code": 401,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or expired reset token\",\n  \"messages\": [\"Invalid or expired reset token\"],\n  \"statusCode\": 401\n}"
             },
             {
               "name": "Error — 400 Validation",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/reset-password" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/reset-password"
+                }
               },
               "status": "Bad Request",
               "code": 400,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"newPassword must be longer than or equal to 8 characters\"],\n  \"statusCode\": 400\n}"
             }
           ]
@@ -477,18 +825,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/refresh",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "refresh"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
             },
             "description": "Exchanges a valid refresh token for a new access/refresh token pair. Use this when the access token expires (after 15 minutes).\n\n### Request Body — raw JSON\n\n```json\n{\n  \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\" // REQUIRED — the refresh token from Register/Login. Uses {{refreshToken}} if left empty.\n}\n```\n\n> The request is pre-filled with the collection variable `{{refreshToken}}` (auto-saved by Register/Login).\n\n### Notes\n\n- Expired or invalid refresh tokens return `401`.\n- The response auto-saves the new token pair, so the protected requests keep working.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -496,24 +856,48 @@
               "name": "Success — 200 OK",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/refresh" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/refresh"
+                }
               },
               "status": "OK",
               "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Tokens refreshed successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
             },
             {
               "name": "Error — 401 Invalid or expired refresh token",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/refresh" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/refresh"
+                }
               },
               "status": "Unauthorized",
               "code": 401,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or expired refresh token\",\n  \"messages\": [\"Invalid or expired refresh token\"],\n  \"statusCode\": 401\n}"
             }
           ],
@@ -536,38 +920,68 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/logout",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "logout"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
             },
             "description": "Logs the user out. Requires a valid Bearer token (the endpoint confirms it), after which the client should **discard its stored tokens**.\n\n### Headers\n\n- `Authorization: Bearer {{accessToken}}` — required (auto-filled from Register/Login).\n\n### Body\n\n- None. Do not attach a body.\n\n### Notes\n\n- Logout is stateless for now (JWT tokens can't be revoked server-side without extra infrastructure). A Redis blacklist can be added later to make it server-enforced.",
-            "body": { "mode": "raw", "raw": "" }
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
           },
           "response": [
             {
               "name": "Success — 201 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": { "raw": "{{baseUrl}}/auth/logout" }
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/logout"
+                }
               },
               "status": "Created",
               "code": 201,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Logged out successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"message\": \"Logged out successfully\"\n  }\n}"
             },
             {
               "name": "Error — 401 Missing/invalid token",
               "originalRequest": {
                 "method": "POST",
-                "url": { "raw": "{{baseUrl}}/auth/logout" }
+                "url": {
+                  "raw": "{{baseUrl}}/auth/logout"
+                }
               },
               "status": "Unauthorized",
               "code": 401,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Unauthorized\",\n  \"messages\": [\"Unauthorized\"],\n  \"statusCode\": 401\n}"
             }
           ]
@@ -577,38 +991,68 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Returns the authenticated user's full profile inside `data`, **categorized** into sections (`auth`, `basicProfile`, `lifestyle`, `location`, `body`, `interests`, `media`, `meta`), including uploaded images (ordered by `sortOrder`).\n\n### Headers\n\n- `Authorization: Bearer {{accessToken}}` — required (auto-filled from Register/Login).\n\n### Body\n\n- None. This is a GET request — do not attach a body.\n\n### Notes\n\n- The response never includes `passwordHash`.\n- `media.images` is an array of the user's photo records; empty until photos are added.",
-            "body": { "mode": "raw", "raw": "" }
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
           },
           "response": [
             {
               "name": "Success — 200 OK",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-                "url": { "raw": "{{baseUrl}}/auth/me" }
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/me"
+                }
               },
               "status": "OK",
               "code": 200,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Profile fetched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"auth\": {\n      \"phone\": \"+8801700000000\",\n      \"email\": \"test@48date.com\",\n      \"role\": \"USER\",\n      \"isEmailVerified\": false,\n      \"isPhoneVerified\": true,\n      \"isUserVerified\": true\n    },\n    \"basicProfile\": {\n      \"name\": \"Test User\",\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"username\": \"testuser123\",\n      \"birthDate\": \"1998-05-12T00:00:00.000Z\",\n      \"occupation\": \"Engineer\",\n      \"gender\": \"MALE\",\n      \"interestedIn\": \"FEMALE\"\n    },\n    \"lifestyle\": {\n      \"smoker\": \"NONE\",\n      \"alcohol\": \"OCCASIONALLY\",\n      \"kids\": \"DONT_HAVE\",\n      \"wantsKids\": true,\n      \"lookingFor\": \"REAL_RELATIONSHIP\"\n    },\n    \"location\": {\n      \"locations\": [\"Dhaka\", \"Chattogram\"],\n      \"lastLocation\": \"Dhaka\"\n    },\n    \"body\": {\n      \"heightCm\": 175,\n      \"weightKg\": 70\n    },\n    \"interests\": {\n      \"creativity\": [\"Art\", \"Photography\"],\n      \"sports\": [\"Cricket\", \"Gym\"],\n      \"moviesAndDramas\": [\"K-Drama\", \"Sci-Fi\"]\n    },\n    \"media\": {\n      \"images\": [\n        { \"id\": \"img_1\", \"url\": \"https://cdn.example.com/photos/main.jpg\", \"hash\": null, \"width\": null, \"height\": null, \"isMain\": true, \"sortOrder\": 0, \"createdAt\": \"2026-08-17T08:55:00.000Z\" }\n      ],\n      \"selfieUrl\": \"https://cdn.example.com/selfies/me.jpg\",\n      \"selfieVerified\": false,\n      \"notificationsEnabled\": true\n    },\n    \"meta\": {\n      \"subscriptionId\": null,\n      \"lastLoginAt\": \"2026-08-17T09:10:00.000Z\",\n      \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n      \"updatedAt\": \"2026-08-17T09:20:00.000Z\"\n    }\n  }\n}"
             },
             {
               "name": "Error — 401 Missing/invalid token",
               "originalRequest": {
                 "method": "GET",
-                "url": { "raw": "{{baseUrl}}/auth/me" }
+                "url": {
+                  "raw": "{{baseUrl}}/auth/me"
+                }
               },
               "status": "Unauthorized",
               "code": 401,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": false,\n  \"message\": \"Unauthorized\",\n  \"messages\": [\"Unauthorized\"],\n  \"statusCode\": 401\n}"
             }
           ]
@@ -618,18 +1062,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/google",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "google"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "google"
+              ]
             },
             "description": "Logs in / registers a user using a Google ID token. Decodes the token to obtain email and name. If it's a new email, it registers the account as verified by email (isEmailVerified: true), but keeps isUserVerified: false (needs profile setup). Returns categorized user profile + JWT tokens.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"idToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyBlbWFpbCI6ICJnb29nbGV1c2VyQDRkZGF0ZS5jb20iLCBuYW1lOiAiR29vZ2xlIFVzZXIiIH0.dummy_signature\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": [
@@ -637,8 +1093,15 @@
               "name": "Success — 201 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "url": { "raw": "{{baseUrl}}/auth/google" }
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/google"
+                }
               },
               "status": "Created",
               "code": 201,
@@ -657,6 +1120,1243 @@
                   "if (json.data?.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);"
                 ]
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User profile management endpoints: setting up profile, fetching profile.",
+      "item": [
+        {
+          "name": "B-01 Setup Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"username\": \"janedoe123\",\n  \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n  \"occupation\": \"Software Engineer\",\n  \"gender\": \"FEMALE\",\n  \"interestedIn\": \"MALE\",\n  \"smoker\": \"NEVER\",\n  \"alcohol\": \"SOMETIMES\",\n  \"kids\": \"DOESNT_HAVE_KIDS\",\n  \"wantsKids\": true,\n  \"lookingFor\": \"LONG_TERM\",\n  \"locations\": [\"Dhaka\"],\n  \"lastLocation\": \"Dhaka\",\n  \"latitude\": 23.8103,\n  \"longitude\": 90.4125,\n  \"heightCm\": 165,\n  \"weightKg\": 55,\n  \"creativity\": [\"Art\", \"Photography\"],\n  \"sports\": [\"Gym\", \"Tennis\"],\n  \"moviesAndDramas\": [\"Romance\", \"Comedy\"],\n  \"images\": [\n    {\n      \"url\": \"http://localhost:3000/uploads/example-image.png\",\n      \"isMain\": true,\n      \"sortOrder\": 0\n    }\n  ],\n  \"selfieUrl\": \"http://localhost:3000/uploads/example-selfie.png\",\n  \"notificationsEnabled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile-setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "profile-setup"
+              ]
+            },
+            "description": "Updates the user profile fields. If all required profile fields (name/firstName+lastName, username, birthDate, gender, interestedIn, lookingFor, locations, images) are filled, the user's `isUserVerified` flag is automatically set to `true`."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/profile-setup"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile updated successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"auth\": {\n      \"phone\": \"+8801700000000\",\n      \"email\": \"test@48date.com\",\n      \"role\": \"USER\",\n      \"isEmailVerified\": false,\n      \"isPhoneVerified\": true,\n      \"isUserVerified\": true\n    },\n    \"basicProfile\": {\n      \"name\": \"Jane Doe\",\n      \"firstName\": \"Jane\",\n      \"lastName\": \"Doe\",\n      \"username\": \"janedoe123\",\n      \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n      \"occupation\": \"Software Engineer\",\n      \"gender\": \"FEMALE\",\n      \"interestedIn\": \"MALE\"\n    },\n    \"lifestyle\": {\n      \"smoker\": \"NEVER\",\n      \"alcohol\": \"SOMETIMES\",\n      \"kids\": \"DOESNT_HAVE_KIDS\",\n      \"wantsKids\": true,\n      \"lookingFor\": \"LONG_TERM\"\n    },\n    \"location\": {\n      \"locations\": [\"Dhaka\"],\n      \"lastLocation\": \"Dhaka\"\n    },\n    \"body\": {\n      \"heightCm\": 165,\n      \"weightKg\": 55\n    },\n    \"interests\": {\n      \"creativity\": [\"Art\", \"Photography\"],\n      \"sports\": [\"Gym\", \"Tennis\"],\n      \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n    },\n    \"media\": {\n      \"images\": [\n        {\n          \"id\": \"img_1\",\n          \"url\": \"http://localhost:3000/uploads/example-image.png\",\n          \"hash\": null,\n          \"width\": null,\n          \"height\": null,\n          \"isMain\": true,\n          \"sortOrder\": 0,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n        }\n      ],\n      \"selfieUrl\": \"http://localhost:3000/uploads/example-selfie.png\",\n      \"selfieVerified\": false,\n      \"notificationsEnabled\": true\n    },\n    \"meta\": {\n      \"subscriptionId\": null,\n      \"lastLoginAt\": \"2026-08-17T09:10:00.000Z\",\n      \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n      \"updatedAt\": \"2026-08-17T09:20:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/profile-setup"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"birthDate must be a valid ISO date\",\n    \"gender must be one of: MALE, FEMALE, NON_BINARY, OTHER\"\n  ],\n  \"statusCode\": 400\n}"
+            },
+            {
+              "name": "Error — 409 Conflict (username taken)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/profile-setup"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Username is already taken\",\n  \"messages\": [\n    \"Username is already taken\"\n  ],\n  \"statusCode\": 409\n}"
+            }
+          ]
+        },
+        {
+          "name": "B-02 Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "profile"
+              ]
+            },
+            "description": "Fetches the current logged in user's profile info."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/profile"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile fetched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"auth\": {\n      \"phone\": \"+8801700000000\",\n      \"email\": \"test@48date.com\",\n      \"role\": \"USER\",\n      \"isEmailVerified\": false,\n      \"isPhoneVerified\": true,\n      \"isUserVerified\": true\n    },\n    \"basicProfile\": {\n      \"name\": \"Jane Doe\",\n      \"firstName\": \"Jane\",\n      \"lastName\": \"Doe\",\n      \"username\": \"janedoe123\",\n      \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n      \"occupation\": \"Software Engineer\",\n      \"gender\": \"FEMALE\",\n      \"interestedIn\": \"MALE\"\n    },\n    \"lifestyle\": {\n      \"smoker\": \"NEVER\",\n      \"alcohol\": \"SOMETIMES\",\n      \"kids\": \"DOESNT_HAVE_KIDS\",\n      \"wantsKids\": true,\n      \"lookingFor\": \"LONG_TERM\"\n    },\n    \"location\": {\n      \"locations\": [\"Dhaka\"],\n      \"lastLocation\": \"Dhaka\"\n    },\n    \"body\": {\n      \"heightCm\": 165,\n      \"weightKg\": 55\n    },\n    \"interests\": {\n      \"creativity\": [\"Art\", \"Photography\"],\n      \"sports\": [\"Gym\", \"Tennis\"],\n      \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n    },\n    \"media\": {\n      \"images\": [\n        {\n          \"id\": \"img_1\",\n          \"url\": \"http://localhost:3000/uploads/example-image.png\",\n          \"hash\": null,\n          \"width\": null,\n          \"height\": null,\n          \"isMain\": true,\n          \"sortOrder\": 0,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n        }\n      ],\n      \"selfieUrl\": \"http://localhost:3000/uploads/example-selfie.png\",\n      \"selfieVerified\": false,\n      \"notificationsEnabled\": true\n    },\n    \"meta\": {\n      \"subscriptionId\": null,\n      \"lastLoginAt\": \"2026-08-17T09:10:00.000Z\",\n      \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n      \"updatedAt\": \"2026-08-17T09:20:00.000Z\"\n    }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Images",
+      "description": "Image management endpoints: upload photos.",
+      "item": [
+        {
+          "name": "C-01 Upload Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/images/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "images",
+                "upload"
+              ]
+            },
+            "description": "Uploads an image file using `multipart/form-data`. On success, returns the public URL and R2/local storage key."
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/images/upload"
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Image uploaded successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"url\": \"http://localhost:3000/uploads/6e088a8d-b0ad-4d43-a616-86c3d9ef961e-1724395600000.png\",\n    \"key\": \"local/uploads/6e088a8d-b0ad-4d43-a616-86c3d9ef961e-1724395600000.png\"\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Invalid Mimetype",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/images/upload"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed. Received: application/octet-stream\",\n  \"messages\": [\n    \"Invalid file type. Only JPEG, PNG, WEBP, and GIF are allowed. Received: application/octet-stream\"\n  ],\n  \"statusCode\": 400\n}"
+            },
+            {
+              "name": "Error — 401 Missing Token",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/images/upload"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Unauthorized\",\n  \"messages\": [\n    \"Unauthorized\"\n  ],\n  \"statusCode\": 401\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Discovery",
+      "description": "Discovery endpoints: get candidate profiles, manage discovery preferences, swipe LIKE/PASS/SUPER_LIKE.",
+      "item": [
+        {
+          "name": "D-01 Get Discovery Candidates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/discovery",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery"
+              ]
+            },
+            "description": "Fetches verified discovery candidates matching the user's preferences (gender, age). Excludes already swiped users and blocked users. Results are shuffled randomly."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Discovery profiles fetched successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": null,\n        \"email\": \"testuser@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": true,\n        \"isPhoneVerified\": false,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": {\n        \"name\": \"Jane Doe\",\n        \"firstName\": \"Jane\",\n        \"lastName\": \"Doe\",\n        \"username\": \"janedoe123\",\n        \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n        \"occupation\": \"Software Engineer\",\n        \"gender\": \"FEMALE\",\n        \"interestedIn\": \"MALE\"\n      },\n      \"lifestyle\": {\n        \"smoker\": \"NEVER\",\n        \"alcohol\": \"SOMETIMES\",\n        \"kids\": \"DOESNT_HAVE_KIDS\",\n        \"wantsKids\": true,\n        \"lookingFor\": \"LONG_TERM\"\n      },\n      \"location\": {\n        \"locations\": [\"Dhaka\"],\n        \"lastLocation\": \"Dhaka\"\n      },\n      \"body\": {\n        \"heightCm\": 165,\n        \"weightKg\": 55\n      },\n      \"interests\": {\n        \"creativity\": [\"Art\", \"Photography\"],\n        \"sports\": [\"Gym\", \"Tennis\"],\n        \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n      },\n      \"media\": {\n        \"images\": [\n          {\n            \"id\": \"img_1\",\n            \"url\": \"http://localhost:3000/uploads/jane.jpg\",\n            \"hash\": null,\n            \"width\": null,\n            \"height\": null,\n            \"isMain\": true,\n            \"sortOrder\": 0,\n            \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n          }\n        ],\n        \"selfieUrl\": null,\n        \"selfieVerified\": false,\n        \"notificationsEnabled\": true\n      },\n      \"meta\": {\n        \"subscriptionId\": null,\n        \"lastLoginAt\": null,\n        \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n        \"updatedAt\": \"2026-08-17T09:05:00.000Z\"\n      }\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-02 Get Discovery Preferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/discovery/preferences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery",
+                "preferences"
+              ]
+            },
+            "description": "Gets the current user's discovery preferences. If they do not exist yet, they are automatically created with default values."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/preferences"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Discovery preferences fetched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"pref_uuid\",\n    \"userId\": \"user_uuid\",\n    \"minAge\": 18,\n    \"maxAge\": 60,\n    \"maxDistanceKm\": 50,\n    \"preferredGender\": null,\n    \"updatedAt\": \"2026-08-23T06:12:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-03 Update Discovery Preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minAge\": 20,\n  \"maxAge\": 35,\n  \"maxDistanceKm\": 30,\n  \"preferredGender\": \"FEMALE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/discovery/preferences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery",
+                "preferences"
+              ]
+            },
+            "description": "Updates target age bounds, distance, and preferred gender filter."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/preferences"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Discovery preferences updated successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"pref_uuid\",\n    \"userId\": \"user_uuid\",\n    \"minAge\": 20,\n    \"maxAge\": 35,\n    \"maxDistanceKm\": 30,\n    \"preferredGender\": \"FEMALE\",\n    \"updatedAt\": \"2026-08-23T06:15:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-04 Get Public Profile Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/discovery/cd9c425f-2daa-4a55-9b00-b0a470a86727",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery",
+                "cd9c425f-2daa-4a55-9b00-b0a470a86727"
+              ]
+            },
+            "description": "Retrieves the detail public view of another user's profile."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/cd9c425f-2daa-4a55-9b00-b0a470a86727"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Profile details fetched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"auth\": {\n      \"phone\": null,\n      \"email\": \"testuser@48date.com\",\n      \"role\": \"USER\",\n      \"isEmailVerified\": true,\n      \"isPhoneVerified\": false,\n      \"isUserVerified\": true\n    },\n    \"basicProfile\": {\n      \"name\": \"Jane Doe\",\n      \"firstName\": \"Jane\",\n      \"lastName\": \"Doe\",\n      \"username\": \"janedoe123\",\n      \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n      \"occupation\": \"Software Engineer\",\n      \"gender\": \"FEMALE\",\n      \"interestedIn\": \"MALE\"\n    },\n    \"lifestyle\": {\n      \"smoker\": \"NEVER\",\n      \"alcohol\": \"SOMETIMES\",\n      \"kids\": \"DOESNT_HAVE_KIDS\",\n      \"wantsKids\": true,\n      \"lookingFor\": \"LONG_TERM\"\n    },\n    \"location\": {\n      \"locations\": [\"Dhaka\"],\n      \"lastLocation\": \"Dhaka\"\n    },\n    \"body\": {\n      \"heightCm\": 165,\n      \"weightKg\": 55\n    },\n    \"interests\": {\n      \"creativity\": [\"Art\", \"Photography\"],\n      \"sports\": [\"Gym\", \"Tennis\"],\n      \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n    },\n    \"media\": {\n      \"images\": [\n        {\n          \"id\": \"img_1\",\n          \"url\": \"http://localhost:3000/uploads/jane.jpg\",\n          \"hash\": null,\n          \"width\": null,\n          \"height\": null,\n          \"isMain\": true,\n          \"sortOrder\": 0,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n        }\n      ],\n      \"selfieUrl\": null,\n      \"selfieVerified\": false,\n      \"notificationsEnabled\": true\n    },\n    \"meta\": {\n      \"subscriptionId\": null,\n      \"lastLoginAt\": null,\n      \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n      \"updatedAt\": \"2026-08-17T09:05:00.000Z\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-05 Swipe (Like / Pass / Super Like)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetUserId\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n  \"action\": \"LIKE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/discovery/swipe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "discovery",
+                "swipe"
+              ]
+            },
+            "description": "Registers a swipe action (LIKE, PASS, SUPER_LIKE). If both users like each other, creates a Match and Conversation."
+          },
+          "response": [
+            {
+              "name": "Success — Swipe Recorded (No Match)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/swipe"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Swipe recorded successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"isMatch\": false\n  }\n}"
+            },
+            {
+              "name": "Success — It's a Match!",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/discovery/swipe"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"It's a match!\",\n  \"messages\": [],\n  \"data\": {\n    \"isMatch\": true,\n    \"match\": {\n      \"id\": \"match_uuid\",\n      \"conversationId\": \"convo_uuid\",\n      \"matchedUser\": {\n        \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n        \"auth\": {\n          \"phone\": null,\n          \"email\": \"testuser@48date.com\",\n          \"role\": \"USER\",\n          \"isEmailVerified\": true,\n          \"isPhoneVerified\": false,\n          \"isUserVerified\": true\n        },\n        \"basicProfile\": {\n          \"name\": \"Jane Doe\",\n          \"firstName\": \"Jane\",\n          \"lastName\": \"Doe\",\n          \"username\": \"janedoe123\",\n          \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n          \"occupation\": \"Software Engineer\",\n          \"gender\": \"FEMALE\",\n          \"interestedIn\": \"MALE\"\n        },\n        \"lifestyle\": {\n          \"smoker\": \"NEVER\",\n          \"alcohol\": \"SOMETIMES\",\n          \"kids\": \"DOESNT_HAVE_KIDS\",\n          \"wantsKids\": true,\n          \"lookingFor\": \"LONG_TERM\"\n        },\n        \"location\": {\n          \"locations\": [\"Dhaka\"],\n          \"lastLocation\": \"Dhaka\"\n        },\n        \"body\": {\n          \"heightCm\": 165,\n          \"weightKg\": 55\n        },\n        \"interests\": {\n          \"creativity\": [\"Art\", \"Photography\"],\n          \"sports\": [\"Gym\", \"Tennis\"],\n          \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n        },\n        \"media\": {\n          \"images\": [\n            {\n              \"id\": \"img_1\",\n              \"url\": \"http://localhost:3000/uploads/jane.jpg\",\n              \"hash\": null,\n              \"width\": null,\n              \"height\": null,\n              \"isMain\": true,\n              \"sortOrder\": 0,\n              \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n            }\n          ],\n          \"selfieUrl\": null,\n          \"selfieVerified\": false,\n          \"notificationsEnabled\": true\n        },\n        \"meta\": {\n          \"subscriptionId\": null,\n          \"lastLoginAt\": null,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n          \"updatedAt\": \"2026-08-17T09:05:00.000Z\"\n        }\n      }\n    }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Matches",
+      "description": "Matches endpoints: list active matches, unmatch profiles.",
+      "item": [
+        {
+          "name": "E-01 Get Active Matches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/matches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matches"
+              ]
+            },
+            "description": "Retrieves all active matches for the logged-in user, including the match details, linked conversation ID, and the counterpart user's profile details."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/matches"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Matches retrieved successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"matchId\": \"match_uuid\",\n      \"conversationId\": \"convo_uuid\",\n      \"matchedUser\": {\n        \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n        \"auth\": {\n          \"phone\": null,\n          \"email\": \"testuser@48date.com\",\n          \"role\": \"USER\",\n          \"isEmailVerified\": true,\n          \"isPhoneVerified\": false,\n          \"isUserVerified\": true\n        },\n        \"basicProfile\": {\n          \"name\": \"Jane Doe\",\n          \"firstName\": \"Jane\",\n          \"lastName\": \"Doe\",\n          \"username\": \"janedoe123\",\n          \"birthDate\": \"2000-01-01T00:00:00.000Z\",\n          \"occupation\": \"Software Engineer\",\n          \"gender\": \"FEMALE\",\n          \"interestedIn\": \"MALE\"\n        },\n        \"lifestyle\": {\n          \"smoker\": \"NEVER\",\n          \"alcohol\": \"SOMETIMES\",\n          \"kids\": \"DOESNT_HAVE_KIDS\",\n          \"wantsKids\": true,\n          \"lookingFor\": \"LONG_TERM\"\n        },\n        \"location\": {\n          \"locations\": [\"Dhaka\"],\n          \"lastLocation\": \"Dhaka\"\n        },\n        \"body\": {\n          \"heightCm\": 165,\n          \"weightKg\": 55\n        },\n        \"interests\": {\n          \"creativity\": [\"Art\", \"Photography\"],\n          \"sports\": [\"Gym\", \"Tennis\"],\n          \"moviesAndDramas\": [\"Romance\", \"Comedy\"]\n        },\n        \"media\": {\n          \"images\": [\n            {\n              \"id\": \"img_1\",\n              \"url\": \"http://localhost:3000/uploads/jane.jpg\",\n              \"hash\": null,\n              \"width\": null,\n              \"height\": null,\n              \"isMain\": true,\n              \"sortOrder\": 0,\n              \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n            }\n          ],\n          \"selfieUrl\": null,\n          \"selfieVerified\": false,\n          \"notificationsEnabled\": true\n        },\n        \"meta\": {\n          \"subscriptionId\": null,\n          \"lastLoginAt\": null,\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n          \"updatedAt\": \"2026-08-17T09:05:00.000Z\"\n        }\n      },\n      \"matchedAt\": \"2026-08-23T06:12:00.000Z\",\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "E-02 Unmatch User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/matches/match_uuid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matches",
+                "match_uuid"
+              ]
+            },
+            "description": "Unmatches the user, setting the match status to UNMATCHED."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/matches/match_uuid"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Unmatched successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"message\": \"Unmatched successfully\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chat & Games",
+      "description": "Endpoints for real-time WebSockets chat listings, message history, and interactive in-chat games.",
+      "item": [
+        {
+          "name": "D-01 Get Conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chat/conversations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chat",
+                "conversations"
+              ]
+            },
+            "description": "Retrieves the active conversations list for the authenticated user, complete with matched user details and the last message."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/chat/conversations"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Conversations retrieved successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"id\": \"conv_123456\",\n      \"matchId\": \"match_uuid\",\n      \"matchedUser\": {\n        \"id\": \"user_partner_uuid\",\n        \"auth\": {\n          \"phone\": \"+8801711111111\",\n          \"email\": \"partner@48date.com\",\n          \"role\": \"USER\",\n          \"isEmailVerified\": true,\n          \"isPhoneVerified\": true,\n          \"isUserVerified\": true\n        },\n        \"basicProfile\": {\n          \"name\": \"Jane Doe\",\n          \"firstName\": \"Jane\",\n          \"lastName\": \"Doe\",\n          \"username\": \"janedoe\",\n          \"birthDate\": \"1999-06-15T00:00:00.000Z\",\n          \"occupation\": \"Designer\",\n          \"gender\": \"FEMALE\",\n          \"interestedIn\": \"MALE\"\n        },\n        \"lifestyle\": {\n          \"smoker\": \"NONE\",\n          \"alcohol\": \"OCCASIONALLY\",\n          \"kids\": \"DONT_HAVE\",\n          \"wantsKids\": true,\n          \"lookingFor\": \"REAL_RELATIONSHIP\"\n        },\n        \"location\": {\n          \"locations\": [\n            \"Dhaka\"\n          ],\n          \"lastLocation\": \"Dhaka\"\n        },\n        \"body\": {\n          \"heightCm\": 165,\n          \"weightKg\": 55\n        },\n        \"interests\": {\n          \"creativity\": [\n            \"Music\",\n            \"Reading\"\n          ],\n          \"sports\": [\n            \"Yoga\"\n          ],\n          \"moviesAndDramas\": [\n            \"Comedy\"\n          ]\n        },\n        \"media\": {\n          \"images\": [\n            {\n              \"id\": \"img_p1\",\n              \"url\": \"https://cdn.example.com/photos/jane_main.jpg\",\n              \"hash\": \"somehash\",\n              \"width\": 600,\n              \"height\": 800,\n              \"isMain\": true,\n              \"sortOrder\": 0,\n              \"createdAt\": \"2026-08-17T08:55:00.000Z\"\n            }\n          ],\n          \"selfieUrl\": \"https://cdn.example.com/selfies/jane.jpg\",\n          \"selfieVerified\": true,\n          \"notificationsEnabled\": true\n        },\n        \"meta\": {\n          \"subscriptionId\": null,\n          \"lastLoginAt\": \"2026-08-30T00:00:00.000Z\",\n          \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n          \"updatedAt\": \"2026-08-30T00:00:00.000Z\"\n        }\n      },\n      \"lastMessage\": {\n        \"id\": \"msg_987654\",\n        \"conversationId\": \"conv_123456\",\n        \"senderId\": \"user_partner_uuid\",\n        \"content\": \"Hey, what's up?\",\n        \"type\": \"TEXT\",\n        \"createdAt\": \"2026-08-30T00:05:00.000Z\"\n      },\n      \"updatedAt\": \"2026-08-30T00:05:00.000Z\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "Error — 401 Unauthorized",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/chat/conversations"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Unauthorized\",\n  \"messages\": [],\n  \"statusCode\": 401\n}"
+            }
+          ]
+        },
+        {
+          "name": "D-02 Get Message History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chat/conversations/conversation_uuid/messages?limit=50&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chat",
+                "conversations",
+                "conversation_uuid",
+                "messages"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Retrieves paginated messages for a conversation."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/chat/conversations/conversation_uuid/messages?limit=50&offset=0"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Message history retrieved successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"id\": \"msg_987654\",\n      \"conversationId\": \"conv_123456\",\n      \"senderId\": \"user_partner_uuid\",\n      \"content\": \"Hey, what's up?\",\n      \"type\": \"TEXT\",\n      \"createdAt\": \"2026-08-30T00:05:00.000Z\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "Error — 404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/chat/conversations/invalid_uuid/messages?limit=50&offset=0"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Conversation not found\",\n  \"messages\": [\n    \"Conversation not found\"\n  ],\n  \"statusCode\": 404\n}"
+            }
+          ]
+        },
+        {
+          "name": "F-01 Get Active Games",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/games",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "games"
+              ]
+            },
+            "description": "Lists all active games available to play (seeds automatically on first start if empty)."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/games"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Active games retrieved successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"id\": \"game_this_or_that\",\n      \"name\": \"This or That 🍦\",\n      \"type\": \"THIS_OR_THAT\",\n      \"isActive\": true,\n      \"createdAt\": \"2026-08-30T00:00:00.000Z\",\n      \"updatedAt\": \"2026-08-30T00:00:00.000Z\",\n      \"questions\": [\n        {\n          \"id\": \"q_1\",\n          \"gameId\": \"game_this_or_that\",\n          \"question\": \"What is your morning fuel?\",\n          \"optionA\": \"Coffee\",\n          \"optionB\": \"Tea\",\n          \"order\": 1,\n          \"isActive\": true,\n          \"createdAt\": \"2026-08-30T00:00:00.000Z\",\n          \"updatedAt\": \"2026-08-30T00:00:00.000Z\"\n        }\n      ]\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "F-02 Start Game Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matchId\": \"match_uuid\",\n  \"gameId\": \"game_uuid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/games/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "games",
+                "sessions"
+              ]
+            },
+            "description": "Starts or retrieves an active game session for a match."
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"matchId\": \"match_uuid\",\n  \"gameId\": \"game_uuid\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/games/sessions"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Game session initialized successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"session_123456\",\n    \"matchId\": \"match_uuid\",\n    \"gameId\": \"game_uuid\",\n    \"status\": \"IN_PROGRESS\",\n    \"createdAt\": \"2026-08-30T00:10:00.000Z\",\n    \"completedAt\": null,\n    \"answers\": [],\n    \"game\": {\n      \"id\": \"game_uuid\",\n      \"name\": \"This or That 🍦\",\n      \"type\": \"THIS_OR_THAT\",\n      \"isActive\": true,\n      \"questions\": [\n        {\n          \"id\": \"q_1\",\n          \"gameId\": \"game_uuid\",\n          \"question\": \"What is your morning fuel?\",\n          \"optionA\": \"Coffee\",\n          \"optionB\": \"Tea\",\n          \"order\": 1,\n          \"isActive\": true\n        }\n      ]\n    }\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Bad Request (Inactive Match)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"matchId\": \"inactive_match_uuid\",\n  \"gameId\": \"game_uuid\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/games/sessions"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Cannot start a game on an inactive match\",\n  \"messages\": [\n    \"Cannot start a game on an inactive match\"\n  ],\n  \"statusCode\": 400\n}"
+            }
+          ]
+        },
+        {
+          "name": "F-03 Get Game Session State",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/games/sessions/session_uuid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "games",
+                "sessions",
+                "session_uuid"
+              ]
+            },
+            "description": "Retrieves the current state of a game session including options and completed answers."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/games/sessions/session_uuid"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Game session retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"session_uuid\",\n    \"matchId\": \"match_uuid\",\n    \"gameId\": \"game_uuid\",\n    \"status\": \"IN_PROGRESS\",\n    \"createdAt\": \"2026-08-30T00:10:00.000Z\",\n    \"completedAt\": null,\n    \"answers\": [\n      {\n        \"id\": \"ans_1\",\n        \"gameSessionId\": \"session_uuid\",\n        \"questionId\": \"q_1\",\n        \"userId\": \"user_low_id\",\n        \"selectedOption\": \"Coffee\",\n        \"createdAt\": \"2026-08-30T00:12:00.000Z\"\n      }\n    ],\n    \"game\": {\n      \"id\": \"game_uuid\",\n      \"name\": \"This or That 🍦\",\n      \"type\": \"THIS_OR_THAT\",\n      \"isActive\": true,\n      \"questions\": [\n        {\n          \"id\": \"q_1\",\n          \"gameId\": \"game_uuid\",\n          \"question\": \"What is your morning fuel?\",\n          \"optionA\": \"Coffee\",\n          \"optionB\": \"Tea\",\n          \"order\": 1,\n          \"isActive\": true\n        }\n      ]\n    }\n  }\n}"
+            },
+            {
+              "name": "Error — 404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/games/sessions/invalid_session_uuid"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Game session not found\",\n  \"messages\": [\n    \"Game session not found\"\n  ],\n  \"statusCode\": 404\n}"
+            }
+          ]
+        },
+        {
+          "name": "F-04 Submit Game Answer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionId\": \"question_uuid\",\n  \"selectedOption\": \"optionA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/games/sessions/session_uuid/answers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "games",
+                "sessions",
+                "session_uuid",
+                "answers"
+              ]
+            },
+            "description": "Submits user's choice for a specific game question round."
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created (Waiting for partner)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"questionId\": \"question_uuid\",\n  \"selectedOption\": \"optionA\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/games/sessions/session_uuid/answers"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Answer submitted successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"answered\": true,\n    \"waitingForPartner\": true\n  }\n}"
+            },
+            {
+              "name": "Success — 201 Created (Game completed)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"questionId\": \"question_uuid\",\n  \"selectedOption\": \"optionA\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/games/sessions/session_uuid/answers"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Answer submitted successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"answered\": true,\n    \"waitingForPartner\": false,\n    \"completed\": true,\n    \"compatibility\": 80\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Bad Request (Completed Session)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"questionId\": \"question_uuid\",\n  \"selectedOption\": \"optionA\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/games/sessions/session_uuid/answers"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This game session is already completed\",\n  \"messages\": [\n    \"This game session is already completed\"\n  ],\n  \"statusCode\": 400\n}"
             }
           ]
         }

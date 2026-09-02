@@ -1,7 +1,10 @@
 version: '3.8'
+
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: date48-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -10,11 +13,52 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d date48" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: date48-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: date48-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Important: use service name "postgres", not localhost
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/date48?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Add other env vars you need (JWT_SECRET, AWS keys, etc.)
+      # JWT_SECRET: your-secret
+      # AWS_ACCESS_KEY_ID: ...
+      # AWS_SECRET_ACCESS_KEY: ...
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Optional: for development with hot-reload (comment out for production)
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
 
 volumes:
   pgdata:
