@@ -1,0 +1,667 @@
+// ==============================================================================
+// 48Date Backend — Database Schema (DBML)
+// Generated from Prisma Models & Enums (PostgreSQL)
+// Visualizer: https://dbdiagram.io / https://dbdocs.io
+// ==============================================================================
+
+Project "48Date" {
+  database_type: 'PostgreSQL'
+  Note: '48Date dating platform relational database schema'
+}
+
+// ------------------------------------------------------------------------------
+// ENUMS (18 Enums)
+// ------------------------------------------------------------------------------
+
+Enum Role {
+  USER
+  ADMIN
+}
+
+Enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  OTHER
+}
+
+Enum HabitFrequency {
+  NEVER
+  SOMETIMES
+  OFTEN
+  DAILY
+}
+
+Enum KidsStatus {
+  HAS_KIDS
+  DOESNT_HAVE_KIDS
+  PREFER_NOT_TO_SAY
+}
+
+Enum LookingFor {
+  LONG_TERM
+  SHORT_TERM
+  FRIENDSHIP
+  CASUAL
+  STILL_FIGURING_OUT
+}
+
+Enum ActionType {
+  LIKE
+  PASS
+  SUPER_LIKE
+}
+
+Enum MatchStatus {
+  ACTIVE
+  UNMATCHED
+}
+
+Enum MessageType {
+  TEXT
+  IMAGE
+  DATE_INVITE
+  SYSTEM
+}
+
+Enum DateStatus {
+  DRAFT
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+Enum TrustEventType {
+  PROFILE_VERIFIED
+  DATE_ATTENDED
+  POSITIVE_FEEDBACK
+  GHOSTING
+  NO_SHOW
+  LATE_CANCELLATION
+  ABUSIVE_BEHAVIOR
+}
+
+Enum SubscriptionPlan {
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+Enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+Enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+Enum Platform {
+  IOS
+  ANDROID
+}
+
+Enum NotificationType {
+  MATCH
+  MESSAGE
+  DATE_REMINDER
+  DATE_INVITE
+  SUBSCRIPTION
+  SYSTEM
+}
+
+Enum GameType {
+  THIS_OR_THAT
+  ICEBREAKER
+}
+
+Enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+Enum StoryStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
+// ------------------------------------------------------------------------------
+// TABLES (24 Tables)
+// ------------------------------------------------------------------------------
+
+// 1. Auth & Core Profiles
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`]
+  phone varchar [unique, null, note: 'E.164 format']
+  email varchar [unique, null]
+  passwordHash text [null]
+  role Role [not null, default: 'USER']
+  isEmailVerified boolean [not null, default: false]
+  isPhoneVerified boolean [not null, default: false]
+  isUserVerified boolean [not null, default: false, note: 'True when full profile setup/verification is complete']
+
+  name varchar [null]
+  firstName varchar [null]
+  lastName varchar [null]
+  username varchar [unique, null]
+  birthDate timestamp [null]
+  occupation varchar [null]
+  gender Gender [null]
+  interestedIn Gender [null]
+
+  smoker HabitFrequency [null]
+  alcohol HabitFrequency [null]
+  kids KidsStatus [null]
+  wantsKids boolean [null]
+  lookingFor LookingFor [null]
+
+  locations "varchar[]" [not null, default: `[]`]
+  lastLocation varchar [null]
+  latitude double_precision [null]
+  longitude double_precision [null]
+
+  heightCm integer [null]
+  weightKg integer [null]
+
+  creativity "varchar[]" [not null, default: `[]`]
+  sports "varchar[]" [not null, default: `[]`]
+  moviesAndDramas "varchar[]" [not null, default: `[]`]
+
+  selfieUrl text [null]
+  selfieVerified boolean [not null, default: false]
+  notificationsEnabled boolean [not null, default: true]
+
+  subscriptionId varchar [null]
+  lastLoginAt timestamp [null]
+  createdAt timestamp [not null, default: `now()`]
+  updatedAt timestamp [not null]
+
+  indexes {
+    phone [unique]
+    email [unique]
+    username [unique]
+  }
+}
+
+// 2. User Devices & Push Tokens
+Table devices {
+  id uuid [pk, default: `gen_random_uuid()`]
+  userId uuid [not null]
+  fcmToken text [unique, not null]
+  platform Platform [not null]
+  lastActiveAt timestamp [not null, default: `now()`]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    fcmToken [unique]
+    userId
+  }
+}
+
+// 3. User Discovery Preferences
+Table discovery_preferences {
+  id uuid [pk, default: `gen_random_uuid()`]
+  userId uuid [unique, not null]
+  minAge integer [not null, default: 18]
+  maxAge integer [not null, default: 60]
+  maxDistanceKm integer [not null, default: 50]
+  preferredGender Gender [null]
+  updatedAt timestamp [not null]
+
+  indexes {
+    userId [unique]
+  }
+}
+
+// 4. Discovery Swipes / Actions
+Table discovery_actions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  actorId uuid [not null]
+  targetUserId uuid [not null]
+  action ActionType [not null]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    (actorId, targetUserId) [unique]
+    targetUserId
+  }
+}
+
+// 5. Matches
+Table matches {
+  id uuid [pk, default: `gen_random_uuid()`]
+  userLowId uuid [not null, note: 'Smaller UUID of pair']
+  userHighId uuid [not null, note: 'Larger UUID of pair']
+  status MatchStatus [not null, default: 'ACTIVE']
+  matchedAt timestamp [not null, default: `now()`]
+  unmatchedAt timestamp [null]
+
+  indexes {
+    (userLowId, userHighId) [unique]
+  }
+}
+
+// 6. Chat Conversations
+Table conversations {
+  id uuid [pk, default: `gen_random_uuid()`]
+  matchId uuid [unique, not null]
+  createdAt timestamp [not null, default: `now()`]
+  updatedAt timestamp [not null]
+
+  indexes {
+    matchId [unique]
+  }
+}
+
+// 7. Chat Messages
+Table messages {
+  id uuid [pk, default: `gen_random_uuid()`]
+  conversationId uuid [not null]
+  senderId uuid [not null]
+  type MessageType [not null, default: 'TEXT']
+  content text [not null]
+  mediaUrl text [null]
+  createdAt timestamp [not null, default: `now()`]
+  editedAt timestamp [null]
+  deletedAt timestamp [null]
+
+  indexes {
+    conversationId
+    senderId
+  }
+}
+
+// 8. Date Plans
+Table date_plans {
+  id uuid [pk, default: `gen_random_uuid()`]
+  matchId uuid [not null]
+  proposerId uuid [not null]
+  receiverId uuid [not null]
+  venueName text [not null]
+  venueAddress text [not null]
+  latitude double_precision [null]
+  longitude double_precision [null]
+  mapboxPlaceId text [null]
+  date timestamp [not null]
+  startTime timestamp [not null]
+  endTime timestamp [null]
+  status DateStatus [not null, default: 'PENDING']
+  createdAt timestamp [not null, default: `now()`]
+  updatedAt timestamp [not null]
+
+  indexes {
+    matchId
+    proposerId
+    receiverId
+  }
+}
+
+// 9. Post-Date Feedback & Ratings
+Table date_ratings {
+  id uuid [pk, default: `gen_random_uuid()`]
+  datePlanId uuid [not null]
+  reviewerId uuid [not null]
+  reviewedUserId uuid [not null]
+  behaviorScore integer [not null]
+  punctualityScore integer [not null]
+  safetyScore integer [not null]
+  overallScore integer [not null]
+  comment text [null]
+  isAnonymous boolean [not null, default: false]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    (datePlanId, reviewerId) [unique]
+    reviewedUserId
+  }
+}
+
+// 10. User Profile Photos (R2 metadata only, no blobs)
+Table images {
+  id uuid [pk, default: `gen_random_uuid()`]
+  userId uuid [not null]
+  r2Key text [not null]
+  isPrimary boolean [not null, default: false]
+  sortOrder integer [not null, default: 0]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    userId
+  }
+}
+
+// 11. Trust Score
+Table trust_scores {
+  id uuid [pk, default: `gen_random_uuid()`]
+  userId uuid [unique, not null]
+  score integer [not null, default: 50]
+  updatedAt timestamp [not null]
+
+  indexes {
+    userId [unique]
+  }
+}
+
+// 12. Trust Score History Events
+Table trust_score_events {
+  id uuid [pk, default: `gen_random_uuid()`]
+  userId uuid [not null]
+  type TrustEventType [not null]
+  points integer [not null]
+  reason text [null]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    userId
+  }
+}
+
+// 13. Subscriptions (RevenueCat / Apple / Google)
+Table subscriptions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  userId uuid [not null]
+  plan SubscriptionPlan [not null]
+  provider varchar [not null, note: 'apple | google | revenuecat']
+  productId varchar [not null]
+  priceUsd "decimal(10,2)" [null]
+  status SubscriptionStatus [not null, default: 'ACTIVE']
+  startedAt timestamp [not null, default: `now()`]
+  expiresAt timestamp [null]
+  cancelledAt timestamp [null]
+
+  indexes {
+    userId
+  }
+}
+
+// 14. Subscription Webhook Events
+Table subscription_events {
+  id uuid [pk, default: `gen_random_uuid()`]
+  subscriptionId uuid [not null]
+  externalEventId varchar [unique, not null]
+  eventType varchar [not null]
+  payload jsonb [null]
+  processedAt timestamp [null]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    externalEventId [unique]
+    subscriptionId
+  }
+}
+
+// 15. User Moderation Reports
+Table reports {
+  id uuid [pk, default: `gen_random_uuid()`]
+  reporterId uuid [not null]
+  reportedUserId uuid [not null]
+  reason text [not null]
+  description text [null]
+  status ReportStatus [not null, default: 'PENDING']
+  reviewedBy varchar [null]
+  reviewedAt timestamp [null]
+  resolution text [null]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    reporterId
+    reportedUserId
+  }
+}
+
+// 16. User Blocks
+Table blocks {
+  id uuid [pk, default: `gen_random_uuid()`]
+  blockerId uuid [not null]
+  blockedUserId uuid [not null]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    (blockerId, blockedUserId) [unique]
+    blockedUserId
+  }
+}
+
+// 17. Notifications
+Table notifications {
+  id uuid [pk, default: `gen_random_uuid()`]
+  userId uuid [not null]
+  type NotificationType [not null]
+  title varchar [not null]
+  body text [null]
+  data jsonb [null]
+  readAt timestamp [null]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    userId
+  }
+}
+
+// 18. Mini Games Catalog
+Table games {
+  id uuid [pk, default: `gen_random_uuid()`]
+  type GameType [not null]
+  name varchar [not null]
+  isActive boolean [not null, default: true]
+}
+
+// 19. Mini Game Questions
+Table game_questions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  gameId uuid [not null]
+  question text [not null]
+  optionA text [not null]
+  optionB text [not null]
+  order integer [not null, default: 0]
+  isActive boolean [not null, default: true]
+
+  indexes {
+    gameId
+  }
+}
+
+// 20. Mini Game Sessions
+Table game_sessions {
+  id uuid [pk, default: `gen_random_uuid()`]
+  gameId uuid [not null]
+  matchId uuid [not null]
+  status SessionStatus [not null, default: 'IN_PROGRESS']
+  startedAt timestamp [not null, default: `now()`]
+  completedAt timestamp [null]
+
+  indexes {
+    gameId
+    matchId
+  }
+}
+
+// 21. Mini Game Answers
+Table game_answers {
+  id uuid [pk, default: `gen_random_uuid()`]
+  gameSessionId uuid [not null]
+  questionId uuid [not null]
+  userId uuid [not null]
+  selectedOption text [not null]
+  answeredAt timestamp [not null, default: `now()`]
+
+  indexes {
+    (gameSessionId, questionId, userId) [unique]
+    userId
+  }
+}
+
+// 22. Success Stories (Social Proof)
+Table success_stories {
+  id uuid [pk, default: `gen_random_uuid()`]
+  authorId uuid [not null]
+  partnerId uuid [not null]
+  matchId uuid [unique, null]
+  title varchar [not null]
+  story text [not null]
+  images "text[]" [not null, default: `[]`, note: 'R2 image keys']
+  status StoryStatus [not null, default: 'PENDING']
+  createdAt timestamp [not null, default: `now()`]
+  updatedAt timestamp [not null]
+
+  indexes {
+    matchId [unique]
+    authorId
+    partnerId
+  }
+}
+
+// 23. Success Story Likes
+Table success_story_likes {
+  storyId uuid [not null]
+  userId uuid [not null]
+  createdAt timestamp [not null, default: `now()`]
+
+  indexes {
+    (storyId, userId) [pk]
+  }
+}
+
+// 24. Success Story Comments
+Table success_story_comments {
+  id uuid [pk, default: `gen_random_uuid()`]
+  storyId uuid [not null]
+  userId uuid [not null]
+  content text [not null]
+  createdAt timestamp [not null, default: `now()`]
+  deletedAt timestamp [null]
+
+  indexes {
+    storyId
+    userId
+  }
+}
+
+// ------------------------------------------------------------------------------
+// RELATIONSHIPS & FOREIGN KEYS
+// ------------------------------------------------------------------------------
+
+// User & Device
+Ref: devices.userId > users.id [delete: cascade]
+
+// User & Discovery Preference (1:1)
+Ref: discovery_preferences.userId - users.id [delete: cascade]
+
+// User & Discovery Actions (Actor & Target)
+Ref: discovery_actions.actorId > users.id [delete: cascade]
+Ref: discovery_actions.targetUserId > users.id [delete: cascade]
+
+// User & Matches (Low & High)
+Ref: matches.userLowId > users.id [delete: cascade]
+Ref: matches.userHighId > users.id [delete: cascade]
+
+// Match & Conversation (1:1)
+Ref: conversations.matchId - matches.id [delete: cascade]
+
+// Conversation & Messages
+Ref: messages.conversationId > conversations.id [delete: cascade]
+Ref: messages.senderId > users.id [delete: cascade]
+
+// Match & Date Plans
+Ref: date_plans.matchId > matches.id [delete: cascade]
+Ref: date_plans.proposerId > users.id [delete: cascade]
+Ref: date_plans.receiverId > users.id [delete: cascade]
+
+// Date Plans & Ratings
+Ref: date_ratings.datePlanId > date_plans.id [delete: cascade]
+Ref: date_ratings.reviewerId > users.id [delete: cascade]
+Ref: date_ratings.reviewedUserId > users.id [delete: cascade]
+
+// User & Photos
+Ref: images.userId > users.id [delete: cascade]
+
+// User & Trust Score (1:1)
+Ref: trust_scores.userId - users.id [delete: cascade]
+Ref: trust_score_events.userId > users.id [delete: cascade]
+
+// User & Subscriptions
+Ref: subscriptions.userId > users.id [delete: cascade]
+Ref: subscription_events.subscriptionId > subscriptions.id [delete: cascade]
+
+// User & Moderation
+Ref: reports.reporterId > users.id [delete: cascade]
+Ref: reports.reportedUserId > users.id [delete: cascade]
+Ref: blocks.blockerId > users.id [delete: cascade]
+Ref: blocks.blockedUserId > users.id [delete: cascade]
+
+// User & Notifications
+Ref: notifications.userId > users.id [delete: cascade]
+
+// Mini Games
+Ref: game_questions.gameId > games.id [delete: cascade]
+Ref: game_sessions.gameId > games.id [delete: cascade]
+Ref: game_sessions.matchId > matches.id [delete: cascade]
+Ref: game_answers.gameSessionId > game_sessions.id [delete: cascade]
+Ref: game_answers.questionId > game_questions.id [delete: cascade]
+Ref: game_answers.userId > users.id [delete: cascade]
+
+// Success Stories
+Ref: success_stories.authorId > users.id [delete: cascade]
+Ref: success_stories.partnerId > users.id [delete: cascade]
+Ref: success_stories.matchId - matches.id
+Ref: success_story_likes.storyId > success_stories.id [delete: cascade]
+Ref: success_story_likes.userId > users.id [delete: cascade]
+Ref: success_story_comments.storyId > success_stories.id [delete: cascade]
+Ref: success_story_comments.userId > users.id [delete: cascade]
+
+// ------------------------------------------------------------------------------
+// TABLE GROUPS (Logical Modules)
+// ------------------------------------------------------------------------------
+
+TableGroup Auth_And_Profiles {
+  users
+  devices
+  images
+  discovery_preferences
+}
+
+TableGroup Discovery_And_Matches {
+  discovery_actions
+  matches
+  conversations
+  messages
+}
+
+TableGroup Date_Planner {
+  date_plans
+  date_ratings
+}
+
+TableGroup Trust_And_Safety {
+  trust_scores
+  trust_score_events
+  reports
+  blocks
+}
+
+TableGroup Mini_Games {
+  games
+  game_questions
+  game_sessions
+  game_answers
+}
+
+TableGroup Social_Stories {
+  success_stories
+  success_story_likes
+  success_story_comments
+}
+
+TableGroup Billing_And_Alerts {
+  subscriptions
+  subscription_events
+  notifications
+}
