@@ -10,6 +10,7 @@ import { MatchesModule } from './modules/matches/matches.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { ChatModule } from './modules/chat/chat.module.js';
 import { GamesModule } from './modules/games/games.module.js';
+import { DatesModule } from './modules/dates/dates.module.js';
 import { env } from './config/env.config.js';
 
 @Module({
@@ -29,6 +30,7 @@ import { env } from './config/env.config.js';
     NotificationsModule,
     ChatModule,
     GamesModule,
+    DatesModule,
   ],
 })
 export class AppModule {}

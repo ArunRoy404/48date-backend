@@ -20,6 +20,10 @@
     {
       "key": "resetToken",
       "value": ""
+    },
+    {
+      "key": "datePlanId",
+      "value": ""
     }
   ],
   "item": [
@@ -2362,6 +2366,633 @@
                 }
               ],
               "body": "{\n  \"success\": false,\n  \"message\": \"This game session is already completed\",\n  \"messages\": [\n    \"This game session is already completed\"\n  ],\n  \"statusCode\": 400\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Date Planner",
+      "description": "Date planning endpoints for coordinating, accepting, updating, cancelling, and completing in-person dates.\n\n### Date Flow:\n1. Search venue (`G-01`)\n2. Propose a date (`G-02`) — posts a `DATE_INVITE` message to chat\n3. Counterpart accepts (`G-06`) or declines (`G-07`)\n4. Reschedule/update if needed (`G-05`)\n5. Either participant can cancel (`G-08`)\n6. Mark complete after date happens (`G-09`)\n7. List / view date plans (`G-03`, `G-04`)",
+      "item": [
+        {
+          "name": "G-01 Search Places (Mapbox)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dates/places/search?q=coffee&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates",
+                "places",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "coffee",
+                  "description": "Search term/keyword"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Maximum results (default 10)"
+                }
+              ]
+            },
+            "description": "Searches for venues, cafes, and places using Mapbox Geocoding API with fallback to curated samples if token is not set."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/places/search?q=coffee&limit=10"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Places retrieved successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"id\": \"place_sample_1\",\n      \"name\": \"Coffee Cafe & Bistro\",\n      \"address\": \"10 Gulshan Avenue, Block 2\",\n      \"latitude\": 23.7825,\n      \"longitude\": 90.3978,\n      \"category\": \"cafe\"\n    },\n    {\n      \"id\": \"place_sample_2\",\n      \"name\": \"Coffee Rooftop Lounge & Bar\",\n      \"address\": \"22 Banani 11, Lake View\",\n      \"latitude\": 23.7875,\n      \"longitude\": 90.4028,\n      \"category\": \"lounge\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/places/search"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"q should not be empty\"\n  ],\n  \"statusCode\": 400\n}"
+            }
+          ]
+        },
+        {
+          "name": "G-02 Create Date Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.collectionVariables.set(\"datePlanId\", jsonData.data.id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matchId\": \"c4b8b6e2-1a42-4f81-8152-7cb6ebfa9b71\",\n  \"venueName\": \"North End Coffee Roasters\",\n  \"venueAddress\": \"House 12, Road 113, Gulshan 2, Dhaka\",\n  \"latitude\": 23.7925,\n  \"longitude\": 90.4078,\n  \"mapboxPlaceId\": \"place_sample_1\",\n  \"date\": \"2026-09-15T00:00:00.000Z\",\n  \"startTime\": \"2026-09-15T19:00:00.000Z\",\n  \"endTime\": \"2026-09-15T21:00:00.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates"
+              ]
+            },
+            "description": "Sends a date invitation to the match partner. Validates active match, posts DATE_INVITE to chat conversation, and sends notification to the counterpart."
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Date invitation created successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n    \"matchId\": \"c4b8b6e2-1a42-4f81-8152-7cb6ebfa9b71\",\n    \"proposerId\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"receiverId\": \"e14b5182-5201-447a-a621-c4228994bb01\",\n    \"proposer\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": \"+8801700000000\",\n        \"email\": \"proposer@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": true,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": {\n        \"name\": \"John Doe\",\n        \"firstName\": \"John\",\n        \"lastName\": \"Doe\",\n        \"username\": \"johndoe\",\n        \"birthDate\": \"1998-05-12T00:00:00.000Z\",\n        \"occupation\": \"Software Engineer\",\n        \"gender\": \"MALE\",\n        \"interestedIn\": \"FEMALE\"\n      },\n      \"lifestyle\": {\n        \"smoker\": \"NONE\",\n        \"alcohol\": \"OCCASIONALLY\",\n        \"kids\": \"DONT_HAVE\",\n        \"wantsKids\": true,\n        \"lookingFor\": \"REAL_RELATIONSHIP\"\n      },\n      \"location\": {\n        \"locations\": [\n          \"Dhaka\"\n        ],\n        \"lastLocation\": \"Dhaka\"\n      },\n      \"body\": {\n        \"heightCm\": 178,\n        \"weightKg\": 72\n      },\n      \"interests\": {\n        \"creativity\": [\n          \"Photography\"\n        ],\n        \"sports\": [\n          \"Gym\"\n        ],\n        \"moviesAndDramas\": [\n          \"Sci-Fi\"\n        ]\n      },\n      \"media\": {\n        \"images\": [],\n        \"selfieUrl\": null,\n        \"selfieVerified\": false,\n        \"notificationsEnabled\": true\n      },\n      \"meta\": {\n        \"subscriptionId\": null,\n        \"lastLoginAt\": null,\n        \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n        \"updatedAt\": \"2026-08-17T08:55:00.000Z\"\n      }\n    },\n    \"receiver\": {\n      \"id\": \"e14b5182-5201-447a-a621-c4228994bb01\",\n      \"auth\": {\n        \"phone\": \"+8801800000000\",\n        \"email\": \"receiver@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": true,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": {\n        \"name\": \"Jane Doe\",\n        \"firstName\": \"Jane\",\n        \"lastName\": \"Doe\",\n        \"username\": \"janedoe\",\n        \"birthDate\": \"1999-07-20T00:00:00.000Z\",\n        \"occupation\": \"Designer\",\n        \"gender\": \"FEMALE\",\n        \"interestedIn\": \"MALE\"\n      },\n      \"lifestyle\": {\n        \"smoker\": \"NONE\",\n        \"alcohol\": \"OCCASIONALLY\",\n        \"kids\": \"DONT_HAVE\",\n        \"wantsKids\": true,\n        \"lookingFor\": \"REAL_RELATIONSHIP\"\n      },\n      \"location\": {\n        \"locations\": [\n          \"Dhaka\"\n        ],\n        \"lastLocation\": \"Dhaka\"\n      },\n      \"body\": {\n        \"heightCm\": 165,\n        \"weightKg\": 54\n      },\n      \"interests\": {\n        \"creativity\": [\n          \"Design\"\n        ],\n        \"sports\": [\n          \"Tennis\"\n        ],\n        \"moviesAndDramas\": [\n          \"Rom-Com\"\n        ]\n      },\n      \"media\": {\n        \"images\": [],\n        \"selfieUrl\": null,\n        \"selfieVerified\": false,\n        \"notificationsEnabled\": true\n      },\n      \"meta\": {\n        \"subscriptionId\": null,\n        \"lastLoginAt\": null,\n        \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n        \"updatedAt\": \"2026-08-17T08:55:00.000Z\"\n      }\n    },\n    \"counterpartUser\": {\n      \"id\": \"e14b5182-5201-447a-a621-c4228994bb01\",\n      \"auth\": {\n        \"phone\": \"+8801800000000\",\n        \"email\": \"receiver@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": true,\n        \"isPhoneVerified\": true,\n        \"isUserVerified\": true\n      },\n      \"basicProfile\": {\n        \"name\": \"Jane Doe\",\n        \"firstName\": \"Jane\",\n        \"lastName\": \"Doe\",\n        \"username\": \"janedoe\",\n        \"birthDate\": \"1999-07-20T00:00:00.000Z\",\n        \"occupation\": \"Designer\",\n        \"gender\": \"FEMALE\",\n        \"interestedIn\": \"MALE\"\n      },\n      \"lifestyle\": {\n        \"smoker\": \"NONE\",\n        \"alcohol\": \"OCCASIONALLY\",\n        \"kids\": \"DONT_HAVE\",\n        \"wantsKids\": true,\n        \"lookingFor\": \"REAL_RELATIONSHIP\"\n      },\n      \"location\": {\n        \"locations\": [\n          \"Dhaka\"\n        ],\n        \"lastLocation\": \"Dhaka\"\n      },\n      \"body\": {\n        \"heightCm\": 165,\n        \"weightKg\": 54\n      },\n      \"interests\": {\n        \"creativity\": [\n          \"Design\"\n        ],\n        \"sports\": [\n          \"Tennis\"\n        ],\n        \"moviesAndDramas\": [\n          \"Rom-Com\"\n        ]\n      },\n      \"media\": {\n        \"images\": [],\n        \"selfieUrl\": null,\n        \"selfieVerified\": false,\n        \"notificationsEnabled\": true\n      },\n      \"meta\": {\n        \"subscriptionId\": null,\n        \"lastLoginAt\": null,\n        \"createdAt\": \"2026-08-17T08:55:00.000Z\",\n        \"updatedAt\": \"2026-08-17T08:55:00.000Z\"\n      }\n    },\n    \"venueName\": \"North End Coffee Roasters\",\n    \"venueAddress\": \"House 12, Road 113, Gulshan 2, Dhaka\",\n    \"latitude\": 23.7925,\n    \"longitude\": 90.4078,\n    \"mapboxPlaceId\": \"place_sample_1\",\n    \"date\": \"2026-09-15T00:00:00.000Z\",\n    \"startTime\": \"2026-09-15T19:00:00.000Z\",\n    \"endTime\": \"2026-09-15T21:00:00.000Z\",\n    \"status\": \"PENDING\",\n    \"createdAt\": \"2026-09-03T16:00:00.000Z\",\n    \"updatedAt\": \"2026-09-03T16:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "Error — 400 Validation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\n    \"matchId must be a UUID\",\n    \"venueName should not be empty\"\n  ],\n  \"statusCode\": 400\n}"
+            }
+          ]
+        },
+        {
+          "name": "G-03 Get User Dates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dates?status=PENDING&upcoming=true&limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "description": "Filter by status (PENDING, ACCEPTED, DECLINED, CANCELLED, COMPLETED)"
+                },
+                {
+                  "key": "upcoming",
+                  "value": "true",
+                  "description": "Filter only upcoming active/pending dates"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of date plans per page"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Pagination offset"
+                }
+              ]
+            },
+            "description": "Retrieves all date plans for the logged-in user, filtered by status or upcoming flag."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates?status=PENDING&upcoming=true"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Dates retrieved successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n      \"matchId\": \"c4b8b6e2-1a42-4f81-8152-7cb6ebfa9b71\",\n      \"proposerId\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"receiverId\": \"e14b5182-5201-447a-a621-c4228994bb01\",\n      \"counterpartUser\": {\n        \"id\": \"e14b5182-5201-447a-a621-c4228994bb01\",\n        \"basicProfile\": {\n          \"name\": \"Jane Doe\",\n          \"username\": \"janedoe\",\n          \"gender\": \"FEMALE\"\n        }\n      },\n      \"venueName\": \"North End Coffee Roasters\",\n      \"venueAddress\": \"House 12, Road 113, Gulshan 2, Dhaka\",\n      \"latitude\": 23.7925,\n      \"longitude\": 90.4078,\n      \"date\": \"2026-09-15T00:00:00.000Z\",\n      \"startTime\": \"2026-09-15T19:00:00.000Z\",\n      \"endTime\": \"2026-09-15T21:00:00.000Z\",\n      \"status\": \"PENDING\",\n      \"createdAt\": \"2026-09-03T16:00:00.000Z\",\n      \"updatedAt\": \"2026-09-03T16:00:00.000Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "G-04 Get Date Plan by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dates/{{datePlanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates",
+                "{{datePlanId}}"
+              ]
+            },
+            "description": "Retrieves complete date details including venue information and counterpart profile."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/{{datePlanId}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Date plan retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n    \"matchId\": \"c4b8b6e2-1a42-4f81-8152-7cb6ebfa9b71\",\n    \"proposerId\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n    \"receiverId\": \"e14b5182-5201-447a-a621-c4228994bb01\",\n    \"venueName\": \"North End Coffee Roasters\",\n    \"venueAddress\": \"House 12, Road 113, Gulshan 2, Dhaka\",\n    \"latitude\": 23.7925,\n    \"longitude\": 90.4078,\n    \"date\": \"2026-09-15T00:00:00.000Z\",\n    \"startTime\": \"2026-09-15T19:00:00.000Z\",\n    \"endTime\": \"2026-09-15T21:00:00.000Z\",\n    \"status\": \"PENDING\",\n    \"createdAt\": \"2026-09-03T16:00:00.000Z\",\n    \"updatedAt\": \"2026-09-03T16:00:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "G-05 Update Date Plan",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"venueName\": \"Crimson Cup Coffee\",\n  \"venueAddress\": \"Banani 11, Lake View, Dhaka\",\n  \"latitude\": 23.7942,\n  \"longitude\": 90.4045,\n  \"startTime\": \"2026-09-15T19:30:00.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dates/{{datePlanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates",
+                "{{datePlanId}}"
+              ]
+            },
+            "description": "Updates date schedule or venue. If rescheduled after acceptance, reverts status to PENDING for mutual re-confirmation and sends chat notification."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/{{datePlanId}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Date plan updated successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n    \"venueName\": \"Crimson Cup Coffee\",\n    \"venueAddress\": \"Banani 11, Lake View, Dhaka\",\n    \"latitude\": 23.7942,\n    \"longitude\": 90.4045,\n    \"status\": \"PENDING\",\n    \"updatedAt\": \"2026-09-03T16:15:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "G-06 Accept Date Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dates/{{datePlanId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates",
+                "{{datePlanId}}",
+                "accept"
+              ]
+            },
+            "description": "Accepts a pending date invitation. Must be called by the invited receiver. Marks status ACCEPTED, sends a system confirmation into chat, and notifies the proposer."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/{{datePlanId}}/accept"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Date invitation accepted successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n    \"status\": \"ACCEPTED\",\n    \"updatedAt\": \"2026-09-03T16:20:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "Error — 403 Forbidden",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/{{datePlanId}}/accept"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Only the invited recipient can accept this date invitation\",\n  \"messages\": [],\n  \"statusCode\": 403\n}"
+            }
+          ]
+        },
+        {
+          "name": "G-07 Decline Date Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dates/{{datePlanId}}/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates",
+                "{{datePlanId}}",
+                "decline"
+              ]
+            },
+            "description": "Declines a pending date invitation. Must be called by the invited receiver. Updates status to DECLINED and posts update to chat."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/{{datePlanId}}/decline"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Date invitation declined successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n    \"status\": \"DECLINED\",\n    \"updatedAt\": \"2026-09-03T16:25:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "G-08 Cancel Date Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Unexpected scheduling conflict\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/dates/{{datePlanId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates",
+                "{{datePlanId}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancels a pending or accepted date. Either participant can cancel. Updates status to CANCELLED and posts system message in chat."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/{{datePlanId}}/cancel"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Date cancelled successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n    \"status\": \"CANCELLED\",\n    \"updatedAt\": \"2026-09-03T16:30:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "G-09 Complete Date Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dates/{{datePlanId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dates",
+                "{{datePlanId}}",
+                "complete"
+              ]
+            },
+            "description": "Marks an accepted date as completed after the date has occurred. Either participant can mark complete."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dates/{{datePlanId}}/complete"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Date marked as completed successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n    \"status\": \"COMPLETED\",\n    \"updatedAt\": \"2026-09-03T16:35:00.000Z\"\n  }\n}"
             }
           ]
         }

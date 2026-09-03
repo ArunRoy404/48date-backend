@@ -17,6 +17,7 @@ RUN npm ci
 COPY . .
 
 # Generate Prisma Client
+ENV DATABASE_URL="postgresql://postgres:postgres@postgres:5432/date48?schema=public"
 RUN npx prisma generate
 
 # Build NestJS
@@ -38,6 +39,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # If you are using custom output (generated folder)
 COPY --from=builder /app/src/generated ./src/generated
