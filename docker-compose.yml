@@ -39,11 +39,14 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 3000
       # Important: use service name "postgres", not localhost
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/date48?schema=public
+      REDIS_URL: redis://redis:6379
       REDIS_HOST: redis
       REDIS_PORT: 6379
       # Add other env vars you need (JWT_SECRET, AWS keys, etc.)
