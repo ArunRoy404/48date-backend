@@ -11,6 +11,11 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ChatModule } from './modules/chat/chat.module.js';
 import { GamesModule } from './modules/games/games.module.js';
 import { DatesModule } from './modules/dates/dates.module.js';
+import { TrustScoreModule } from './modules/trust-score/trust-score.module.js';
+import { BlocksModule } from './modules/blocks/blocks.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module.js';
+import { SuccessStoriesModule } from './modules/success-stories/success-stories.module.js';
 import { env } from './config/env.config.js';
 
 @Module({
@@ -31,6 +36,11 @@ import { env } from './config/env.config.js';
     ChatModule,
     GamesModule,
     DatesModule,
+    TrustScoreModule,
+    BlocksModule,
+    ReportsModule,
+    SubscriptionsModule,
+    SuccessStoriesModule,
   ],
 })
 export class AppModule {}

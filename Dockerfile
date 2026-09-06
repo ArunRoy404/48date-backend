@@ -34,20 +34,18 @@ RUN apk add --no-cache openssl
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
-# Copy only necessary files from builder
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+# Copy only necessary files from builder with ownership
+COPY --chown=nestjs:nodejs --from=builder /app/package*.json ./
+COPY --chown=nestjs:nodejs --from=builder /app/node_modules ./node_modules
+COPY --chown=nestjs:nodejs --from=builder /app/dist ./dist
+COPY --chown=nestjs:nodejs --from=builder /app/prisma ./prisma
+COPY --chown=nestjs:nodejs --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # If you are using custom output (generated folder)
-COPY --from=builder /app/src/generated ./src/generated
+COPY --chown=nestjs:nodejs --from=builder /app/src/generated ./src/generated
 # or if generated is at root level:
 # COPY --from=builder /app/generated ./generated
 
-# Change ownership
-RUN chown -R nestjs:nodejs /app
 USER nestjs
 
 EXPOSE 3000
