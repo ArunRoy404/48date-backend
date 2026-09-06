@@ -18,6 +18,7 @@ import { UpdateDatePlanDto } from './dto/update-date-plan.dto.js';
 import { GetDatesQueryDto } from './dto/get-dates-query.dto.js';
 import { CancelDateDto } from './dto/cancel-date.dto.js';
 import { SearchPlacesQueryDto } from './dto/search-places-query.dto.js';
+import { CreateDateRatingDto } from './dto/create-date-rating.dto.js';
 
 @Controller('dates')
 @UseGuards(JwtAuthGuard)
@@ -137,5 +138,35 @@ export class DatesController {
     const userId = req.user!.userId;
     const data = await this.datesService.completeDatePlan(datePlanId, userId);
     return successResponse(data, 'Date marked as completed successfully');
+  }
+
+  /**
+   * POST /dates/:id/ratings
+   * Submits a rating for a completed date.
+   */
+  @Post(':id/ratings')
+  async submitDateRating(
+    @Req() req: Request,
+    @Param('id') datePlanId: string,
+    @Body() dto: CreateDateRatingDto,
+  ) {
+    const userId = req.user!.userId;
+    const data = await this.datesService.submitDateRating(
+      userId,
+      datePlanId,
+      dto,
+    );
+    return successResponse(data, 'Date rating submitted successfully');
+  }
+
+  /**
+   * GET /dates/:id/ratings
+   * Retrieves ratings for a completed date.
+   */
+  @Get(':id/ratings')
+  async getDateRatings(@Req() req: Request, @Param('id') datePlanId: string) {
+    const userId = req.user!.userId;
+    const data = await this.datesService.getDateRatings(userId, datePlanId);
+    return successResponse(data, 'Date ratings retrieved successfully');
   }
 }

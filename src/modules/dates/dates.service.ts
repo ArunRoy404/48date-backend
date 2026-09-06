@@ -13,15 +13,19 @@ import {
   DateStatus,
   MessageType,
   NotificationType,
+  TrustEventType,
 } from '../../generated/prisma/enums.js';
 import { env } from '../../config/env.config.js';
+import { TrustScoreService } from '../trust-score/trust-score.service.js';
 import type { CreateDatePlanDto } from './dto/create-date-plan.dto.js';
 import type { UpdateDatePlanDto } from './dto/update-date-plan.dto.js';
 import type { GetDatesQueryDto } from './dto/get-dates-query.dto.js';
 import type { CancelDateDto } from './dto/cancel-date.dto.js';
 import type { SearchPlacesQueryDto } from './dto/search-places-query.dto.js';
+import type { CreateDateRatingDto } from './dto/create-date-rating.dto.js';
 import type {
   FormattedDatePlan,
+  FormattedDateRating,
   PlaceSearchResult,
 } from './types/dates.types.js';
 
@@ -29,7 +33,10 @@ import type {
 export class DatesService {
   private readonly logger = new Logger(DatesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly trustScoreService: TrustScoreService,
+  ) {}
 
   /**
    * Formats a raw Prisma DatePlan record into the standard response shape
@@ -732,7 +739,177 @@ export class DatesService {
       return completedPlan;
     });
 
+    // Reward both participants for attending and completing the date
+    await Promise.all([
+      this.trustScoreService.addEvent(
+        plan.proposerId,
+        TrustEventType.DATE_ATTENDED,
+        10,
+        `Attended date at ${updated.venueName}`,
+      ),
+      this.trustScoreService.addEvent(
+        plan.receiverId,
+        TrustEventType.DATE_ATTENDED,
+        10,
+        `Attended date at ${updated.venueName}`,
+      ),
+    ]);
+
     return this.formatDatePlan(updated, userId);
+  }
+
+  /**
+   * Helper to format a DateRating record
+   */
+  private formatDateRating(
+    rating: any,
+    currentUserId: string,
+  ): FormattedDateRating {
+    const isAnonymous = Boolean(rating.isAnonymous);
+    const isReviewer = rating.reviewerId === currentUserId;
+
+    return {
+      id: rating.id,
+      datePlanId: rating.datePlanId,
+      reviewerId: rating.reviewerId,
+      reviewedUserId: rating.reviewedUserId,
+      reviewer: isAnonymous && !isReviewer ? null : formatUser(rating.reviewer),
+      reviewedUser: formatUser(rating.reviewedUser),
+      behaviorScore: rating.behaviorScore,
+      punctualityScore: rating.punctualityScore,
+      safetyScore: rating.safetyScore,
+      overallScore: rating.overallScore,
+      comment: rating.comment,
+      isAnonymous,
+      createdAt: rating.createdAt,
+    };
+  }
+
+  /**
+   * POST /dates/:dateId/ratings
+   * Submits a rating for a completed date.
+   */
+  async submitDateRating(
+    userId: string,
+    datePlanId: string,
+    dto: CreateDateRatingDto,
+  ): Promise<FormattedDateRating> {
+    const plan = await this.prisma.datePlan.findUnique({
+      where: { id: datePlanId },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Date plan not found');
+    }
+
+    if (plan.proposerId !== userId && plan.receiverId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to rate this date plan',
+      );
+    }
+
+    if (plan.status !== DateStatus.COMPLETED) {
+      throw new BadRequestException(
+        `Ratings can only be submitted for completed dates (current status: ${plan.status})`,
+      );
+    }
+
+    const existingRating = await this.prisma.dateRating.findUnique({
+      where: {
+        datePlanId_reviewerId: {
+          datePlanId,
+          reviewerId: userId,
+        },
+      },
+    });
+
+    if (existingRating) {
+      throw new ConflictException(
+        'You have already submitted a rating for this date',
+      );
+    }
+
+    const reviewedUserId =
+      plan.proposerId === userId ? plan.receiverId : plan.proposerId;
+
+    const rating = await this.prisma.dateRating.create({
+      data: {
+        datePlanId,
+        reviewerId: userId,
+        reviewedUserId,
+        behaviorScore: dto.behaviorScore,
+        punctualityScore: dto.punctualityScore,
+        safetyScore: dto.safetyScore,
+        overallScore: dto.overallScore,
+        comment: dto.comment ?? null,
+        isAnonymous: dto.isAnonymous ?? false,
+      },
+      include: {
+        reviewer: {
+          include: { images: { orderBy: { sortOrder: 'asc' } } },
+        },
+        reviewedUser: {
+          include: { images: { orderBy: { sortOrder: 'asc' } } },
+        },
+      },
+    });
+
+    // Update Trust Score based on rating score
+    if (dto.overallScore >= 4) {
+      await this.trustScoreService.addEvent(
+        reviewedUserId,
+        TrustEventType.POSITIVE_FEEDBACK,
+        5,
+        `Received a ${dto.overallScore}-star rating for date at ${plan.venueName}`,
+      );
+    } else if (dto.overallScore <= 2) {
+      await this.trustScoreService.addEvent(
+        reviewedUserId,
+        TrustEventType.ABUSIVE_BEHAVIOR,
+        -15,
+        `Received a low rating (${dto.overallScore} stars) for date at ${plan.venueName}`,
+      );
+    }
+
+    return this.formatDateRating(rating, userId);
+  }
+
+  /**
+   * GET /dates/:dateId/ratings
+   * Retrieves ratings for a specific date. Caller must be a participant.
+   */
+  async getDateRatings(
+    userId: string,
+    datePlanId: string,
+  ): Promise<FormattedDateRating[]> {
+    const plan = await this.prisma.datePlan.findUnique({
+      where: { id: datePlanId },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Date plan not found');
+    }
+
+    if (plan.proposerId !== userId && plan.receiverId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to view ratings for this date plan',
+      );
+    }
+
+    const ratings = await this.prisma.dateRating.findMany({
+      where: { datePlanId },
+      include: {
+        reviewer: {
+          include: { images: { orderBy: { sortOrder: 'asc' } } },
+        },
+        reviewedUser: {
+          include: { images: { orderBy: { sortOrder: 'asc' } } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return ratings.map((r) => this.formatDateRating(r, userId));
   }
 
   /**
