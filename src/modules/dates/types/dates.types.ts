@@ -30,3 +30,19 @@ export interface FormattedDatePlan {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface FormattedDateRating {
+  id: string;
+  datePlanId: string;
+  reviewerId: string;
+  reviewedUserId: string;
+  reviewer: FormattedUser | null;
+  reviewedUser: FormattedUser;
+  behaviorScore: number;
+  punctualityScore: number;
+  safetyScore: number;
+  overallScore: number;
+  comment: string | null;
+  isAnonymous: boolean;
+  createdAt: Date;
+}
