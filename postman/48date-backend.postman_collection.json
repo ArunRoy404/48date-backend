@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "48Date Backend API",
-    "description": "# 48Date Backend API\n\nREST API for the 48Date dating app backend (NestJS + Prisma + PostgreSQL).\n\n## Base URL\n\nUse the collection variable `baseUrl` (default `http://localhost:3000`).\n\n## Unified response envelope\n\n**Every** endpoint returns the same shape:\n\n### Success\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Account created successfully\",\n  \"messages\": [],\n  \"data\": { }\n}\n```\n\n- `success` — always `true` for 2xx responses\n- `message` — one short, human-readable summary (non-technical)\n- `messages` — array of extra messages (usually empty on success)\n- `data` — the actual payload (user, tokens, profile, ...)\n\n### Error\n\n```json\n{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"phone must be a valid international number\", \"password must be at least 8 characters\"],\n  \"statusCode\": 400\n}\n```\n\n- `success` — always `false`\n- `message` — one short, human-readable summary\n- `messages` — every individual message (each validation failure, etc.)\n- `statusCode` — the HTTP status code\n\n## Formatted user response\n\nAnywhere a user profile is returned (Register, Login, Google Login, Verify OTP, Me, Profile, Discovery), `data.user` (or `data`) is **categorized** so clients can render sections directly:\n\n| Section | Contents |\n|---|---|\n| `auth` | phone, email, role, `isEmailVerified`, `isPhoneVerified`, `isUserVerified` |\n| `basicProfile` | name, firstName, lastName, username, birthDate, occupation, gender, interestedIn |\n| `lifestyle` | smoker, alcohol, kids, wantsKids, lookingFor |\n| `location` | locations (array), lastLocation, latitude, longitude |\n| `body` | heightCm, weightKg |\n| `interests` | creativity[], sports[], moviesAndDramas[] |\n| `media` | images[], selfieUrl, selfieVerified, notificationsEnabled |\n| `meta` | subscriptionId, lastLoginAt, createdAt, updatedAt |\n\n`passwordHash` is never included in any response.\n\n## Authentication\n\n- **Access token** — short-lived (15 min), carries `{ sub: userId, role }`. Required for protected endpoints via `Authorization: Bearer <accessToken>`.\n- **Refresh token** — long-lived (7 days), used only at `POST /auth/refresh` to get a new token pair.\n- **OTP / verification endpoints are PUBLIC** — `request-otp`, `verify-otp`, `forgot-password`, `verify-forgot-password`, `reset-password` take phone/email + channel directly and do **not** require a Bearer token.\n\nThe collection auto-saves `accessToken`, `refreshToken`, and `resetToken` from responses via test scripts — run Register/Login first and the protected requests just work.\n\n## Request serials & Domain Folders\n\nEvery request carries a stable serial ID: `<Folder>-<NN>`.\n\n| Folder | Prefix | Description |\n|---|---|---|\n| **Auth** | `A-NN` | Registration, login, OTP verification, password recovery, refresh, profile me |\n| **Users** | `B-NN` | Profile setup & updates, complete profile fetching |\n| **Images** | `C-NN` | Multipart photo uploads to Cloudflare R2 / local disk |\n| **Discovery** | `D-NN` | Candidate browsing, preference filters, swiping (LIKE/PASS/SUPER_LIKE) |\n| **Matches** | `E-NN` | Active mutual matches list and unmatching |\n| **Chat** | `F-NN` | Conversation rooms, paginated message histories (+ WebSockets Gateway) |\n| **Games** | `G-NN` | In-chat mini-games, answer submissions, compatibility calculation |\n| **Dates** | `H-NN` | Mapbox place search, date proposals, user dates list, status updates |\n\n## Endpoints Summary\n\n| Serial | Method | Path | Auth | Description |\n|---|---|---|---|---|\n| **A-01** | POST | `/auth/register` | — | Create account, returns categorized profile + tokens |\n| **A-02** | POST | `/auth/login` | — | Login with phone or email + password |\n| **A-03** | POST | `/auth/request-otp` | — | Request verification OTP |\n| **A-04** | POST | `/auth/verify-otp` | — | Verify OTP and set verification flags |\n| **A-05** | POST | `/auth/forgot-password` | — | Request password-reset OTP |\n| **A-06** | POST | `/auth/verify-forgot-password` | — | Verify reset OTP, receive `resetToken` |\n| **A-07** | POST | `/auth/reset-password` | — | Set new password with `resetToken` |\n| **A-08** | POST | `/auth/refresh` | — | Exchange refresh token for new token pair |\n| **A-09** | POST | `/auth/logout` | Bearer | Invalidate session client-side |\n| **A-10** | GET | `/auth/me` | Bearer | Get authenticated user profile |\n| **A-11** | POST | `/auth/google` | — | Login/register with Google OAuth token |\n| **B-01** | PATCH | `/users/profile-setup` | Bearer | Update profile, auto-verifies when complete |\n| **B-02** | GET | `/users/profile` | Bearer | Fetch authenticated user profile |\n| **C-01** | POST | `/images/upload` | Bearer | Upload photo via multipart/form-data |\n| **D-01** | GET | `/discovery` | Bearer | Fetch candidate discovery profiles |\n| **D-02** | GET | `/discovery/preferences` | Bearer | Get discovery filters |\n| **D-03** | PATCH | `/discovery/preferences` | Bearer | Update discovery filters |\n| **D-04** | GET | `/discovery/:id` | Bearer | Get candidate profile details |\n| **D-05** | POST | `/discovery/swipe` | Bearer | Swipe LIKE / PASS / SUPER_LIKE |\n| **E-01** | GET | `/matches` | Bearer | List active mutual matches |\n| **E-02** | DELETE | `/matches/:id` | Bearer | Unmatch user |\n| **F-01** | GET | `/chat/conversations` | Bearer | List active conversation rooms |\n| **F-02** | GET | `/chat/conversations/:id/messages` | Bearer | Fetch message history (`?limit=50&offset=0`) |\n| **G-01** | GET | `/games` | Bearer | List active games & questions |\n| **G-02** | POST | `/games/sessions` | Bearer | Start/resume game session for match |\n| **G-03** | GET | `/games/sessions/:id` | Bearer | Get game session state |\n| **G-04** | POST | `/games/sessions/:id/answers` | Bearer | Submit question answer |\n\n### Dates Endpoints\n\n| **H-01** | GET | `/dates/places/search` | Bearer | Search Mapbox places/venues |\n| **H-02** | POST | `/dates` | Bearer | Create date invitation plan |\n| **H-03** | GET | `/dates` | Bearer | Get user dates list (filtered by status/role) |\n| **H-04** | GET | `/dates/:id` | Bearer | Get date plan details by ID |\n| **H-05** | PATCH | `/dates/:id` | Bearer | Update date plan venue/time |\n| **H-06** | POST | `/dates/:id/accept` | Bearer | Accept date invitation |\n| **H-07** | POST | `/dates/:id/decline` | Bearer | Decline date invitation |\n| **H-08** | POST | `/dates/:id/cancel` | Bearer | Cancel pending/accepted date |\n| **H-09** | POST | `/dates/:id/complete` | Bearer | Mark accepted date as completed |",
+    "description": "# 48Date Backend API\n\nREST API for the 48Date dating app backend (NestJS + Prisma + PostgreSQL).\n\n## Base URL\n\nUse the collection variable `baseUrl` (default `http://localhost:3000`).\n\n## Unified response envelope\n\n**Every** endpoint returns the same shape:\n\n### Success\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Account created successfully\",\n  \"messages\": [],\n  \"data\": { }\n}\n```\n\n- `success` — always `true` for 2xx responses\n- `message` — one short, human-readable summary (non-technical)\n- `messages` — array of extra messages (usually empty on success)\n- `data` — the actual payload (user, tokens, profile, ...)\n\n### Error\n\n```json\n{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"messages\": [\"phone must be a valid international number\", \"password must be at least 8 characters\"],\n  \"statusCode\": 400\n}\n```\n\n- `success` — always `false`\n- `message` — one short, human-readable summary\n- `messages` — every individual message (each validation failure, etc.)\n- `statusCode` — the HTTP status code\n\n## Formatted user response\n\nAnywhere a user profile is returned (Register, Login, Google Login, Verify OTP, Me, Profile, Discovery), `data.user` (or `data`) is **categorized** so clients can render sections directly:\n\n| Section | Contents |\n|---|---|\n| `auth` | phone, email, role, `isEmailVerified`, `isPhoneVerified`, `isUserVerified` |\n| `basicProfile` | name, firstName, lastName, username, birthDate, occupation, gender, interestedIn |\n| `lifestyle` | smoker, alcohol, kids, wantsKids, lookingFor |\n| `location` | locations (array), lastLocation, latitude, longitude |\n| `body` | heightCm, weightKg |\n| `interests` | creativity[], sports[], moviesAndDramas[] |\n| `media` | images[], selfieUrl, selfieVerified, notificationsEnabled |\n| `meta` | subscriptionId, lastLoginAt, createdAt, updatedAt |\n\n`passwordHash` is never included in any response.\n\n## Authentication\n\n- **Access token** — short-lived (15 min), carries `{ sub: userId, role }`. Required for protected endpoints via `Authorization: Bearer <accessToken>`.\n- **Refresh token** — long-lived (7 days), used only at `POST /auth/refresh` to get a new token pair.\n- **OTP / verification endpoints are PUBLIC** — `request-otp`, `verify-otp`, `forgot-password`, `verify-forgot-password`, `reset-password` take phone/email + channel directly and do **not** require a Bearer token.\n\nThe collection auto-saves `accessToken`, `refreshToken`, and `resetToken` from responses via test scripts — run Register/Login first and the protected requests just work.\n\n## Request serials & Domain Folders\n\nEvery request carries a stable serial ID: `<Folder>-<NN>`.\n\n| Folder | Prefix | Description |\n|---|---|---|\n| **Auth** | `A-NN` | Registration, login, OTP verification, password recovery, refresh, profile me |\n| **Users** | `B-NN` | Profile setup & updates, complete profile fetching |\n| **Images** | `C-NN` | Multipart photo uploads to Cloudflare R2 / local disk |\n| **Discovery** | `D-NN` | Candidate browsing, preference filters, swiping (LIKE/PASS/SUPER_LIKE) |\n| **Matches** | `E-NN` | Active mutual matches list and unmatching |\n| **Chat** | `F-NN` | Conversation rooms, paginated message histories (+ WebSockets Gateway) |\n| **Games** | `G-NN` | In-chat mini-games, answer submissions, compatibility calculation |\n| **Dates** | `H-NN` | Mapbox place search, date proposals, user dates list, ratings & status updates |\n| **Blocks** | `I-NN` | User blocking, list blocked users, unblock user |\n| **Reports** | `J-NN` | Submit moderation report, list filed reports |\n| **Subscriptions** | `K-NN` | Subscription plans, current user subscription status, RevenueCat webhook |\n| **Trust Score** | `L-NN` | User trust score & badges, trust history timeline |\n| **Success Stories** | `M-NN` | Submit success story, feed, story detail, toggle like, comments |\n\n## Endpoints Summary\n\n| Serial | Method | Path | Auth | Description |\n|---|---|---|---|---|\n| **A-01** | POST | `/auth/register` | — | Create account, returns categorized profile + tokens |\n| **A-02** | POST | `/auth/login` | — | Login with phone or email + password |\n| **A-03** | POST | `/auth/request-otp` | — | Request verification OTP |\n| **A-04** | POST | `/auth/verify-otp` | — | Verify OTP and set verification flags |\n| **A-05** | POST | `/auth/forgot-password` | — | Request password-reset OTP |\n| **A-06** | POST | `/auth/verify-forgot-password` | — | Verify reset OTP, receive `resetToken` |\n| **A-07** | POST | `/auth/reset-password` | — | Set new password with `resetToken` |\n| **A-08** | POST | `/auth/refresh` | — | Exchange refresh token for new token pair |\n| **A-09** | POST | `/auth/logout` | Bearer | Invalidate session client-side |\n| **A-10** | GET | `/auth/me` | Bearer | Get authenticated user profile |\n| **A-11** | POST | `/auth/google` | — | Login/register with Google OAuth token |\n| **B-01** | PATCH | `/users/profile-setup` | Bearer | Update profile, auto-verifies when complete |\n| **B-02** | GET | `/users/profile` | Bearer | Fetch authenticated user profile |\n| **C-01** | POST | `/images/upload` | Bearer | Upload photo via multipart/form-data |\n| **D-01** | GET | `/discovery` | Bearer | Fetch candidate discovery profiles |\n| **D-02** | GET | `/discovery/preferences` | Bearer | Get discovery filters |\n| **D-03** | PATCH | `/discovery/preferences` | Bearer | Update discovery filters |\n| **D-04** | GET | `/discovery/:id` | Bearer | Get candidate profile details |\n| **D-05** | POST | `/discovery/swipe` | Bearer | Swipe LIKE / PASS / SUPER_LIKE |\n| **E-01** | GET | `/matches` | Bearer | List active mutual matches |\n| **E-02** | DELETE | `/matches/:id` | Bearer | Unmatch user |\n| **F-01** | GET | `/chat/conversations` | Bearer | List active conversation rooms |\n| **F-02** | GET | `/chat/conversations/:id/messages` | Bearer | Fetch message history (`?limit=50&offset=0`) |\n| **G-01** | GET | `/games` | Bearer | List active games & questions |\n| **G-02** | POST | `/games/sessions` | Bearer | Start/resume game session for match |\n| **G-03** | GET | `/games/sessions/:id` | Bearer | Get game session state |\n| **G-04** | POST | `/games/sessions/:id/answers` | Bearer | Submit question answer |\n| **H-01** | GET | `/dates/places/search` | Bearer | Search Mapbox places/venues |\n| **H-02** | POST | `/dates` | Bearer | Create date invitation plan |\n| **H-03** | GET | `/dates` | Bearer | Get user dates list (filtered by status/role) |\n| **H-04** | GET | `/dates/:id` | Bearer | Get date plan details by ID |\n| **H-05** | PATCH | `/dates/:id` | Bearer | Update date plan venue/time |\n| **H-06** | POST | `/dates/:id/accept` | Bearer | Accept date invitation |\n| **H-07** | POST | `/dates/:id/decline` | Bearer | Decline date invitation |\n| **H-08** | POST | `/dates/:id/cancel` | Bearer | Cancel pending/accepted date |\n| **H-09** | POST | `/dates/:id/complete` | Bearer | Mark accepted date as completed |\n| **H-10** | POST | `/dates/:id/ratings` | Bearer | Submit rating & feedback for completed date |\n| **H-11** | GET | `/dates/:id/ratings` | Bearer | Get ratings for completed date |\n| **I-01** | POST | `/blocks/:userId` | Bearer | Block user |\n| **I-02** | GET | `/blocks` | Bearer | List blocked users (`?limit=20&offset=0`) |\n| **I-03** | DELETE | `/blocks/:userId` | Bearer | Unblock user |\n| **J-01** | POST | `/reports` | Bearer | File moderation/safety report |\n| **J-02** | GET | `/reports/my-reports` | Bearer | Get reports filed by caller |\n| **K-01** | GET | `/subscriptions/plans` | — | Get available subscription packages |\n| **K-02** | GET | `/subscriptions/me` | Bearer | Get current user's subscription status |\n| **K-03** | POST | `/subscriptions/webhook` | Header | RevenueCat IAP webhook receiver |\n| **L-01** | GET | `/trust-score` | Bearer | Get user trust score & badge tier |\n| **L-02** | GET | `/trust-score/history` | Bearer | Get trust score event history timeline |\n| **M-01** | POST | `/success-stories` | Bearer | Submit couples success story |\n| **M-02** | GET | `/success-stories` | — / Bearer | List published success stories feed |\n| **M-03** | GET | `/success-stories/:id` | — / Bearer | Get success story detail & comment thread |\n| **M-04** | POST | `/success-stories/:id/like` | Bearer | Toggle like state on story |\n| **M-05** | POST | `/success-stories/:id/comments` | Bearer | Add comment to success story |\n| **M-06** | DELETE | `/success-stories/:id/comments/:commentId` | Bearer | Delete comment from story |",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -32,6 +32,18 @@
     {
       "key": "commentId",
       "value": ""
+    },
+    {
+      "key": "targetUserId",
+      "value": ""
+    },
+    {
+      "key": "reportId",
+      "value": ""
+    },
+    {
+      "key": "revenueCatWebhookSecret",
+      "value": "secret"
     }
   ],
   "item": [
@@ -1117,7 +1129,12 @@
               },
               "status": "Created",
               "code": 201,
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Logged in with Google successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"user\": {\n      \"id\": \"cd9c425f-2daa-4a55-9b00-b0a470a86727\",\n      \"auth\": {\n        \"phone\": null,\n        \"email\": \"googleuser@48date.com\",\n        \"role\": \"USER\",\n        \"isEmailVerified\": true,\n        \"isPhoneVerified\": false,\n        \"isUserVerified\": false\n      },\n      \"basicProfile\": { \"name\": \"Google User\", \"firstName\": null, \"lastName\": null, \"username\": null, \"birthDate\": null, \"occupation\": null, \"gender\": null, \"interestedIn\": null },\n      \"lifestyle\": { \"smoker\": null, \"alcohol\": null, \"kids\": null, \"wantsKids\": null, \"lookingFor\": null },\n      \"location\": { \"locations\": [], \"lastLocation\": null },\n      \"body\": { \"heightCm\": null, \"weightKg\": null },\n      \"interests\": { \"creativity\": [], \"sports\": [], \"moviesAndDramas\": [] },\n      \"media\": { \"images\": [], \"selfieUrl\": null, \"selfieVerified\": false, \"notificationsEnabled\": true },\n      \"meta\": { \"subscriptionId\": null, \"lastLoginAt\": null, \"createdAt\": \"2026-08-17T08:55:00.000Z\", \"updatedAt\": \"2026-08-17T09:05:00.000Z\" }\n    },\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n  }\n}"
             }
           ],
@@ -2996,6 +3013,1012 @@
                 }
               ],
               "body": "{\n  \"success\": true,\n  \"message\": \"Date marked as completed successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"d9817b3f-1d21-4f24-9b55-6b5860eb3351\",\n    \"status\": \"COMPLETED\",\n    \"updatedAt\": \"2026-09-03T16:35:00.000Z\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Blocks",
+      "description": "User blocking management endpoints (`I-01` to `I-03`). Allows blocking toxic or abusive users, listing blocked candidates (hidden from discovery and chat), and unblocking.",
+      "item": [
+        {
+          "name": "I-01 Block User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/blocks/:userId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blocks",
+                ":userId"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "{{targetUserId}}"
+                }
+              ]
+            },
+            "description": "Blocks the specified target user. Automatically breaks active mutual matches, terminates chat rooms, and hides the candidate from discovery.\n\n### URL Parameters\n- `userId` (UUID string) — ID of the user to block."
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/blocks/usr_456"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"User blocked successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"block_101\",\n    \"blockerId\": \"user_caller\",\n    \"blockedId\": \"usr_456\",\n    \"createdAt\": \"2026-08-17T10:00:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "I-02 Get Blocked Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/blocks?limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blocks"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Default 20 (max 100)"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "Default 0"
+                }
+              ]
+            },
+            "description": "Retrieves a paginated list of users currently blocked by the caller."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/blocks?limit=20&offset=0"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Blocked users retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"block_101\",\n        \"blockedUser\": {\n          \"id\": \"usr_456\",\n          \"name\": \"Blocked User\",\n          \"username\": \"blocked_user\",\n          \"avatarUrl\": \"https://cdn.example.com/photos/blocked.jpg\"\n        },\n        \"blockedAt\": \"2026-08-17T10:00:00.000Z\"\n      }\n    ],\n    \"total\": 1,\n    \"limit\": 20,\n    \"offset\": 0\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "I-03 Unblock User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/blocks/:userId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blocks",
+                ":userId"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "{{targetUserId}}"
+                }
+              ]
+            },
+            "description": "Unblocks a target user previously blocked by the caller."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/blocks/usr_456"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"User unblocked successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"unblockedUserId\": \"usr_456\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "description": "Moderation and safety report filing (`J-01` to `J-02`). Allows reporting inappropriate users or safety violations.",
+      "item": [
+        {
+          "name": "J-01 Create Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ]
+            },
+            "description": "Files a safety or moderation report against another user.\n\n### Request Body — raw JSON\n```json\n{\n  \"reportedUserId\": \"usr_456\",\n  \"reason\": \"Inappropriate behavior or harassment\",\n  \"description\": \"User sent inappropriate messages in chat\",\n  \"blockUser\": true\n}\n```",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reportedUserId\": \"usr_456\",\n  \"reason\": \"Inappropriate behavior or harassment\",\n  \"description\": \"User sent inappropriate messages in chat\",\n  \"blockUser\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/reports"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Report submitted successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"report_999\",\n    \"reporterId\": \"user_caller\",\n    \"reportedUserId\": \"usr_456\",\n    \"reason\": \"Inappropriate behavior or harassment\",\n    \"description\": \"User sent inappropriate messages in chat\",\n    \"status\": \"PENDING\",\n    \"createdAt\": \"2026-08-17T11:00:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "J-02 Get My Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/my-reports?limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "my-reports"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Retrieves moderation reports filed by the authenticated caller."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/my-reports?limit=20&offset=0"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Reports retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"report_999\",\n        \"reportedUserId\": \"usr_456\",\n        \"reason\": \"Inappropriate behavior or harassment\",\n        \"status\": \"PENDING\",\n        \"createdAt\": \"2026-08-17T11:00:00.000Z\"\n      }\n    ],\n    \"total\": 1,\n    \"limit\": 20,\n    \"offset\": 0\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "description": "Subscription tiers, active status, and RevenueCat webhook receiver (`K-01` to `K-03`).",
+      "item": [
+        {
+          "name": "K-01 Get Subscription Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscriptions",
+                "plans"
+              ]
+            },
+            "description": "Public endpoint returning available subscription packages and feature entitlements for Flutter in-app purchase screens."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/subscriptions/plans"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Subscription plans retrieved successfully\",\n  \"messages\": [],\n  \"data\": [\n    {\n      \"id\": \"plan_free\",\n      \"name\": \"Free\",\n      \"price\": 0,\n      \"interval\": \"month\",\n      \"features\": [\n        \"5 swipes per day\",\n        \"Standard matching\"\n      ]\n    },\n    {\n      \"id\": \"plan_premium\",\n      \"name\": \"48Date Premium\",\n      \"price\": 9.99,\n      \"interval\": \"month\",\n      \"features\": [\n        \"Unlimited swipes\",\n        \"Advanced date planner\",\n        \"Priority verification badge\"\n      ]\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "K-02 My Subscription Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscriptions",
+                "me"
+              ]
+            },
+            "description": "Returns active entitlements, plan details, and expiration date for the caller."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/subscriptions/me"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"User subscription status retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"tier\": \"PREMIUM\",\n    \"isSubscribed\": true,\n    \"entitlements\": [\n      \"unlimited_swipes\",\n      \"date_planner_plus\"\n    ],\n    \"expiresAt\": \"2026-09-17T00:00:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "K-03 RevenueCat Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{revenueCatWebhookSecret}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscriptions",
+                "webhook"
+              ]
+            },
+            "description": "Server-to-server webhook endpoint called by RevenueCat upon IAP purchase, renewal, or cancellation events.\n\n### Request Body — raw JSON\n```json\n{\n  \"api_version\": \"1.0\",\n  \"event\": {\n    \"id\": \"rc_evt_123\",\n    \"type\": \"INITIAL_PURCHASE\",\n    \"app_user_id\": \"usr_caller\",\n    \"product_id\": \"48date_premium_monthly\",\n    \"purchased_at_ms\": 1786968000000,\n    \"expiration_at_ms\": 1789560000000,\n    \"store\": \"PLAY_STORE\"\n  }\n}\n```",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"api_version\": \"1.0\",\n  \"event\": {\n    \"id\": \"rc_evt_123\",\n    \"type\": \"INITIAL_PURCHASE\",\n    \"app_user_id\": \"usr_caller\",\n    \"product_id\": \"48date_premium_monthly\",\n    \"purchased_at_ms\": 1786968000000,\n    \"expiration_at_ms\": 1789560000000,\n    \"store\": \"PLAY_STORE\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer secret"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/subscriptions/webhook"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Webhook processed successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"received\": true,\n    \"eventId\": \"rc_evt_123\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Trust Score",
+      "description": "Trust score badges, calculation metrics, and history (`L-01` to `L-02`).",
+      "item": [
+        {
+          "name": "L-01 Get Trust Score",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trust-score",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trust-score"
+              ]
+            },
+            "description": "Retrieves caller's calculated trust score (0–100), verification badges, and breakdown factors."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/trust-score"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Trust score retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"score\": 85,\n    \"badgeTier\": \"SILVER\",\n    \"factors\": {\n      \"faceVerified\": true,\n      \"phoneVerified\": true,\n      \"completedDatesCount\": 3,\n      \"reportsReceivedCount\": 0\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "L-02 Get Trust History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trust-score/history?limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trust-score",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Retrieves a paginated timeline of actions/events that impacted the user's trust score."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/trust-score/history?limit=20&offset=0"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Trust score history retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"th_001\",\n        \"delta\": 10,\n        \"reason\": \"Face verification completed\",\n        \"createdAt\": \"2026-08-15T10:00:00.000Z\"\n      },\n      {\n        \"id\": \"th_002\",\n        \"delta\": 5,\n        \"reason\": \"Completed date with 5-star rating\",\n        \"createdAt\": \"2026-08-16T14:30:00.000Z\"\n      }\n    ],\n    \"total\": 2,\n    \"limit\": 20,\n    \"offset\": 0\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Success Stories",
+      "description": "Couples success story sharing, public wall feed, likes, and comment threads (`M-01` to `M-06`).",
+      "item": [
+        {
+          "name": "M-01 Create Success Story",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/success-stories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "success-stories"
+              ]
+            },
+            "description": "Submits a new success story for editorial/moderation review.\n\n### Request Body — raw JSON\n```json\n{\n  \"partnerId\": \"usr_456\",\n  \"title\": \"Met on 48Date & Married!\",\n  \"story\": \"We matched back in 2025 and had our first date at Coffee World...\",\n  \"images\": [\"https://cdn.example.com/stories/wedding.jpg\"]\n}\n```",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"partnerId\": \"usr_456\",\n  \"title\": \"Met on 48Date & Married!\",\n  \"story\": \"We matched back in 2025 and had our first date at Coffee World...\",\n  \"images\": [\n    \"https://cdn.example.com/stories/wedding.jpg\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/success-stories"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Success story submitted successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"story_123\",\n    \"authorId\": \"user_caller\",\n    \"partnerId\": \"usr_456\",\n    \"title\": \"Met on 48Date & Married!\",\n    \"story\": \"We matched back in 2025 and had our first date at Coffee World...\",\n    \"images\": [\n      \"https://cdn.example.com/stories/wedding.jpg\"\n    ],\n    \"status\": \"PENDING_APPROVAL\",\n    \"createdAt\": \"2026-08-17T14:00:00.000Z\"\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) pm.collectionVariables.set('storyId', json.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M-02 List Success Stories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/success-stories?limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "success-stories"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Lists published success stories on the community feed."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/success-stories?limit=20&offset=0"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Success stories retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"story_123\",\n        \"title\": \"Met on 48Date & Married!\",\n        \"story\": \"We matched back in 2025...\",\n        \"likesCount\": 15,\n        \"commentsCount\": 3,\n        \"isLiked\": false,\n        \"author\": {\n          \"name\": \"Alice\"\n        },\n        \"partner\": {\n          \"name\": \"Bob\"\n        },\n        \"createdAt\": \"2026-08-17T14:00:00.000Z\"\n      }\n    ],\n    \"total\": 1,\n    \"limit\": 20,\n    \"offset\": 0\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "M-03 Get Success Story Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/success-stories/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "success-stories",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{storyId}}"
+                }
+              ]
+            },
+            "description": "Retrieves single success story details along with its comment thread."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/success-stories/story_123"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Success story retrieved successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"story_123\",\n    \"title\": \"Met on 48Date & Married!\",\n    \"story\": \"Full story text...\",\n    \"likesCount\": 16,\n    \"comments\": [\n      {\n        \"id\": \"comment_555\",\n        \"content\": \"Congratulations!!\",\n        \"user\": {\n          \"name\": \"Charlie\"\n        },\n        \"createdAt\": \"2026-08-17T15:00:00.000Z\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "M-04 Toggle Like",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/success-stories/:id/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "success-stories",
+                ":id",
+                "like"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{storyId}}"
+                }
+              ]
+            },
+            "description": "Toggles like state (likes if unliked, unlikes if already liked) for the caller."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/success-stories/story_123/like"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Story liked successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"storyId\": \"story_123\",\n    \"isLiked\": true,\n    \"likesCount\": 16\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "M-05 Add Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/success-stories/:id/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "success-stories",
+                ":id",
+                "comments"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{storyId}}"
+                }
+              ]
+            },
+            "description": "Adds a new comment to a published success story.\n\n### Request Body — raw JSON\n```json\n{\n  \"content\": \"Congratulations to both of you!\"\n}\n```",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Congratulations to both of you!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Success — 201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/success-stories/story_123/comments"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Comment added successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"comment_555\",\n    \"storyId\": \"story_123\",\n    \"userId\": \"user_caller\",\n    \"content\": \"Congratulations to both of you!\",\n    \"createdAt\": \"2026-08-17T15:00:00.000Z\"\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) pm.collectionVariables.set('commentId', json.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M-06 Delete Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/success-stories/:id/comments/:commentId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "success-stories",
+                ":id",
+                "comments",
+                ":commentId"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{storyId}}"
+                },
+                {
+                  "key": "commentId",
+                  "value": "{{commentId}}"
+                }
+              ]
+            },
+            "description": "Deletes a comment posted by the author."
+          },
+          "response": [
+            {
+              "name": "Success — 200 OK",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/success-stories/story_123/comments/comment_555"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Comment deleted successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"commentId\": \"comment_555\"\n  }\n}"
             }
           ]
         }
