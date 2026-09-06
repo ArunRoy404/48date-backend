@@ -1,24 +1,16 @@
 import {
   Injectable,
   NotFoundException,
-<<<<<<< HEAD
-  BadRequestException,
-} from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { MessageType } from '../../generated/prisma/client.js';
-=======
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { formatUser } from '../../common/utils/user-formatter.js';
 import { MessageType } from '../../generated/prisma/enums.js';
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
 
 @Injectable()
 export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
 
-<<<<<<< HEAD
   async getOrCreateConversation(matchId: string) {
     const match = await this.prisma.match.findUnique({
       where: { id: matchId },
@@ -226,15 +218,11 @@ export class ChatService {
     });
   }
 
-  async getUserConversations(userId: string) {
-    // Find all matches for this user
-=======
   /**
    * Retrieves all active conversations for a user.
    * Maps active matches and includes the matched user's profile and the last message.
    */
   async getConversations(userId: string) {
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
     const matches = await this.prisma.match.findMany({
       where: {
         status: 'ACTIVE',
@@ -242,25 +230,10 @@ export class ChatService {
       },
       include: {
         userLow: {
-<<<<<<< HEAD
-          select: {
-            id: true,
-            name: true,
-            images: { where: { isPrimary: true }, select: { r2Key: true } },
-          },
-        },
-        userHigh: {
-          select: {
-            id: true,
-            name: true,
-            images: { where: { isPrimary: true }, select: { r2Key: true } },
-          },
-=======
           include: { images: { orderBy: { sortOrder: 'asc' } } },
         },
         userHigh: {
           include: { images: { orderBy: { sortOrder: 'asc' } } },
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
         },
         conversation: {
           include: {
@@ -271,24 +244,8 @@ export class ChatService {
           },
         },
       },
-<<<<<<< HEAD
-    });
-
-    return matches.map((m) => {
-      const partner = m.userLowId === userId ? m.userHigh : m.userLow;
-      return {
-        matchId: m.id,
-        partner: {
-          id: partner.id,
-          name: partner.name,
-          avatarUrl: partner.images[0]?.r2Key ?? null,
-        },
-        conversationId: m.conversation?.id ?? null,
-        lastMessage: m.conversation?.messages[0] ?? null,
-      };
-=======
       orderBy: {
-        matchedAt: 'desc',
+        createdAt: 'desc',
       },
     });
 
@@ -377,7 +334,6 @@ export class ChatService {
       });
 
       return message;
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
     });
   }
 }

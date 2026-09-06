@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import {
   Injectable,
   NotFoundException,
@@ -6,17 +5,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { MatchStatus } from '../../generated/prisma/client.js';
-=======
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { formatUser } from '../../common/utils/user-formatter.js';
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
 
 @Injectable()
 export class MatchesService {
   constructor(private readonly prisma: PrismaService) {}
 
-<<<<<<< HEAD
   async validateMatch(matchId: string, userId: string) {
     const match = await this.prisma.match.findUnique({
       where: { id: matchId },
@@ -31,7 +25,8 @@ export class MatchesService {
       throw new BadRequestException('This match is no longer active');
     }
     return match;
-=======
+  }
+
   /**
    * Internal method to create a mutual Match and associated Conversation.
    * Ensures userLowId is the lexicographically smaller UUID.
@@ -52,38 +47,16 @@ export class MatchesService {
 
     if (existing) {
       if (existing.status === 'UNMATCHED') {
-        // Reactivate match and recreate conversation
-        return this.prisma.$transaction(async (tx) => {
-          const updatedMatch = await tx.match.update({
-            where: { id: existing.id },
-            data: {
-              status: 'ACTIVE',
-              matchedAt: new Date(),
-              unmatchedAt: null,
-            },
-          });
-
-          // Create conversation if it doesn't exist
-          let conversation = await tx.conversation.findUnique({
-            where: { matchId: updatedMatch.id },
-          });
-          if (!conversation) {
-            conversation = await tx.conversation.create({
-              data: { matchId: updatedMatch.id },
-            });
-          }
-
-          return { match: updatedMatch, conversation };
+        // Re-activate match
+        return this.prisma.match.update({
+          where: { id: existing.id },
+          data: { status: 'ACTIVE', unmatchedAt: null },
         });
       }
-      // If already active, just retrieve the conversation
-      const conversation = await this.prisma.conversation.findUnique({
-        where: { matchId: existing.id },
-      });
-      return { match: existing, conversation };
+      return existing;
     }
 
-    // Create match and conversation in transaction
+    // Create match and conversation atomically
     return this.prisma.$transaction(async (tx) => {
       const match = await tx.match.create({
         data: {
@@ -93,20 +66,20 @@ export class MatchesService {
         },
       });
 
-      const conversation = await tx.conversation.create({
+      await tx.conversation.create({
         data: {
           matchId: match.id,
         },
       });
 
-      return { match, conversation };
+      return match;
     });
   }
 
   /**
-   * Fetches all active matches for a user, including the matched user's profile details.
+   * Retrieves all active matches for the specified user, including participant profile details.
    */
-  async getActiveMatches(userId: string) {
+  async getUserMatches(userId: string) {
     const matches = await this.prisma.match.findMany({
       where: {
         status: 'ACTIVE',
@@ -114,35 +87,35 @@ export class MatchesService {
       },
       include: {
         userLow: {
-          include: { images: { orderBy: { sortOrder: 'asc' } } },
+          include: {
+            images: { orderBy: { sortOrder: 'asc' } },
+          },
         },
         userHigh: {
-          include: { images: { orderBy: { sortOrder: 'asc' } } },
+          include: {
+            images: { orderBy: { sortOrder: 'asc' } },
+          },
         },
-        conversation: true,
       },
-      orderBy: {
-        matchedAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
 
     return matches.map((match) => {
-      const targetUser =
-        match.userLowId === userId ? match.userHigh : match.userLow;
+      const isLow = match.userLowId === userId;
+      const partner = isLow ? match.userHigh : match.userLow;
+
       return {
         matchId: match.id,
-        conversationId: match.conversation?.id || null,
-        matchedUser: formatUser(targetUser),
-        matchedAt: match.matchedAt,
-        status: match.status,
+        matchedAt: match.createdAt,
+        user: formatUser(partner),
       };
     });
   }
 
   /**
-   * Sets a match status to UNMATCHED.
+   * Unmatches a user by setting match status to UNMATCHED.
    */
-  async unmatch(userId: string, matchId: string) {
+  async unmatchUser(userId: string, matchId: string) {
     const match = await this.prisma.match.findUnique({
       where: { id: matchId },
     });
@@ -164,6 +137,5 @@ export class MatchesService {
     });
 
     return { message: 'Unmatched successfully' };
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
   }
 }

@@ -1,75 +1,4 @@
-<<<<<<< HEAD
-import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  ConnectedSocket,
-  MessageBody,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { ChatService } from './chat.service.js';
-import { MatchesService } from '../matches/matches.service.js';
-import { DatesService } from '../dates/dates.service.js';
-import { GamesService } from '../games/games.service.js';
-import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { Logger } from '@nestjs/common';
-
-@WebSocketGateway({ cors: { origin: '*' } })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  @WebSocketServer()
-  server: Server;
-
-  private readonly logger = new Logger(ChatGateway.name);
-
-  constructor(
-    private readonly chatService: ChatService,
-    private readonly matchesService: MatchesService,
-    private readonly datesService: DatesService,
-    private readonly gamesService: GamesService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
-    private readonly prisma: PrismaService,
-  ) {}
-
-  async handleConnection(client: Socket) {
-    try {
-      const handshake = client.handshake;
-      const headers = handshake.headers as Record<string, string | undefined>;
-      const auth = handshake.auth as
-        Record<string, string | undefined> | undefined;
-      const authHeader = headers.authorization || auth?.token;
-
-      if (!authHeader) {
-        this.logger.warn('Connection attempt failed: No Authorization token');
-        client.disconnect();
-        return;
-      }
-
-      const token = authHeader.startsWith('Bearer ')
-        ? authHeader.split(' ')[1]
-        : authHeader;
-
-      const decoded: unknown = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      });
-      const payload = decoded as { sub: string; role: string };
-
-      (client.data as Record<string, unknown>).user = {
-        userId: payload.sub,
-        role: payload.role,
-      };
-      const userId = payload.sub;
-
-      await client.join(`user:${userId}`);
-      this.logger.log(`Client connected: ${client.id} (User: ${userId})`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Connection auth error: ${msg}`);
-=======
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument */
 import {
   WebSocketGateway,
@@ -77,6 +6,8 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
   SubscribeMessage,
+  ConnectedSocket,
+  MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -86,21 +17,19 @@ import { env } from '../../config/env.config.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { ChatService } from './chat.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { MessageType } from '../../generated/prisma/enums.js';
 
 @WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
+  cors: { origin: '*' },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  private readonly logger = new Logger(ChatGateway.name);
-
+export class ChatGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
-  private activeSockets = new Map<string, string[]>();
-  private redisClient: any = null;
+  private readonly logger = new Logger(ChatGateway.name);
+  private redisClient!: Redis;
+  private readonly activeSockets = new Map<string, string[]>();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -108,62 +37,47 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly chatService: ChatService,
     private readonly notificationsService: NotificationsService,
   ) {
-    this.initializeRedis();
-  }
-
-  private initializeRedis() {
-    if (env.REDIS_URL) {
-      try {
-        this.redisClient = new Redis(env.REDIS_URL);
-        this.redisClient.on('error', (err) => {
-          this.logger.error(`Redis socket presence error: ${err.message}`);
-        });
-      } catch (err: any) {
-        this.logger.error(
-          `Failed to connect to Redis socket presence: ${err?.message}`,
-        );
-      }
+    try {
+      this.redisClient = new Redis(env.REDIS_URL, {
+        lazyConnect: true,
+      });
+      this.redisClient.connect().catch((err: unknown) => {
+        this.logger.error('Redis connection error in ChatGateway:', err);
+      });
+    } catch (err) {
+      this.logger.error('Failed to initialize Redis in ChatGateway:', err);
     }
   }
 
   /**
-   * Handshake connection authentication with JWT verification.
+   * Handle incoming connection and authenticate via Bearer token in handshake auth or headers.
    */
   async handleConnection(client: Socket) {
-    const authHeader = client.handshake.headers.authorization;
-    let token = '';
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-    } else {
-      token = client.handshake.query?.token as string;
-    }
-
-    if (!token) {
-      this.logger.warn(
-        `Connection rejected: No token provided (socket ID: ${client.id})`,
-      );
-      client.disconnect();
-      return;
-    }
-
     try {
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: env.JWT_ACCESS_SECRET,
-      });
+      const token =
+        client.handshake.auth?.token ||
+        client.handshake.headers?.authorization?.replace('Bearer ', '');
 
-      const userId = payload.sub || payload.userId;
+      if (!token) {
+        this.logger.warn(`Connection denied: Missing token (${client.id})`);
+        client.disconnect();
+        return;
+      }
+
+      const payload = await this.jwtService.verifyAsync<{ sub: string }>(
+        token,
+        { secret: env.JWT_ACCESS_SECRET },
+      );
+
+      const userId = payload.sub;
       client.data.userId = userId;
 
-      // Track active sockets
-      const socketIds = this.activeSockets.get(userId) || [];
-      socketIds.push(client.id);
-      this.activeSockets.set(userId, socketIds);
+      const existing = this.activeSockets.get(userId) || [];
+      this.activeSockets.set(userId, [...existing, client.id]);
 
-      // Track globally in Redis
       if (this.redisClient) {
         await this.redisClient
-          .hset('online_users', userId, 'true')
+          .hset('online_users', userId, Date.now().toString())
           .catch(() => {});
       }
 
@@ -172,29 +86,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.logger.error(
         `Connection auth failed for client ${client.id}: ${err?.message}`,
       );
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
       client.disconnect();
     }
   }
 
-<<<<<<< HEAD
-  handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
-  }
-
-  @SubscribeMessage('join_conversation')
-  async handleJoinConversation(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string },
-  ) {
-    const user = (client.data as Record<string, any>)?.user as
-      { userId: string } | undefined;
-    const userId = user?.userId;
-    if (!userId) return;
-
-    const conversationId = data.conversationId;
-
-=======
   /**
    * Handle socket client disconnect and cleanup presence trackers.
    */
@@ -230,57 +125,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     // Verify room authorization
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       include: { match: true },
     });
 
     if (!conversation) {
-<<<<<<< HEAD
-      client.emit('error', { message: 'Conversation not found' });
-      return;
-    }
-
-    if (
-      conversation.match.userLowId !== userId &&
-      conversation.match.userHighId !== userId
-    ) {
-      client.emit('error', { message: 'Access denied' });
-      return;
-    }
-
-    await client.join(`conversation:${conversationId}`);
-    client.emit('joined_conversation', { conversationId });
-  }
-
-  @SubscribeMessage('send_message')
-  async handleSendMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: { conversationId: string; content: string; mediaUrl?: string },
-  ) {
-    const user = (client.data as Record<string, any>)?.user as
-      { userId: string } | undefined;
-    const userId = user?.userId;
-    if (!userId) return;
-
-    const conversationId = data.conversationId;
-    const content = data.content;
-    const mediaUrl = data.mediaUrl;
-
-    let message;
-    if (mediaUrl) {
-      message = await this.chatService.saveImageMessage(
-        conversationId,
-        userId,
-        mediaUrl,
-      );
-    } else {
-      message = await this.chatService.saveTextMessage(
-        conversationId,
-        userId,
-=======
       return { error: 'Conversation not found' };
     }
 
@@ -346,170 +196,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.notificationsService.queueMessageNotification(
         userId,
         partnerId,
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
         content,
-      );
-    }
-
-<<<<<<< HEAD
-    this.server
-      .to(`conversation:${conversationId}`)
-      .emit('new_message', message);
-  }
-
-  @SubscribeMessage('propose_date')
-  async handleProposeDate(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      conversationId: string;
-      venueName: string;
-      venueAddress: string;
-      latitude?: number;
-      longitude?: number;
-      mapboxPlaceId?: string;
-      date: string;
-      startTime: string;
-      endTime?: string;
-    },
-  ) {
-    const user = (client.data as Record<string, any>)?.user as
-      { userId: string } | undefined;
-    const userId = user?.userId;
-    if (!userId) return;
-
-    const conversationId = data.conversationId;
-
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id: conversationId },
-    });
-    if (!conversation) {
-      client.emit('error', { message: 'Conversation not found' });
-      return;
-    }
-
-    const datePlan = await this.datesService.createDatePlan(
-      conversation.matchId,
-      userId,
-      {
-        venueName: data.venueName,
-        venueAddress: data.venueAddress,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        mapboxPlaceId: data.mapboxPlaceId,
-        date: data.date,
-        startTime: data.startTime,
-        endTime: data.endTime,
-      },
-    );
-
-    const message = await this.chatService.saveDateInviteMessage(
-      conversationId,
-      userId,
-      datePlan.id,
-    );
-
-    this.server
-      .to(`conversation:${conversationId}`)
-      .emit('new_message', message);
-  }
-
-  @SubscribeMessage('respond_to_date')
-  async handleRespondToDate(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: { conversationId: string; datePlanId: string; accept: boolean },
-  ) {
-    const user = (client.data as Record<string, any>)?.user as
-      { userId: string } | undefined;
-    const userId = user?.userId;
-    if (!userId) return;
-
-    const conversationId = data.conversationId;
-    const datePlanId = data.datePlanId;
-    const accept = Boolean(data.accept);
-
-    const updatedDatePlan = await this.datesService.respondToDatePlan(
-      datePlanId,
-      userId,
-      accept,
-    );
-
-    this.server
-      .to(`conversation:${conversationId}`)
-      .emit('date_plan_updated', updatedDatePlan);
-  }
-
-  @SubscribeMessage('start_game')
-  async handleStartGame(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; gameId: string },
-  ) {
-    const user = (client.data as Record<string, any>)?.user as
-      { userId: string } | undefined;
-    const userId = user?.userId;
-    if (!userId) return;
-
-    const conversationId = data.conversationId;
-    const gameId = data.gameId;
-
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id: conversationId },
-    });
-    if (!conversation) {
-      client.emit('error', { message: 'Conversation not found' });
-      return;
-    }
-
-    const gameSession = await this.gamesService.startGameSession(
-      conversation.matchId,
-      gameId,
-      userId,
-    );
-
-    const message = await this.chatService.saveGameMessage(
-      conversationId,
-      userId,
-      gameSession.id,
-    );
-
-    this.server
-      .to(`conversation:${conversationId}`)
-      .emit('new_message', message);
-  }
-
-  @SubscribeMessage('submit_game_answer')
-  async handleSubmitGameAnswer(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      conversationId: string;
-      gameSessionId: string;
-      questionId: string;
-      selectedOption: string;
-    },
-  ) {
-    const user = (client.data as Record<string, any>)?.user as
-      { userId: string } | undefined;
-    const userId = user?.userId;
-    if (!userId) return;
-
-    const conversationId = data.conversationId;
-    const gameSessionId = data.gameSessionId;
-    const questionId = data.questionId;
-    const selectedOption = data.selectedOption;
-
-    const updatedSession = await this.gamesService.submitAnswer(
-      gameSessionId,
-      userId,
-      questionId,
-      selectedOption,
-    );
-
-    this.server
-      .to(`conversation:${conversationId}`)
-      .emit('game_session_updated', updatedSession);
-=======
     return { success: true, messageId: savedMessage.id };
   }
 
@@ -547,6 +234,5 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         `Cannot emit event "${event}"; Conversation for match ID ${matchId} not found.`,
       );
     }
->>>>>>> 1da36cd33c83cdd9e319d00fd0eaacc7aec32662
   }
 }
