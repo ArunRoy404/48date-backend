@@ -914,8 +914,7 @@ export class DatesService {
 
   /**
    * GET /dates/places/search?q=
-   * Searches Mapbox Geocoding places API, with graceful fallback to sample places
-   * if no Mapbox token is configured or network fails.
+   * Searches Mapbox Geocoding places API for venues and locations.
    */
   async searchPlaces(
     query: SearchPlacesQueryDto,
@@ -961,69 +960,10 @@ export class DatesService {
       }
     } else {
       this.logger.warn(
-        'MAPBOX_ACCESS_TOKEN not configured. Returning fallback sample places for development/testing.',
+        'MAPBOX_ACCESS_TOKEN not configured. Returning empty places list.',
       );
     }
 
-    // Fallback sample places matching the query query term
-    return this.getFallbackPlaces(q, latitude, longitude, limit);
-  }
-
-  /**
-   * Generates realistic sample places for local testing when Mapbox token is absent
-   */
-  private getFallbackPlaces(
-    query: string,
-    baseLat?: number,
-    baseLng?: number,
-    limit = 10,
-  ): PlaceSearchResult[] {
-    const centerLat = baseLat ?? 23.7925;
-    const centerLng = baseLng ?? 90.4078;
-
-    const templates = [
-      {
-        suffix: 'Cafe & Bistro',
-        address: 'Gulshan Avenue, Block 2',
-        cat: 'cafe',
-      },
-      {
-        suffix: 'Rooftop Lounge & Bar',
-        address: 'Banani 11, Lake View',
-        cat: 'lounge',
-      },
-      {
-        suffix: 'Fine Dining Restaurant',
-        address: 'Dhanmondi Road 27',
-        cat: 'restaurant',
-      },
-      {
-        suffix: 'Coffee Roasters',
-        address: 'Uttara Sector 3',
-        cat: 'cafe',
-      },
-      {
-        suffix: 'Botanical Garden & Walk',
-        address: 'Mirpur Zoo Road',
-        cat: 'park',
-      },
-    ];
-
-    const results: PlaceSearchResult[] = [];
-    const count = Math.min(templates.length, limit);
-
-    for (let i = 0; i < count; i++) {
-      const t = templates[i];
-      results.push({
-        id: `sample_place_${i + 1}`,
-        name: `${query.charAt(0).toUpperCase() + query.slice(1)} ${t.suffix}`,
-        address: `${i * 12 + 10} ${t.address}`,
-        latitude: Number((centerLat + (i - 2) * 0.005).toFixed(6)),
-        longitude: Number((centerLng + (i - 2) * 0.005).toFixed(6)),
-        category: t.cat,
-      });
-    }
-
-    return results;
+    return [];
   }
 }

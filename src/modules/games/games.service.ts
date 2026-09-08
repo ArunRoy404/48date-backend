@@ -3,7 +3,6 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-  OnModuleInit,
   Logger,
   Inject,
   forwardRef,
@@ -13,13 +12,12 @@ import { ChatGateway } from '../chat/chat.gateway.js';
 import { StartGameSessionDto } from './dto/start-game.dto.js';
 import { SubmitAnswerDto } from './dto/submit-answer.dto.js';
 import {
-  GameType,
   SessionStatus,
   MessageType,
 } from '../../generated/prisma/enums.js';
 
 @Injectable()
-export class GamesService implements OnModuleInit {
+export class GamesService {
   private readonly logger = new Logger(GamesService.name);
 
   constructor(
@@ -27,107 +25,6 @@ export class GamesService implements OnModuleInit {
     @Inject(forwardRef(() => ChatGateway))
     private readonly chatGateway: ChatGateway,
   ) {}
-
-  /**
-   * Automatically seed static games and questions on startup if none exist.
-   */
-  async onModuleInit() {
-    await this.seedGamesIfNeeded();
-  }
-
-  private async seedGamesIfNeeded() {
-    try {
-      const count = await this.prisma.game.count();
-      if (count > 0) {
-        this.logger.log('Games already seeded in database.');
-        return;
-      }
-
-      this.logger.log('Seeding static games and questions...');
-
-      await this.prisma.$transaction(async (tx) => {
-        // Seed "This or That" Game
-        await tx.game.create({
-          data: {
-            name: 'This or That 🍦',
-            type: GameType.THIS_OR_THAT,
-            isActive: true,
-            questions: {
-              create: [
-                {
-                  question: 'What is your morning fuel?',
-                  optionA: 'Coffee',
-                  optionB: 'Tea',
-                  order: 1,
-                },
-                {
-                  question: 'Which furry friend do you prefer?',
-                  optionA: 'Cats',
-                  optionB: 'Dogs',
-                  order: 2,
-                },
-                {
-                  question: 'What is your dream retreat?',
-                  optionA: 'Beach',
-                  optionB: 'Mountains',
-                  order: 3,
-                },
-                {
-                  question: 'When do you feel most alive?',
-                  optionA: 'Early Bird',
-                  optionB: 'Night Owl',
-                  order: 4,
-                },
-                {
-                  question: 'What is your ideal evening spend?',
-                  optionA: 'Netflix & Chill',
-                  optionB: 'Reading a Book',
-                  order: 5,
-                },
-              ],
-            },
-          },
-        });
-
-        // Seed "Icebreaker" Game
-        await tx.game.create({
-          data: {
-            name: 'Icebreaker Games ❄️',
-            type: GameType.ICEBREAKER,
-            isActive: true,
-            questions: {
-              create: [
-                {
-                  question: 'Where would you travel first?',
-                  optionA: 'Paris',
-                  optionB: 'Tokyo',
-                  order: 1,
-                },
-                {
-                  question: 'If you had one choice of superpower, it would be:',
-                  optionA: 'Invisibility',
-                  optionB: 'Flight',
-                  order: 2,
-                },
-                {
-                  question: 'Which weather suits you best?',
-                  optionA: 'Sunny Summer',
-                  optionB: 'Winter Chill',
-                  order: 3,
-                },
-              ],
-            },
-          },
-        });
-      });
-
-      this.logger.log('Static games seeded successfully.');
-    } catch (err: any) {
-      this.logger.error(
-        `Failed to seed static games: ${(err as Error)?.message}`,
-      );
-    }
-  }
 
   /**
    * Fetches all active games and their active questions.

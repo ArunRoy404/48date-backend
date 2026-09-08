@@ -1,10 +1,10 @@
 # ---- Build Stage ----
-FROM node:20-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
 # Install OpenSSL (required by Prisma)
-RUN apk add --no-cache openssl
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Copy package files first (better caching)
 COPY package*.json ./
@@ -24,15 +24,15 @@ RUN npx prisma generate
 RUN npm run build
 
 # ---- Production Stage ----
-FROM node:20-alpine AS production
+FROM node:22-bookworm-slim AS production
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001
+RUN groupadd -g 1001 nodejs && \
+    useradd -u 1001 -g nodejs -s /bin/sh nestjs
 
 # Copy only necessary files from builder with ownership
 COPY --chown=nestjs:nodejs --from=builder /app/package*.json ./
@@ -40,11 +40,7 @@ COPY --chown=nestjs:nodejs --from=builder /app/node_modules ./node_modules
 COPY --chown=nestjs:nodejs --from=builder /app/dist ./dist
 COPY --chown=nestjs:nodejs --from=builder /app/prisma ./prisma
 COPY --chown=nestjs:nodejs --from=builder /app/prisma.config.ts ./prisma.config.ts
-
-# If you are using custom output (generated folder)
 COPY --chown=nestjs:nodejs --from=builder /app/src/generated ./src/generated
-# or if generated is at root level:
-# COPY --from=builder /app/generated ./generated
 
 USER nestjs
 
