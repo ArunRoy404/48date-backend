@@ -47,4 +47,4 @@ USER nestjs
 EXPOSE 3000
 
 # Run migrations + start the app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

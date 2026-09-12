@@ -4,7 +4,10 @@ import crypto from 'crypto';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '../../config/env.config.js';
-import type { ImageUploadResponse } from './types/images.types.js';
+import type {
+  ImageUploadResponse,
+  MultiImageUploadResponse,
+} from './types/images.types.js';
 
 @Injectable()
 export class ImagesService {
@@ -34,6 +37,31 @@ export class ImagesService {
         'Cloudflare R2 environment variables are not fully configured. Falling back to local storage.',
       );
     }
+  }
+
+  async uploadImages(
+    files: Express.Multer.File[],
+    userId: string,
+  ): Promise<MultiImageUploadResponse> {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No file provided for upload.');
+    }
+
+    if (files.length > 6) {
+      throw new BadRequestException(
+        'Cannot upload more than 6 images at once.',
+      );
+    }
+
+    const uploaded = await Promise.all(
+      files.map((file) => this.uploadImage(file, userId)),
+    );
+
+    return {
+      url: uploaded[0].url,
+      key: uploaded[0].key,
+      images: uploaded,
+    };
   }
 
   async uploadImage(

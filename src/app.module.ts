@@ -16,6 +16,7 @@ import { BlocksModule } from './modules/blocks/blocks.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module.js';
 import { SuccessStoriesModule } from './modules/success-stories/success-stories.module.js';
+import { FaceVerificationModule } from './modules/face-verification/face-verification.module.js';
 import { env } from './config/env.config.js';
 
 @Module({
@@ -30,6 +31,7 @@ import { env } from './config/env.config.js';
     AuthModule,
     UsersModule,
     ImagesModule,
+    FaceVerificationModule,
     DiscoveryModule,
     MatchesModule,
     NotificationsModule,

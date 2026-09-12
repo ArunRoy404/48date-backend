@@ -11,10 +11,7 @@ import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { ChatGateway } from '../chat/chat.gateway.js';
 import { StartGameSessionDto } from './dto/start-game.dto.js';
 import { SubmitAnswerDto } from './dto/submit-answer.dto.js';
-import {
-  SessionStatus,
-  MessageType,
-} from '../../generated/prisma/enums.js';
+import { SessionStatus, MessageType } from '../../generated/prisma/enums.js';
 
 @Injectable()
 export class GamesService {
