@@ -26,7 +26,7 @@ import {
   CREATIVITY_INTERESTS,
   SPORTS_INTERESTS,
   MOVIES_AND_DRAMAS_INTERESTS,
-} from '../../auth/dto/register.dto.js';
+} from '../../../common/constants/interests.js';
 
 export class ProfileImageDto {
   @IsPublicUrl({ message: 'images[].url must be a valid URL' })
