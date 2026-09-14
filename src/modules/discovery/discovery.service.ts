@@ -4,6 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import type { Prisma } from '../../generated/prisma/client.js';
+import {
+  buildBoundingBox,
+  haversineKm,
+  roundDistanceKm,
+} from '../../common/utils/geo.js';
 import { formatUser } from '../../common/utils/user-formatter.js';
 import { MatchesService } from '../matches/matches.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
@@ -107,6 +113,41 @@ export class DiscoveryService {
       now.getDate(),
     );
 
+    // Distance filtering only happens when we know where the viewer is. A user
+    // who refused the location prompt still gets a feed — just an unfiltered
+    // one — rather than an empty screen they cannot explain.
+    const viewer = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { latitude: true, longitude: true },
+    });
+    // Pulled into consts so the null-check narrows them for the closures below.
+    const viewerLat = viewer?.latitude ?? null;
+    const viewerLon = viewer?.longitude ?? null;
+    const canFilterByDistance = viewerLat !== null && viewerLon !== null;
+
+    let locationWhere: Prisma.UserWhereInput = {};
+    if (canFilterByDistance) {
+      const box = buildBoundingBox(viewerLat, viewerLon, prefs.maxDistanceKm);
+      const latitudeRange = {
+        gte: box.minLatitude,
+        lte: box.maxLatitude,
+      };
+
+      locationWhere = box.wrapsAntimeridian
+        ? {
+            // The box straddles ±180°, so it is two ranges, not one.
+            latitude: latitudeRange,
+            OR: [
+              { longitude: { gte: box.minLongitude } },
+              { longitude: { lte: box.maxLongitude } },
+            ],
+          }
+        : {
+            latitude: latitudeRange,
+            longitude: { gte: box.minLongitude, lte: box.maxLongitude },
+          };
+    }
+
     // Query other verified users
     const candidates = await this.prisma.user.findMany({
       where: {
@@ -117,17 +158,39 @@ export class DiscoveryService {
           lte: maxBirthDate,
         },
         gender: prefs.preferredGender ? prefs.preferredGender : undefined,
+        ...locationWhere,
       },
       include: {
         images: { orderBy: { sortOrder: 'asc' } },
       },
-      take: 50, // Get a pool of 50 candidates
+      // Over-fetch while distance filtering: the bounding box admits corners
+      // that are further away than maxDistanceKm, and those get dropped below.
+      take: canFilterByDistance ? 200 : 50,
     });
 
-    // Shuffle profiles in memory for a random discover experience
-    const shuffled = candidates.sort(() => Math.random() - 0.5);
+    // The bounding box is a coarse prefilter — this is the exact test.
+    const withDistance = candidates.map((user) => ({
+      user,
+      distanceKm:
+        canFilterByDistance && user.latitude != null && user.longitude != null
+          ? haversineKm(viewerLat, viewerLon, user.latitude, user.longitude)
+          : null,
+    }));
 
-    return shuffled.map((user) => formatUser(user));
+    const inRange = canFilterByDistance
+      ? withDistance.filter(
+          (c) => c.distanceKm !== null && c.distanceKm <= prefs.maxDistanceKm,
+        )
+      : withDistance;
+
+    // Shuffle profiles in memory for a random discover experience
+    const shuffled = inRange.sort(() => Math.random() - 0.5).slice(0, 50);
+
+    return shuffled.map(({ user, distanceKm }) =>
+      formatUser(user, {
+        distanceKm: distanceKm === null ? null : roundDistanceKm(distanceKm),
+      }),
+    );
   }
 
   /**

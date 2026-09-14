@@ -34,6 +34,15 @@ export interface FormattedUser {
   location: {
     locations: string[];
     lastLocation: string | null;
+    locationUpdatedAt: Date | null;
+    locationPermission: string;
+    /**
+     * Great-circle distance from the *viewer*, in kilometres, rounded to one
+     * decimal. Only the discovery feed sets it; everywhere else it is null.
+     * Raw coordinates are deliberately never exposed — distance is as precise
+     * as another user's position gets.
+     */
+    distanceKm: number | null;
   };
   body: {
     heightCm: number | null;
@@ -62,7 +71,16 @@ export interface FormattedUser {
  * Formats a user row into the categorized response shape.
  * `passwordHash` is intentionally never included.
  */
-export function formatUser(user: User & { images?: Image[] }): FormattedUser {
+export interface FormatUserOptions {
+  /** Set by the discovery feed, which is the only caller that knows who is
+   * looking and can therefore compute a distance. */
+  distanceKm?: number | null;
+}
+
+export function formatUser(
+  user: User & { images?: Image[] },
+  options: FormatUserOptions = {},
+): FormattedUser {
   return {
     id: user.id,
     auth: {
@@ -93,6 +111,9 @@ export function formatUser(user: User & { images?: Image[] }): FormattedUser {
     location: {
       locations: user.locations,
       lastLocation: user.lastLocation,
+      locationUpdatedAt: user.locationUpdatedAt,
+      locationPermission: user.locationPermission,
+      distanceKm: options.distanceKm ?? null,
     },
     body: {
       heightCm: user.heightCm,
