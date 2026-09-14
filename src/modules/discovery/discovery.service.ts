@@ -152,7 +152,7 @@ export class DiscoveryService {
     const candidates = await this.prisma.user.findMany({
       where: {
         id: { notIn: excludeIds },
-        isUserVerified: true,
+        isProfileComplete: true,
         birthDate: {
           gte: minBirthDate,
           lte: maxBirthDate,
@@ -216,7 +216,7 @@ export class DiscoveryService {
       include: { images: { orderBy: { sortOrder: 'asc' } } },
     });
 
-    if (!user || !user.isUserVerified) {
+    if (!user || !user.isProfileComplete) {
       throw new NotFoundException('Profile not found');
     }
 
@@ -237,7 +237,7 @@ export class DiscoveryService {
       where: { id: targetUserId },
     });
 
-    if (!targetUser || !targetUser.isUserVerified) {
+    if (!targetUser || !targetUser.isProfileComplete) {
       throw new NotFoundException('Target profile not found');
     }
 
