@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "1646454d-8c74-4cfd-bc2c-2f770aa03c3e",
+    "_postman_id": "eaf53297-23a2-43ad-a9dd-5930932e111f",
     "name": "48Date Backend API",
     "description": "# 48Date Backend API\n\nREST API for the **48Date** dating app — NestJS 11 (ESM) · PostgreSQL 16 + Prisma 7 · Redis 7 · JWT.\n\n---\n\n## How this collection is organised\n\nTwo root folders:\n\n| Folder | Contents |\n|---|---|\n| **USER** | All **51 implemented endpoints**, consumed by the Flutter app. Serialised `A-01.1` → `SS-06`. |\n| **ADMIN** | **Empty placeholder.** No admin endpoints exist in the codebase yet — see that folder's description for the verified details. |\n\n### Reading the serials\n\nEach folder has its own letter prefix, and requests are numbered **01..n within that folder** in integration order:\n\n| Folder | Prefix | Count |\n|---|---|---|\n| 01 · Auth | `A` | 6 |\n| 02 · Profile & Media | `P` | 5 |\n| 03 · Discovery | `D` | 5 |\n| 04 · Matches | `M` | 2 |\n| 05 · Chat (REST) | `C` | 2 |\n| 06 · Games | `G` | 4 |\n| 07 · Dates | `DT` | 11 |\n| 08 · Trust Score | `T` | 2 |\n| 09 · Safety | `S` | 5 |\n| 10 · Subscriptions | `SB` | 3 |\n| 11 · Success Stories | `SS` | 6 |\n\nThe **folders themselves** are numbered `01` → `11` in the order you should integrate them: finish Auth before Profile, Profile before Discovery, and so on. Within a folder, a lower number is either a dependency of, or independent from, what follows — so `A-01.1` has no prerequisites at all, while `SS-06` assumes most of the collection already works.\n\nCross-references in request descriptions use these serials, so \"run after **A-02**\" always points at exactly one request.\n\nAuth is the one folder with a split serial: **A-01.1 Login** and **A-01.2 Google login** are two alternative ways to start the same flow, so they share step 1.\n\n---\n\n## Setup\n\n1. Start the API: `docker compose up -d postgres redis && npm run start:dev`\n2. Set the `baseUrl` variable if you are not on `http://localhost:3000`.\n3. Run **A-01.1 Login or sign-up** → **A-02 Verify OTP** → you are authenticated.\n4. If the response says `nextStep: \"PROFILE_SETUP\"`, run **A-03 Verify user information** to finish onboarding.\n\n**Dev OTP is always `123456`.**\n\n### Variables are captured for you\n\nEvery request that returns an id writes it into a collection variable, so the folders are runnable top-to-bottom without hand-editing anything:\n\n`userPhone` · `userEmail` · `accessToken` · `refreshToken` · `userId` · `imageUrl` · `targetUserId` · `matchId` · `conversationId` · `gameId` · `questionId` · `sessionId` · `datePlanId` · `storyId` · `commentId`\n\nAuthentication is set **collection-wide** to `Bearer {{accessToken}}`; public endpoints individually override it to *No Auth*.\n\n> **There is no register endpoint and no passwords.** `POST /auth/login` finds *or creates* the account for whatever phone/email you send, and an OTP is required on **every** login — not only the first one. Re-running **A-01.1** as many times as you like is therefore always safe; it never returns a conflict.\n\n> **Trying the first-time onboarding path:** set `{{userPhone}}` to `{{onboardingPhone}}` (`+8801811000008`). That account is seeded with a completely blank profile, so A-02 comes back with `isUserVerified: false` and **A-03** has real work to do. `npm run db:seed` resets it to blank again.\n\n---\n\n## Response envelope\n\nEvery endpoint — success or failure — returns the same shape:\n\n```json\n{ \"success\": true, \"message\": \"Operation successful\", \"messages\": [], \"data\": { } }\n```\n\n```json\n{ \"success\": false, \"message\": \"Validation failed\", \"messages\": [\"phone must be ...\"], \"statusCode\": 400 }\n```\n\n`messages` carries the full list of validation errors; `message` is the first one, suitable for a toast.\n\n---\n\n## Chat is WebSocket-only for sending\n\nThe two REST endpoints in folder **05** only *read*. Sending happens over Socket.IO on the same origin as `baseUrl`, authenticated by passing the JWT in the handshake.\n\n| Direction | Event | Payload |\n|---|---|---|\n| → emit | `joinRoom` | `{ conversationId }` |\n| → emit | `sendMessage` | `{ conversationId, content, type? }` — type = TEXT \\| IMAGE \\| DATE_INVITE \\| SYSTEM |\n| → emit | `typing` | `{ conversationId, isTyping }` |\n| ← listen | `newMessage` | the saved message |\n| ← listen | `typing` | `{ userId, isTyping }` |\n\nPostman's WebSocket request type can drive these, but it is not part of this collection.\n\n---\n\n## Known gaps\n\nBehaviour verified against the running server — worth knowing before you integrate:\n\n- **No admin API at all.** See the ADMIN folder.\n- **`POST /auth/request-otp` and `GET /auth/me` do not exist** despite older docs listing them. Registration and login already return tokens and the user object, and `GET /users/profile` (**P-03**) replaces `/auth/me`.\n- **Google login does not verify the token signature** — it only base64-decodes the payload.\n- **Mapbox place search returns `[]`** unless `MAPBOX_ACCESS_TOKEN` is set.\n- **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.\n- Twilio / SMTP / FCM / R2 all **fall back to console logging or local disk** when their env vars are absent, so flows succeed locally without any third-party account.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -568,7 +568,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000003-0000-4000-8000-000000000003"
             },
             {
               "name": "A-01.2 Google login",
@@ -724,7 +725,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000004-0000-4000-8000-000000000004"
             },
             {
               "name": "A-02 Verify OTP",
@@ -1021,7 +1023,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000005-0000-4000-8000-000000000005"
             },
             {
               "name": "A-03 Verify user information",
@@ -1417,7 +1420,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000006-0000-4000-8000-000000000006"
             },
             {
               "name": "A-04 Refresh tokens",
@@ -1577,7 +1581,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000007-0000-4000-8000-000000000007"
             },
             {
               "name": "A-05 Logout",
@@ -1685,9 +1690,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000008-0000-4000-8000-000000000008"
             }
-          ]
+          ],
+          "id": "00000002-0000-4000-8000-000000000002"
         },
         {
           "name": "02 · Profile & Media",
@@ -1875,7 +1882,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000000a-0000-4000-8000-000000000010"
             },
             {
               "name": "P-02 Profile setup",
@@ -2071,7 +2079,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000000b-0000-4000-8000-000000000011"
             },
             {
               "name": "P-03 Get my profile",
@@ -2185,7 +2194,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000000c-0000-4000-8000-000000000012"
             },
             {
               "name": "P-04 Verify selfie",
@@ -2344,7 +2354,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000000d-0000-4000-8000-000000000013"
             },
             {
               "name": "P-05 Verification status",
@@ -2452,9 +2463,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000000e-0000-4000-8000-000000000014"
             }
-          ]
+          ],
+          "id": "00000009-0000-4000-8000-000000000009"
         },
         {
           "name": "03 · Discovery",
@@ -2565,7 +2578,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000010-0000-4000-8000-000000000016"
             },
             {
               "name": "D-02 Update preferences",
@@ -2714,7 +2728,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000011-0000-4000-8000-000000000017"
             },
             {
               "name": "D-03 Get discovery feed",
@@ -2828,7 +2843,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000012-0000-4000-8000-000000000018"
             },
             {
               "name": "D-04 Get profile detail",
@@ -2936,7 +2952,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000013-0000-4000-8000-000000000019"
             },
             {
               "name": "D-05 Swipe",
@@ -3175,9 +3192,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000014-0000-4000-8000-000000000020"
             }
-          ]
+          ],
+          "id": "0000000f-0000-4000-8000-000000000015"
         },
         {
           "name": "04 · Matches",
@@ -3295,7 +3314,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000016-0000-4000-8000-000000000022"
             },
             {
               "name": "M-02 Unmatch",
@@ -3432,9 +3452,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000017-0000-4000-8000-000000000023"
             }
-          ]
+          ],
+          "id": "00000015-0000-4000-8000-000000000021"
         },
         {
           "name": "05 · Chat (REST)",
@@ -3555,7 +3577,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000019-0000-4000-8000-000000000025"
             },
             {
               "name": "C-02 Get messages",
@@ -3707,9 +3730,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000001a-0000-4000-8000-000000000026"
             }
-          ]
+          ],
+          "id": "00000018-0000-4000-8000-000000000024"
         },
         {
           "name": "06 · Games",
@@ -3827,7 +3852,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000001c-0000-4000-8000-000000000028"
             },
             {
               "name": "G-02 Start session",
@@ -4027,7 +4053,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000001d-0000-4000-8000-000000000029"
             },
             {
               "name": "G-03 Get session",
@@ -4145,7 +4172,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000001e-0000-4000-8000-000000000030"
             },
             {
               "name": "G-04 Submit answer",
@@ -4392,9 +4420,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000001f-0000-4000-8000-000000000031"
             }
-          ]
+          ],
+          "id": "0000001b-0000-4000-8000-000000000027"
         },
         {
           "name": "07 · Dates",
@@ -4581,7 +4611,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000021-0000-4000-8000-000000000033"
             },
             {
               "name": "DT-02 Create date plan",
@@ -4770,7 +4801,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000022-0000-4000-8000-000000000034"
             },
             {
               "name": "DT-03 List my dates",
@@ -4977,7 +5009,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000023-0000-4000-8000-000000000035"
             },
             {
               "name": "DT-04 Get date plan",
@@ -5087,7 +5120,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000024-0000-4000-8000-000000000036"
             },
             {
               "name": "DT-05 Update date plan",
@@ -5237,7 +5271,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000025-0000-4000-8000-000000000037"
             },
             {
               "name": "DT-06 Accept invitation",
@@ -5348,7 +5383,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000026-0000-4000-8000-000000000038"
             },
             {
               "name": "DT-07 Decline invitation",
@@ -5459,7 +5495,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000027-0000-4000-8000-000000000039"
             },
             {
               "name": "DT-08 Cancel date",
@@ -5612,7 +5649,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000028-0000-4000-8000-000000000040"
             },
             {
               "name": "DT-09 Complete date",
@@ -5723,7 +5761,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000029-0000-4000-8000-000000000041"
             },
             {
               "name": "DT-10 Submit rating",
@@ -5875,7 +5914,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000002a-0000-4000-8000-000000000042"
             },
             {
               "name": "DT-11 Get date ratings",
@@ -5987,9 +6027,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000002b-0000-4000-8000-000000000043"
             }
-          ]
+          ],
+          "id": "00000020-0000-4000-8000-000000000032"
         },
         {
           "name": "08 · Trust Score",
@@ -6098,7 +6140,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000002d-0000-4000-8000-000000000045"
             },
             {
               "name": "T-02 Trust score history",
@@ -6283,9 +6326,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000002e-0000-4000-8000-000000000046"
             }
-          ]
+          ],
+          "id": "0000002c-0000-4000-8000-000000000044"
         },
         {
           "name": "09 · Safety (Blocks & Reports)",
@@ -6397,7 +6442,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000030-0000-4000-8000-000000000048"
             },
             {
               "name": "S-02 List blocked users",
@@ -6540,7 +6586,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000031-0000-4000-8000-000000000049"
             },
             {
               "name": "S-03 Unblock user",
@@ -6648,7 +6695,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000032-0000-4000-8000-000000000050"
             },
             {
               "name": "S-04 Report user",
@@ -6794,7 +6842,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000033-0000-4000-8000-000000000051"
             },
             {
               "name": "S-05 My reports",
@@ -6939,9 +6988,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000034-0000-4000-8000-000000000052"
             }
-          ]
+          ],
+          "id": "0000002f-0000-4000-8000-000000000047"
         },
         {
           "name": "10 · Subscriptions",
@@ -7031,7 +7082,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000036-0000-4000-8000-000000000054"
             },
             {
               "name": "SB-02 My subscription",
@@ -7139,7 +7191,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000037-0000-4000-8000-000000000055"
             },
             {
               "name": "SB-03 RevenueCat webhook",
@@ -7298,9 +7351,11 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "00000038-0000-4000-8000-000000000056"
             }
-          ]
+          ],
+          "id": "00000035-0000-4000-8000-000000000053"
         },
         {
           "name": "11 · Success Stories",
@@ -7451,7 +7506,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000003a-0000-4000-8000-000000000058"
             },
             {
               "name": "SS-02 List stories",
@@ -7621,7 +7677,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000003b-0000-4000-8000-000000000059"
             },
             {
               "name": "SS-03 Get story",
@@ -7740,7 +7797,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000003c-0000-4000-8000-000000000060"
             },
             {
               "name": "SS-04 Like / unlike story",
@@ -7881,7 +7939,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000003d-0000-4000-8000-000000000061"
             },
             {
               "name": "SS-05 Add comment",
@@ -8034,7 +8093,8 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000003e-0000-4000-8000-000000000062"
             },
             {
               "name": "SS-06 Delete comment",
@@ -8148,21 +8208,26 @@
                     ]
                   }
                 }
-              ]
+              ],
+              "id": "0000003f-0000-4000-8000-000000000063"
             }
-          ]
+          ],
+          "id": "00000039-0000-4000-8000-000000000057"
         },
         {
           "name": "12 · Realtime (Socket.IO)",
           "description": "Chat is **send-over-socket, read-over-REST**. `C-01` and `C-02` only read history — there is no REST endpoint that sends a message. Everything below was verified against a running server.\n\n## Connecting\n\nPostman: **New → WebSocket**, switch the protocol dropdown to **Socket.IO**, and connect to:\n\n```\nws://localhost:3000\n```\n\nDefault namespace `/`, default Socket.IO path `/socket.io`. Nothing else to configure.\n\n### Auth — pick either, both work\n\n| Method | Where | Value |\n|---|---|---|\n| Header | Headers tab | `Authorization` = `Bearer <accessToken>` |\n| Query param | URL | `ws://localhost:3000?token=<accessToken>` |\n\nUse the `{{accessToken}}` captured by **A-02**. The handshake verifies the JWT; an invalid or missing token **connects and is then immediately disconnected by the server**, so a socket that drops the instant it opens means the token was rejected.\n\n## Events you send\n\nAdd these under the **Events** tab of the Socket.IO request (event name + JSON argument).\n\n### `joinRoom`\n```json\n{ \"conversationId\": \"<uuid>\" }\n```\nAck: `{ \"success\": true }` — or `{ \"error\": \"You are not a participant in this conversation\" }`.\n**You must join before sending**, and you only receive broadcasts for rooms you joined. Use `{{conversationId}}` from **M-01** / **C-01**.\n\n### `sendMessage`\n```json\n{ \"conversationId\": \"<uuid>\", \"content\": \"Hello!\", \"type\": \"TEXT\" }\n```\n`type` is optional, defaults to `TEXT`. Valid: `TEXT` · `IMAGE` · `DATE_INVITE` · `SYSTEM` (case-sensitive).\n\nAck: `{ \"success\": true, \"messageId\": \"<uuid>\" }`\n\nErrors: `{ \"error\": \"Invalid message request\" }` (missing `conversationId` or `content`), `{ \"error\": \"Conversation not found\" }`, `{ \"error\": \"Unauthorized to send message to this conversation\" }`.\n\nThe message is persisted, so **C-02** returns it afterwards.\n\n### `typing`\n```json\n{ \"conversationId\": \"<uuid>\", \"isTyping\": true }\n```\nNo ack. Broadcast to the *other* participants only — never echoed back to you.\n\n## Events you receive\n\n| Event | Payload | When |\n|---|---|---|\n| `newMessage` | the full message: `{ id, conversationId, senderId, type, content, mediaUrl, createdAt }` | someone sends a message to a room you joined |\n| `typing` | `{ userId, isTyping }` | the other participant starts/stops typing |\n| `gameStarted` | the game session incl. `game.questions[]` | **G-02** opens a session |\n| `partnerAnswered` | `{ questionId, userId }` | the partner answered, but **their choice is withheld** until you answer too |\n| `roundResult` | `{ questionId, isMatch, answers: [{ userId, selectedOption }] }` | both players answered a question |\n| `gameCompleted` | `{ sessionId, compatibility, totalQuestions, matchingAnswers }` | the final question is answered |\n\nGame events are pushed to the match's conversation room, so **join the room first** or you will not see them while using the Games folder.\n\n## Verified transcript\n\nTwo clients (Ava and Liam) in one conversation:\n\n```\nava   joinRoom  -> { \"success\": true }\nliam  joinRoom  -> { \"success\": true }\nava   typing    -> liam receives { \"userId\": \"d6cb56b3-…\", \"isTyping\": true }\nava   sendMessage -> ack { \"success\": true, \"messageId\": \"a2552cb6-…\" }\n                     liam receives newMessage { id, senderId, type: \"TEXT\", content }\n```\n\n> ⚠️ **This was broken until recently.** The gateway read `JWT_ACCESS_SECRET` at import time, before `.env` was loaded, so *every* socket connection failed with `secret or public key must be provided`. Fixed by loading `dotenv` first in `main.ts` — if sockets reject a valid token, make sure you are on that build.",
-          "item": []
+          "item": [],
+          "id": "00000040-0000-4000-8000-000000000064"
         }
-      ]
+      ],
+      "id": "00000001-0000-4000-8000-000000000001"
     },
     {
       "name": "ADMIN",
       "description": "# ⚠️ No admin endpoints are implemented yet\n\nThis folder is an intentionally empty placeholder so the collection structure is ready when the admin API lands. **Nothing has been stubbed or invented here** — adding fake requests would be worse than an empty folder.\n\n## Verified state of the code (as of this collection)\n\n- `src/modules/admin/admin.module.ts` — the controller, service and providers are all **commented out**; the module exports an empty `@Module({})`.\n- `AdminModule` is **not imported** into `app.module.ts`, so Nest never registers it.\n- `src/modules/admin/types/admin.types.ts` contains only `export {}`.\n- The `@Roles()` decorator (`src/common/decorators/roles.decorator.ts`) and `RolesGuard` (`src/common/guards/roles.guard.ts`) both exist but are **applied to zero controllers** — every guarded route in this API uses the plain `JwtAuthGuard`.\n- The `Role` enum does contain `ADMIN`, and users carry a `role` field, so the data model is ready.\n\nAll 54 routes the server actually maps are user-facing and live under the **USER** folder.\n\n## What the React admin panel will need\n\nThese are the gaps implied by features that already exist on the user side — they are **not implemented**, listed only so the work is visible:\n\n- **Moderation queue** — `reports` rows are created by `S-04` with status PENDING and there is currently no way to review, resolve or dismiss them.\n- **Success-story approval** — `SS-01` creates stories with status PENDING, and nothing can move them to PUBLISHED, so the public list `SS-02` can never grow.\n- **User administration** — suspend/ban, trust-score override, manual verification.\n- **Analytics** — signups, matches, dates completed, subscription revenue.\n\nWhen those endpoints are built, number them **A-01, A-02, …** inside subfolders here, mirroring the USER convention.",
-      "item": []
+      "item": [],
+      "id": "00000041-0000-4000-8000-000000000065"
     }
   ]
 }
