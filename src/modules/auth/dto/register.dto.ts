@@ -11,13 +11,13 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
   Matches,
   Max,
   Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { IsPublicUrl } from '../../../common/validators/is-public-url.validator.js';
 import {
   Gender,
   HabitFrequency,
@@ -57,7 +57,7 @@ export const MOVIES_AND_DRAMAS_INTERESTS = [
 ] as const;
 
 export class RegisterImageDto {
-  @IsUrl({}, { message: 'images[].url must be a valid URL' })
+  @IsPublicUrl({ message: 'images[].url must be a valid URL' })
   url: string;
 
   @IsBoolean({ message: 'images[].isMain must be a boolean' })
@@ -216,7 +216,7 @@ export class RegisterDto {
   images?: RegisterImageDto[];
 
   @IsOptional()
-  @IsUrl({}, { message: 'selfieUrl must be a valid URL' })
+  @IsPublicUrl({ message: 'selfieUrl must be a valid URL' })
   selfieUrl?: string;
 
   @IsOptional()

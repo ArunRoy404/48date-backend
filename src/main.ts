@@ -1,3 +1,9 @@
+// Must be first: env.config.ts reads process.env when it is imported, which
+// happens while resolving AppModule below — before Nest's ConfigModule runs.
+// Without this, every `env.*` value sourced from .env (JWT_ACCESS_SECRET for
+// the chat gateway, REDIS_URL, Twilio, R2, SMTP, Mapbox, RevenueCat) is
+// undefined at runtime and the app silently falls back to its no-op paths.
+import 'dotenv/config';
 import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

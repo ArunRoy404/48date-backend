@@ -10,12 +10,12 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
   Max,
   Min,
   ValidateNested,
   IsNumber,
 } from 'class-validator';
+import { IsPublicUrl } from '../../../common/validators/is-public-url.validator.js';
 import {
   Gender,
   HabitFrequency,
@@ -29,7 +29,7 @@ import {
 } from '../../auth/dto/register.dto.js';
 
 export class ProfileImageDto {
-  @IsUrl({}, { message: 'images[].url must be a valid URL' })
+  @IsPublicUrl({ message: 'images[].url must be a valid URL' })
   url: string;
 
   @IsBoolean({ message: 'images[].isMain must be a boolean' })
@@ -170,7 +170,7 @@ export class SetupProfileDto {
   images?: ProfileImageDto[];
 
   @IsOptional()
-  @IsUrl({}, { message: 'selfieUrl must be a valid URL' })
+  @IsPublicUrl({ message: 'selfieUrl must be a valid URL' })
   selfieUrl?: string;
 
   @IsOptional()
