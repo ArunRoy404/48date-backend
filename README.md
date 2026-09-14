@@ -120,16 +120,17 @@ Profiles are returned categorized (`auth`, `basicProfile`, `lifestyle`, `locatio
 
 ### Auth
 
-There is **no register endpoint and no passwords.** `POST /auth/login` finds *or creates* the
-account for whatever phone/email it is given, an OTP is required on **every** login, and the
-profile is submitted afterwards in one shot.
+There is **no register endpoint and no passwords.** `POST /auth/login` takes a **phone number
+and nothing else** — no `channel`, no email login — finds *or creates* that account, and sends
+an OTP on **every** login. The profile is submitted afterwards in one shot. Email reaches an
+account only through Google sign-in (A-01.2).
 
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| A-01.1 | POST | `/auth/login` | — | Find or create the account, always send an OTP. **Never returns tokens.** |
+| A-01.1 | POST | `/auth/login` | — | Phone only. Find or create the account, always send an OTP. **Never returns tokens.** |
 | A-01.2 | POST | `/auth/google` | — | Google ID token → find or create → tokens, no OTP (⚠️ signature not verified) |
-| A-02 | POST | `/auth/verify-otp` | — | Verify OTP → tokens, sets `isPhoneVerified` / `isEmailVerified` |
-| A-03 | POST | `/auth/verify-user-information` | Bearer | Submit the whole profile → sets `isUserVerified`, routes to `MAIN_APP` |
+| A-02 | POST | `/auth/verify-otp` | — | Verify OTP → tokens, sets `isPhoneVerified` |
+| A-03 | POST | `/auth/verify-user-information` | Bearer | Submit the whole profile — **every field required** → sets `isUserVerified`, routes to `MAIN_APP` |
 | A-04 | POST | `/auth/refresh` | — | Refresh token → new token pair |
 | A-05 | POST | `/auth/logout` | Bearer | Stateless — client discards tokens |
 
@@ -142,9 +143,42 @@ A-01.2 google ─────────────────────> t
 ```
 
 `nextStep` is the app's router: `PROFILE_SETUP` means `isUserVerified` is still false and A-03
-has not been sent yet; `MAIN_APP` means onboarding is done. A-03 requires every field the
-completeness check reads, so a 2xx from it always means the account is now verified. Later
-edits go through `PATCH /users/profile-setup` (P-02), which accepts any subset.
+has not been sent yet; `MAIN_APP` means onboarding is done.
+
+**A-03 requires every field.** The onboarding screens collect all of it, so a missing field
+means a screen was skipped, and the response names each one in `messages[]` with a sentence
+that can be shown to the user as-is. A 2xx therefore always means the account is verified.
+The one conditional is location: `lastLocation`, `latitude` and `longitude` are required only
+when `locationPermission` is `WHILE_IN_USE`, `ONE_TIME` or `ALWAYS` — someone who taps *Deny*
+must still be able to finish onboarding. Later edits go through `PATCH /users/profile-setup`
+(P-02), which accepts any subset.
+
+Validation returns **one message per field**: the global `ValidationPipe` runs with
+`stopAtFirstError`, so a single missing value no longer trips `@IsString`, `@IsNotEmpty` and
+`@Matches` and report the same thing three ways.
+
+### Profile field changes
+
+| Removed | Replacement |
+|---|---|
+| `name` | Derived from `firstName` + `lastName`, returned as `basicProfile.displayName`. |
+| `locations` (string array) | `lastLocation` plus `latitude` / `longitude`. |
+
+| Enum | Values |
+|---|---|
+| `LookingFor` | `REAL_RELATIONSHIP` · `SOMETHING_MEANINGFUL` · `SEE_WHERE_IT_GOES` · `NEW_FRIENDS_FIRST` — the four options on the "What Are You Looking For?" screen |
+| `HabitFrequency` | `NEVER` · `SOMETIMES` · `DAILY` — `OFTEN` removed |
+| `CreativityInterest` | `ART` · `DESIGN` · `MAKEUP` · `PHOTOGRAPHY` · `SINGING` |
+| `SportInterest` | `RUNNING` · `GYM` · `SOCCER` · `CRICKET` · `TENNIS` · `BASKETBALL` |
+| `MovieAndDramaInterest` | `TV_SHOWS` · `ROMANCE` · `COMEDY` · `K_DRAMA` · `HORROR` · `THRILLER` · `SCI_FI` · `FANTASY` · `ANIME` · `ZOMBIE` |
+
+The three interest lists used to be free-form `String[]` whose allowed values lived only in a
+DTO. They are now real Postgres enums, so the database rejects a value the interests screen
+never offered, and they follow the same `UPPERCASE_UNDERSCORE` convention as every other enum —
+`K_DRAMA`, not `K-Drama`.
+
+`A-03` takes the selfie as `selfieVerificationImageUrl`; it is stored on the user as
+`selfieUrl`, the same column `P-04 Verify selfie` writes.
 
 ### Profile & Media
 
