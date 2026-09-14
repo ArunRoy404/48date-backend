@@ -183,7 +183,10 @@ Table users {
   role Role [not null, default: 'USER']
   isEmailVerified boolean [not null, default: false]
   isPhoneVerified boolean [not null, default: false]
-  isUserVerified boolean [not null, default: false, note: 'True when full profile setup/verification is complete']
+  isProfileComplete boolean [not null, default: false, note: 'Set by /auth/verify-user-information; drives nextStep and Discovery visibility']
+  isUserVerified boolean [not null, default: false, note: 'Admin-granted trust badge — no user-facing endpoint sets it']
+  lastOtpSentAt timestamp [null, note: 'Drives the 30s resend cooldown shared by /auth/login and /auth/resend-otp']
+  lastContactOtpSentAt timestamp [null, note: 'Separate 30s cooldown for the profile contact-verification flow']
 
   firstName varchar [null]
   lastName varchar [null]

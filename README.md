@@ -107,7 +107,7 @@ Re-running the seed also **prunes** swipes, matches, and the half-finished accou
 
 ## API
 
-All 52 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
+All 56 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
 
 Every response — success or error — uses the same envelope:
 
@@ -129,6 +129,7 @@ account only through Google sign-in (A-01.2).
 |---|---|---|---|---|
 | A-01.1 | POST | `/auth/login` | — | Phone only. Find or create the account, always send an OTP. **Never returns tokens.** |
 | A-01.2 | POST | `/auth/google` | — | Google ID token → find or create → tokens, no OTP (⚠️ signature not verified) |
+| A-01.3 | POST | `/auth/resend-otp` | — | Re-send the OTP for an existing account. 30s cooldown → `429` |
 | A-02 | POST | `/auth/verify-otp` | — | Verify OTP → tokens, sets `isPhoneVerified` |
 | A-03 | POST | `/auth/verify-user-information` | Bearer | Submit the whole profile — **every field required** → sets `isUserVerified`, routes to `MAIN_APP` |
 | A-04 | POST | `/auth/refresh` | — | Refresh token → new token pair |
@@ -141,6 +142,54 @@ A-01.1 login ──> A-02 verify-otp ──> tokens ──> nextStep
 
 A-01.2 google ─────────────────────> tokens ──> nextStep  (same two branches, no OTP step)
 ```
+
+### Verification flags
+
+Three flags that are easy to confuse:
+
+| Flag | Set by | Meaning |
+|---|---|---|
+| `isPhoneVerified` | `A-02` for a phone signup, or `P-09` for a Google user who adds a number | This number has been proven |
+| `isEmailVerified` | `A-01.2` Google sign-in, or `P-09` for a phone user who adds an address | This address has been proven |
+| `isProfileComplete` | `A-03 Verify user information` | Onboarding is done — drives `nextStep` and Discovery visibility |
+| `isUserVerified` | **admin only** | Trust badge. No user-facing endpoint sets it |
+
+`A-03` takes no email field, so a phone signup still reports `isEmailVerified: false` after
+completing the whole profile. That is not a bug — proving an address is a deliberate second
+step:
+
+```
+P-07 add phone/email  →  P-08 request code  →  P-09 verify  →  flag flips
+```
+
+Whatever `P-07` writes lands unverified, and replacing an already-verified value resets its
+flag, since the new one has proven nothing.
+
+`isUserVerified` used to be set automatically the moment a profile looked complete, which
+conflated "filled in the form" with "vouched for by an admin". It no longer is; **Discovery
+now gates on `isProfileComplete`**, so a complete profile is what makes an account visible
+and the badge is a separate signal.
+
+### OTP resend cooldown
+
+`POST /auth/login` and `POST /auth/resend-otp` both refuse to dispatch another OTP within
+**30 seconds** of the last one, tracked by `users.lastOtpSentAt`. `P-08` has the same window
+on its own timer (`users.lastContactOtpSentAt`) — sharing one would mean logging in blocks you
+from verifying an email you added seconds later. The refusal is a `429`
+carrying the exact seconds remaining, both in the message and in the standard `Retry-After`
+header, so the app can render a countdown rather than a flat "try again later":
+
+```
+429  Please wait 18 seconds before requesting another code.
+     Retry-After: 18
+```
+
+A successful send returns `data.resendCooldownSeconds` so the OTP screen knows how long to
+disable its resend button. A brand-new account created by `A-01.1` has never been sent
+anything, so its first OTP is never held back.
+
+The two differ on unknown numbers: `A-01.1` **creates** the account, `A-01.3` returns `404` —
+resending implies something was sent in the first place.
 
 `nextStep` is the app's router: `PROFILE_SETUP` means `isUserVerified` is still false and A-03
 has not been sent yet; `MAIN_APP` means onboarding is done.
@@ -190,6 +239,9 @@ never offered, and they follow the same `UPPERCASE_UNDERSCORE` convention as eve
 | P-04 | POST | `/face-verification/verify` | Bearer | Submit selfie → `selfieVerified` |
 | P-05 | GET | `/face-verification/status` | Bearer | Verification flags + what's missing |
 | P-06 | PATCH | `/users/location` | Bearer | Coordinates and/or permission state — see **Location and distance** below |
+| P-07 | PATCH | `/users/contact` | Bearer | Add or replace the phone/email — lands **unverified** |
+| P-08 | POST | `/users/contact/request-otp` | Bearer | Send a code to the stored phone/email. 30s cooldown |
+| P-09 | POST | `/users/contact/verify-otp` | Bearer | Confirm the code → flips that one flag |
 
 ### Discovery
 
