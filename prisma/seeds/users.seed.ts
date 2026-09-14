@@ -2,6 +2,7 @@ import {
   Gender,
   HabitFrequency,
   KidsStatus,
+  LocationPermission,
   LookingFor,
   Platform,
 } from '../../src/generated/prisma/enums.js';
@@ -147,6 +148,24 @@ export const SEED_USERS: SeedUser[] = [
     creativity: [], sports: [], moviesAndDramas: ['Comedy'],
     images: [`${CDN}/zara-1.jpg`], trustScore: 28,
   },
+  {
+    // Deliberately ~245 km from Dhaka, and MALE so he actually reaches Ava's
+    // feed (her preferredGender filters it). At her default maxDistanceKm of
+    // 50 he is filtered OUT; raise it past 250 via D-02 and he appears. That
+    // makes the distance filter something you can watch working rather than
+    // take on trust.
+    key: 'rafiq', phone: '+8801811000009', email: 'rafiq.das@example.com',
+    name: 'Rafiq Das', firstName: 'Rafiq', lastName: 'Das', username: 'rafiq_das',
+    birthDate: '1996-03-05', occupation: 'Journalist',
+    gender: Gender.MALE, interestedIn: Gender.FEMALE,
+    smoker: HabitFrequency.NEVER, alcohol: HabitFrequency.NEVER,
+    kids: KidsStatus.DOESNT_HAVE_KIDS, wantsKids: true, lookingFor: LookingFor.LONG_TERM,
+    locations: ['Sylhet'], lastLocation: 'Sylhet',
+    latitude: 24.8949, longitude: 91.8687, heightCm: 160, weightKg: 52,
+    creativity: ['Photography'], sports: ['Running'],
+    moviesAndDramas: ['Thriller'],
+    images: [`${CDN}/rafiq-1.jpg`], trustScore: 68,
+  },
 ];
 
 export type UserMap = Record<string, string>;
@@ -185,6 +204,8 @@ export async function seedUsers(prisma: PrismaClient): Promise<UserMap> {
       lastLocation: u.lastLocation,
       latitude: u.latitude,
       longitude: u.longitude,
+      locationUpdatedAt: new Date(),
+      locationPermission: LocationPermission.WHILE_IN_USE,
       heightCm: u.heightCm,
       weightKg: u.weightKg,
       creativity: u.creativity,
@@ -318,6 +339,10 @@ async function seedNewcomer(prisma: PrismaClient): Promise<string> {
     lastLocation: null,
     latitude: null,
     longitude: null,
+    locationUpdatedAt: null,
+    // The blank account has never seen the location prompt, which is the
+    // state the "Set Your Location" screen expects on first run.
+    locationPermission: LocationPermission.NOT_ASKED,
     heightCm: null,
     weightKg: null,
     creativity: [],
