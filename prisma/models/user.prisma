@@ -3,14 +3,27 @@ model User {
   id              String   @id @default(uuid())
   phone           String?  @unique
   email           String?  @unique
-  passwordHash    String?
   role            Role     @default(USER)
   isEmailVerified Boolean  @default(false)
   isPhoneVerified Boolean  @default(false)
-  isUserVerified  Boolean  @default(false) // true when email OR phone is verified
+  // Set by A-03 once the onboarding submission lands. Drives `nextStep` and
+  // whether the account appears in Discovery.
+  isProfileComplete Boolean @default(false)
+
+  // Admin-controlled trust badge. Nothing in the user-facing API sets it —
+  // completing a profile is not the same as being vouched for.
+  isUserVerified  Boolean  @default(false)
+
+  // When an OTP was last dispatched to this account. Drives the resend
+  // cooldown shared by `POST /auth/login` and `POST /auth/resend-otp`.
+  lastOtpSentAt   DateTime?
+
+  // Separate timer for the profile contact-verification flow. Sharing one
+  // column would mean logging in blocks you from verifying an email you added
+  // seconds later — a different purpose, so a different cooldown.
+  lastContactOtpSentAt DateTime?
 
   // --- Basic profile ---
-  name         String?
   firstName    String?
   lastName     String?
   username     String?   @unique
@@ -27,19 +40,26 @@ model User {
   lookingFor  LookingFor?
 
   // --- Location ---
-  locations    String[]
-  lastLocation String?
-  latitude  Float?
-  longitude Float?
+  // `latitude`/`longitude` are the last known fix; they stay null when the
+  // user refuses the permission prompt, so every distance feature has to
+  // tolerate their absence. `locationUpdatedAt` is what makes a stale fix
+  // distinguishable from a fresh one.
+  lastLocation       String?
+  latitude           Float?
+  longitude          Float?
+  locationUpdatedAt  DateTime?
+  locationPermission LocationPermission @default(NOT_ASKED)
 
   // --- Body ---
   heightCm Int?
   weightKg Int?
 
   // --- Interests ---
-  creativity      String[]
-  sports          String[]
-  moviesAndDramas String[]
+  // Real enums rather than free strings, so the database rejects a value the
+  // interests screen never offered — same guarantee as every other enum here.
+  creativity      CreativityInterest[]
+  sports          SportInterest[]
+  moviesAndDramas MovieAndDramaInterest[]
 
   // --- Verification / media ---
   images                Image[]
@@ -93,5 +113,8 @@ model User {
   successStoryLikes      SuccessStoryLike[]
   successStoryComments   SuccessStoryComment[]
 
+  // Supports the bounding-box prefilter the discovery feed runs before it
+  // computes exact great-circle distances.
+  @@index([latitude, longitude])
   @@map("users")
 }

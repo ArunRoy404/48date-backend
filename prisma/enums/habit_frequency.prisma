@@ -1,6 +1,6 @@
+/// Smoking / drinking frequency, as offered on the lifestyle onboarding screen.
 enum HabitFrequency {
   NEVER
   SOMETIMES
-  OFTEN
   DAILY
 }

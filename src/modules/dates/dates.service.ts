@@ -23,6 +23,7 @@ import type { GetDatesQueryDto } from './dto/get-dates-query.dto.js';
 import type { CancelDateDto } from './dto/cancel-date.dto.js';
 import type { SearchPlacesQueryDto } from './dto/search-places-query.dto.js';
 import type { CreateDateRatingDto } from './dto/create-date-rating.dto.js';
+import { displayName } from '../../common/utils/user-formatter.js';
 import type {
   FormattedDatePlan,
   FormattedDateRating,
@@ -188,7 +189,7 @@ export class DatesService {
           userId: receiverId,
           type: NotificationType.DATE_INVITE,
           title: 'New Date Invitation!',
-          body: `${plan.proposer.name || 'Your match'} invited you to a date at ${plan.venueName}`,
+          body: `${displayName(plan.proposer) || 'Your match'} invited you to a date at ${plan.venueName}`,
           data: {
             datePlanId: plan.id,
             matchId: plan.matchId,
@@ -487,7 +488,7 @@ export class DatesService {
           userId: plan.proposerId,
           type: NotificationType.DATE_INVITE,
           title: 'Date Invitation Accepted! 🎉',
-          body: `${plan.receiver.name || 'Your match'} accepted your date invitation to ${acceptedPlan.venueName}!`,
+          body: `${displayName(plan.receiver) || 'Your match'} accepted your date invitation to ${acceptedPlan.venueName}!`,
           data: {
             datePlanId: acceptedPlan.id,
             matchId: acceptedPlan.matchId,
@@ -568,7 +569,7 @@ export class DatesService {
           userId: plan.proposerId,
           type: NotificationType.SYSTEM,
           title: 'Date Invitation Declined',
-          body: `${plan.receiver.name || 'Your match'} declined the date invitation.`,
+          body: `${displayName(plan.receiver) || 'Your match'} declined the date invitation.`,
           data: {
             datePlanId: declinedPlan.id,
             matchId: declinedPlan.matchId,
@@ -649,7 +650,7 @@ export class DatesService {
           data: {
             conversationId: plan.match.conversation.id,
             senderId: userId,
-            content: `Date to ${cancelledPlan.venueName} was cancelled by ${cancellingUser.name || 'user'}.${reasonMsg}`,
+            content: `Date to ${cancelledPlan.venueName} was cancelled by ${displayName(cancellingUser) || 'user'}.${reasonMsg}`,
             type: MessageType.SYSTEM,
           },
         });

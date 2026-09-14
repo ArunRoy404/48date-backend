@@ -179,6 +179,19 @@ export class GamesService {
       );
     }
 
+    // The seeded optionA/optionB are the only valid answers. Without this the
+    // column accepts arbitrary text, and compatibility scoring — which compares
+    // the stored strings verbatim — silently counts a differently-cased but
+    // otherwise identical answer as a mismatch.
+    if (
+      selectedOption !== question.optionA &&
+      selectedOption !== question.optionB
+    ) {
+      throw new BadRequestException(
+        `selectedOption must be either "${question.optionA}" or "${question.optionB}"`,
+      );
+    }
+
     // Record or update the answer
     await this.prisma.gameAnswer.upsert({
       where: {

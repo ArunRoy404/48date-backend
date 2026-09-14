@@ -152,16 +152,18 @@ const SEED_GAMES: SeedGame[] = [
 export async function seedGames(prisma: PrismaClient): Promise<void> {
   console.log('🎮 Seeding games and questions...');
 
+  const seededGameIds: string[] = [];
+
   for (const gameData of SEED_GAMES) {
     const existingGame = await prisma.game.findFirst({
       where: {
         name: gameData.name,
         type: gameData.type,
       },
-      include: {
-        questions: true,
-      },
     });
+
+    let gameId: string;
+    const seededQuestionIds: string[] = [];
 
     if (!existingGame) {
       const created = await prisma.game.create({
@@ -179,13 +181,20 @@ export async function seedGames(prisma: PrismaClient): Promise<void> {
             })),
           },
         },
+        include: { questions: true },
       });
+
+      gameId = created.id;
+      seededQuestionIds.push(...created.questions.map((q) => q.id));
+
       console.log(
         `  ➕ Created game: "${created.name}" with ${gameData.questions.length} questions`,
       );
     } else {
+      gameId = existingGame.id;
+
       await prisma.game.update({
-        where: { id: existingGame.id },
+        where: { id: gameId },
         data: { isActive: true },
       });
 
@@ -195,15 +204,15 @@ export async function seedGames(prisma: PrismaClient): Promise<void> {
       for (const q of gameData.questions) {
         const existingQuestion = await prisma.gameQuestion.findFirst({
           where: {
-            gameId: existingGame.id,
+            gameId,
             question: q.question,
           },
         });
 
         if (!existingQuestion) {
-          await prisma.gameQuestion.create({
+          const createdQuestion = await prisma.gameQuestion.create({
             data: {
-              gameId: existingGame.id,
+              gameId,
               question: q.question,
               optionA: q.optionA,
               optionB: q.optionB,
@@ -211,6 +220,7 @@ export async function seedGames(prisma: PrismaClient): Promise<void> {
               isActive: true,
             },
           });
+          seededQuestionIds.push(createdQuestion.id);
           addedCount++;
         } else {
           await prisma.gameQuestion.update({
@@ -222,6 +232,7 @@ export async function seedGames(prisma: PrismaClient): Promise<void> {
               isActive: true,
             },
           });
+          seededQuestionIds.push(existingQuestion.id);
           updatedCount++;
         }
       }
@@ -230,6 +241,41 @@ export async function seedGames(prisma: PrismaClient): Promise<void> {
         `  🔄 Synced game: "${existingGame.name}" (${addedCount} questions added, ${updatedCount} verified)`,
       );
     }
+
+    seededGameIds.push(gameId);
+
+    // Retire questions that are no longer in the seed for this game. They are
+    // deactivated rather than deleted because game_answers reference them.
+    const retiredQuestions = await prisma.gameQuestion.updateMany({
+      where: {
+        gameId,
+        id: { notIn: seededQuestionIds },
+        isActive: true,
+      },
+      data: { isActive: false },
+    });
+
+    if (retiredQuestions.count > 0) {
+      console.log(
+        `  🗑️  Retired ${retiredQuestions.count} question(s) no longer in the seed for "${gameData.name}"`,
+      );
+    }
+  }
+
+  // Retire games that are no longer in the seed — this is what stops a renamed
+  // or removed game from lingering as an active duplicate in GET /games.
+  const retiredGames = await prisma.game.updateMany({
+    where: {
+      id: { notIn: seededGameIds },
+      isActive: true,
+    },
+    data: { isActive: false },
+  });
+
+  if (retiredGames.count > 0) {
+    console.log(
+      `  🗑️  Retired ${retiredGames.count} game(s) no longer in the seed`,
+    );
   }
 
   console.log('✅ Games and questions seeded idempotently.');

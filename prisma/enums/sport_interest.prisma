@@ -1,0 +1,9 @@
+/// Sports offered on the interests onboarding screen.
+enum SportInterest {
+  RUNNING
+  GYM
+  SOCCER
+  CRICKET
+  TENNIS
+  BASKETBALL
+}

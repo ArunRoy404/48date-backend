@@ -10,7 +10,7 @@ Project "48Date" {
 }
 
 // ------------------------------------------------------------------------------
-// ENUMS (18 Enums)
+// ENUMS (22 Enums)
 // ------------------------------------------------------------------------------
 
 Enum Role {
@@ -28,7 +28,6 @@ Enum Gender {
 Enum HabitFrequency {
   NEVER
   SOMETIMES
-  OFTEN
   DAILY
 }
 
@@ -38,12 +37,51 @@ Enum KidsStatus {
   PREFER_NOT_TO_SAY
 }
 
+Enum CreativityInterest {
+  ART
+  DESIGN
+  MAKEUP
+  PHOTOGRAPHY
+  SINGING
+}
+
+Enum SportInterest {
+  RUNNING
+  GYM
+  SOCCER
+  CRICKET
+  TENNIS
+  BASKETBALL
+}
+
+Enum MovieAndDramaInterest {
+  TV_SHOWS
+  ROMANCE
+  COMEDY
+  K_DRAMA
+  HORROR
+  THRILLER
+  SCI_FI
+  FANTASY
+  ANIME
+  ZOMBIE
+}
+
+Enum LocationPermission {
+  NOT_ASKED
+  WHILE_IN_USE
+  ONE_TIME
+  ALWAYS
+  DENIED
+  DENIED_FOREVER
+}
+
+// The four options on the "What Are You Looking For?" onboarding screen.
 Enum LookingFor {
-  LONG_TERM
-  SHORT_TERM
-  FRIENDSHIP
-  CASUAL
-  STILL_FIGURING_OUT
+  REAL_RELATIONSHIP
+  SOMETHING_MEANINGFUL
+  SEE_WHERE_IT_GOES
+  NEW_FRIENDS_FIRST
 }
 
 Enum ActionType {
@@ -142,13 +180,14 @@ Table users {
   id uuid [pk, default: `gen_random_uuid()`]
   phone varchar [unique, null, note: 'E.164 format']
   email varchar [unique, null]
-  passwordHash text [null]
   role Role [not null, default: 'USER']
   isEmailVerified boolean [not null, default: false]
   isPhoneVerified boolean [not null, default: false]
-  isUserVerified boolean [not null, default: false, note: 'True when full profile setup/verification is complete']
+  isProfileComplete boolean [not null, default: false, note: 'Set by /auth/verify-user-information; drives nextStep and Discovery visibility']
+  isUserVerified boolean [not null, default: false, note: 'Admin-granted trust badge — no user-facing endpoint sets it']
+  lastOtpSentAt timestamp [null, note: 'Drives the 30s resend cooldown shared by /auth/login and /auth/resend-otp']
+  lastContactOtpSentAt timestamp [null, note: 'Separate 30s cooldown for the profile contact-verification flow']
 
-  name varchar [null]
   firstName varchar [null]
   lastName varchar [null]
   username varchar [unique, null]
@@ -163,17 +202,18 @@ Table users {
   wantsKids boolean [null]
   lookingFor LookingFor [null]
 
-  locations "varchar[]" [not null, default: `[]`]
-  lastLocation varchar [null]
+  lastLocation varchar [null, note: 'Reverse-geocoded city name, resolved by the app']
   latitude double_precision [null]
   longitude double_precision [null]
+  locationUpdatedAt timestamp [null, note: 'When the coordinates above were captured; null once permission is revoked']
+  locationPermission LocationPermission [not null, default: 'NOT_ASKED', note: 'Why coordinates are absent — stops the app re-prompting a refusal']
 
   heightCm integer [null]
   weightKg integer [null]
 
-  creativity "varchar[]" [not null, default: `[]`]
-  sports "varchar[]" [not null, default: `[]`]
-  moviesAndDramas "varchar[]" [not null, default: `[]`]
+  creativity "CreativityInterest[]" [not null, default: `[]`]
+  sports "SportInterest[]" [not null, default: `[]`]
+  moviesAndDramas "MovieAndDramaInterest[]" [not null, default: `[]`]
 
   selfieUrl text [null]
   selfieVerified boolean [not null, default: false]
@@ -188,6 +228,7 @@ Table users {
     phone [unique]
     email [unique]
     username [unique]
+    (latitude, longitude) [name: 'users_latitude_longitude_idx', note: 'Bounding-box prefilter for the discovery distance filter']
   }
 }
 

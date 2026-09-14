@@ -17,7 +17,9 @@ export class FaceVerificationService {
    * Verifies a user selfie:
    * - Uploads the selfie file to storage (or accepts existing selfieUrl)
    * - Marks selfieVerified: true
-   * - Checks if the profile is complete, and if so, marks isUserVerified: true
+   * - Recomputes `isProfileComplete`
+   *
+   * It does NOT touch `isUserVerified` — that is the admin's trust badge.
    */
   async verifySelfie(
     userId: string,
@@ -47,34 +49,32 @@ export class FaceVerificationService {
     }
 
     // Check if the user has completed required profile fields
-    const hasName = user.name || (user.firstName && user.lastName);
     const isProfileComplete = !!(
-      hasName &&
+      user.firstName &&
+      user.lastName &&
       user.username &&
       user.birthDate &&
       user.gender &&
       user.interestedIn &&
       user.lookingFor &&
-      user.locations.length > 0 &&
       user.images.length > 0
     );
-
-    const isUserVerified = isProfileComplete || user.isUserVerified;
 
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
         selfieUrl: finalSelfieUrl,
         selfieVerified: true,
-        isUserVerified,
+        isProfileComplete,
       },
     });
 
     return {
       selfieUrl: updated.selfieUrl,
       selfieVerified: updated.selfieVerified,
+      isProfileComplete: updated.isProfileComplete,
       isUserVerified: updated.isUserVerified,
-      nextStep: updated.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
+      nextStep: updated.isProfileComplete ? 'MAIN_APP' : 'PROFILE_SETUP',
     };
   }
 
@@ -95,8 +95,9 @@ export class FaceVerificationService {
       selfieVerified: user.selfieVerified,
       isPhoneVerified: user.isPhoneVerified,
       isEmailVerified: user.isEmailVerified,
+      isProfileComplete: user.isProfileComplete,
       isUserVerified: user.isUserVerified,
-      nextStep: user.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
+      nextStep: user.isProfileComplete ? 'MAIN_APP' : 'PROFILE_SETUP',
     };
   }
 }

@@ -1,0 +1,14 @@
+/// What the device reported the last time the app asked for location.
+/// Stored so the backend knows *why* coordinates are missing and the app
+/// does not re-prompt someone who already refused.
+///
+/// Maps to Flutter's `geolocator` LocationPermission, plus the iOS
+/// "Only this time" choice which grants a single session.
+enum LocationPermission {
+  NOT_ASKED
+  WHILE_IN_USE
+  ONE_TIME
+  ALWAYS
+  DENIED
+  DENIED_FOREVER
+}

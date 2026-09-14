@@ -6,30 +6,28 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
-  IsIn,
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
   Max,
   Min,
   ValidateNested,
   IsNumber,
 } from 'class-validator';
+import { IsPublicUrl } from '../../../common/validators/is-public-url.validator.js';
 import {
+  CreativityInterest,
   Gender,
   HabitFrequency,
   KidsStatus,
+  LocationPermission,
   LookingFor,
+  MovieAndDramaInterest,
+  SportInterest,
 } from '../../../generated/prisma/client.js';
-import {
-  CREATIVITY_INTERESTS,
-  SPORTS_INTERESTS,
-  MOVIES_AND_DRAMAS_INTERESTS,
-} from '../../auth/dto/register.dto.js';
 
 export class ProfileImageDto {
-  @IsUrl({}, { message: 'images[].url must be a valid URL' })
+  @IsPublicUrl({ message: 'images[].url must be a valid URL' })
   url: string;
 
   @IsBoolean({ message: 'images[].isMain must be a boolean' })
@@ -42,10 +40,6 @@ export class ProfileImageDto {
 }
 
 export class SetupProfileDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
   @IsOptional()
   @IsString()
   firstName?: string;
@@ -80,13 +74,13 @@ export class SetupProfileDto {
 
   @IsOptional()
   @IsEnum(HabitFrequency, {
-    message: 'smoker must be one of: NEVER, SOMETIMES, OFTEN, DAILY',
+    message: 'Smoking must be one of: NEVER, SOMETIMES, DAILY.',
   })
   smoker?: HabitFrequency;
 
   @IsOptional()
   @IsEnum(HabitFrequency, {
-    message: 'alcohol must be one of: NEVER, SOMETIMES, OFTEN, DAILY',
+    message: 'Drinking must be one of: NEVER, SOMETIMES, DAILY.',
   })
   alcohol?: HabitFrequency;
 
@@ -104,14 +98,9 @@ export class SetupProfileDto {
   @IsOptional()
   @IsEnum(LookingFor, {
     message:
-      'lookingFor must be one of: LONG_TERM, SHORT_TERM, FRIENDSHIP, CASUAL, STILL_FIGURING_OUT',
+      'What you are looking for must be one of: REAL_RELATIONSHIP, SOMETHING_MEANINGFUL, SEE_WHERE_IT_GOES, NEW_FRIENDS_FIRST.',
   })
   lookingFor?: LookingFor;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  locations?: string[];
 
   @IsOptional()
   @IsString()
@@ -124,6 +113,13 @@ export class SetupProfileDto {
   @IsOptional()
   @IsNumber()
   longitude?: number;
+
+  @IsOptional()
+  @IsEnum(LocationPermission, {
+    message:
+      'locationPermission must be one of: NOT_ASKED, WHILE_IN_USE, ONE_TIME, ALWAYS, DENIED, DENIED_FOREVER',
+  })
+  locationPermission?: LocationPermission;
 
   @IsOptional()
   @IsInt()
@@ -139,27 +135,27 @@ export class SetupProfileDto {
 
   @IsOptional()
   @IsArray()
-  @IsIn(CREATIVITY_INTERESTS, {
+  @IsEnum(CreativityInterest, {
     each: true,
-    message: `creativity can only contain: ${CREATIVITY_INTERESTS.join(', ')}`,
+    message: `creativity can only contain: ${Object.values(CreativityInterest).join(', ')}`,
   })
-  creativity?: string[];
+  creativity?: CreativityInterest[];
 
   @IsOptional()
   @IsArray()
-  @IsIn(SPORTS_INTERESTS, {
+  @IsEnum(SportInterest, {
     each: true,
-    message: `sports can only contain: ${SPORTS_INTERESTS.join(', ')}`,
+    message: `sports can only contain: ${Object.values(SportInterest).join(', ')}`,
   })
-  sports?: string[];
+  sports?: SportInterest[];
 
   @IsOptional()
   @IsArray()
-  @IsIn(MOVIES_AND_DRAMAS_INTERESTS, {
+  @IsEnum(MovieAndDramaInterest, {
     each: true,
-    message: `moviesAndDramas can only contain: ${MOVIES_AND_DRAMAS_INTERESTS.join(', ')}`,
+    message: `moviesAndDramas can only contain: ${Object.values(MovieAndDramaInterest).join(', ')}`,
   })
-  moviesAndDramas?: string[];
+  moviesAndDramas?: MovieAndDramaInterest[];
 
   @IsOptional()
   @IsArray()
@@ -170,7 +166,7 @@ export class SetupProfileDto {
   images?: ProfileImageDto[];
 
   @IsOptional()
-  @IsUrl({}, { message: 'selfieUrl must be a valid URL' })
+  @IsPublicUrl({ message: 'selfieUrl must be a valid URL' })
   selfieUrl?: string;
 
   @IsOptional()
