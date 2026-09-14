@@ -26,10 +26,16 @@ model User {
   lookingFor  LookingFor?
 
   // --- Location ---
-  locations    String[]
-  lastLocation String?
-  latitude  Float?
-  longitude Float?
+  // `latitude`/`longitude` are the last known fix; they stay null when the
+  // user refuses the permission prompt, so every distance feature has to
+  // tolerate their absence. `locationUpdatedAt` is what makes a stale fix
+  // distinguishable from a fresh one.
+  locations          String[]
+  lastLocation       String?
+  latitude           Float?
+  longitude          Float?
+  locationUpdatedAt  DateTime?
+  locationPermission LocationPermission @default(NOT_ASKED)
 
   // --- Body ---
   heightCm Int?
@@ -92,5 +98,8 @@ model User {
   successStoryLikes      SuccessStoryLike[]
   successStoryComments   SuccessStoryComment[]
 
+  // Supports the bounding-box prefilter the discovery feed runs before it
+  // computes exact great-circle distances.
+  @@index([latitude, longitude])
   @@map("users")
 }
