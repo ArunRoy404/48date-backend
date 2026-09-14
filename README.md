@@ -95,17 +95,18 @@ Every third-party integration is wired up but falls back to a no-op when its var
 
 | | |
 |---|---|
-| **7 accounts** | all verified, full profiles, images and preferences — password `Passw0rd123` for every one |
+| **7 accounts** | all verified, full profiles, images and preferences |
+| **1 blank account** | `+8801811000008` — phone-verified but with an empty profile, so `A-03 Verify user information` has a real target. Reset to blank on every seed run. |
 | **2 matches** | `ava ↔ liam` (6 chat messages, a finished game, a completed date + ratings) and `ava ↔ noah` (a **PENDING** invitation addressed to ava, so `DT-06` accept works) |
 | **plus** | trust scores and events, a block, a report, an active and an expired subscription, a PUBLISHED success story with likes and comments, notifications |
 
-Sign in as **`+8801811000001` / `Passw0rd123`** (Ava Stone) — the Postman collection's defaults already point at this account. `ethan` and `kabir` are left unswiped so the discovery feed is never empty.
+Sign in as **`+8801811000001`** (Ava Stone) with OTP `123456` — the Postman collection's defaults already point at this account. There are no passwords anywhere in this API. `ethan` and `kabir` are left unswiped so the discovery feed is never empty.
 
-Re-running the seed also **prunes** swipes and matches created by API runs, so a `db:seed` always restores the documented state.
+Re-running the seed also **prunes** swipes, matches, and the half-finished accounts that `POST /auth/login` creates for unknown identifiers, so a `db:seed` always restores the documented state.
 
 ## API
 
-All 54 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
+All 51 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
 
 Every response — success or error — uses the same envelope:
 
@@ -114,21 +115,35 @@ Every response — success or error — uses the same envelope:
 { "success": false, "message": "Validation failed", "messages": ["phone must be ..."], "statusCode": 400 }
 ```
 
-Profiles are returned categorized (`auth`, `basicProfile`, `lifestyle`, `location`, `body`, `interests`, `media`, `meta`) and never include `passwordHash`.
+Profiles are returned categorized (`auth`, `basicProfile`, `lifestyle`, `location`, `body`, `interests`, `media`, `meta`). There is no password field on the user model.
 
 ### Auth
 
+There is **no register endpoint and no passwords.** `POST /auth/login` finds *or creates* the
+account for whatever phone/email it is given, an OTP is required on **every** login, and the
+profile is submitted afterwards in one shot.
+
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| A-01 | POST | `/auth/register` | — | Create account, returns profile + tokens |
-| A-02 | POST | `/auth/verify-otp` | — | Verify OTP → sets `isPhoneVerified` / `isEmailVerified` |
-| A-03 | POST | `/auth/login` | — | Phone/email + password → tokens |
-| A-04 | POST | `/auth/google` | — | Google ID token → tokens (⚠️ signature not verified) |
-| A-05 | POST | `/auth/refresh` | — | Refresh token → new token pair |
-| A-06 | POST | `/auth/logout` | Bearer | Stateless — client discards tokens |
-| A-07 | POST | `/auth/forgot-password` | — | Request dummy reset OTP |
-| A-08 | POST | `/auth/verify-forgot-password` | — | Verify reset OTP → `resetToken` (15 min) |
-| A-09 | POST | `/auth/reset-password` | — | Set new password with `resetToken` |
+| A-01.1 | POST | `/auth/login` | — | Find or create the account, always send an OTP. **Never returns tokens.** |
+| A-01.2 | POST | `/auth/google` | — | Google ID token → find or create → tokens, no OTP (⚠️ signature not verified) |
+| A-02 | POST | `/auth/verify-otp` | — | Verify OTP → tokens, sets `isPhoneVerified` / `isEmailVerified` |
+| A-03 | POST | `/auth/verify-user-information` | Bearer | Submit the whole profile → sets `isUserVerified`, routes to `MAIN_APP` |
+| A-04 | POST | `/auth/refresh` | — | Refresh token → new token pair |
+| A-05 | POST | `/auth/logout` | Bearer | Stateless — client discards tokens |
+
+```
+                                                       ┌── PROFILE_SETUP ──> A-03 verify-user-information ──> MAIN_APP
+A-01.1 login ──> A-02 verify-otp ──> tokens ──> nextStep
+                                                       └── MAIN_APP
+
+A-01.2 google ─────────────────────> tokens ──> nextStep  (same two branches, no OTP step)
+```
+
+`nextStep` is the app's router: `PROFILE_SETUP` means `isUserVerified` is still false and A-03
+has not been sent yet; `MAIN_APP` means onboarding is done. A-03 requires every field the
+completeness check reads, so a 2xx from it always means the account is now verified. Later
+edits go through `PATCH /users/profile-setup` (P-02), which accepts any subset.
 
 ### Profile & Media
 
@@ -261,14 +276,14 @@ Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints o
 
 **27 variables**, deliberately limited to values that flow *between* requests — ids, tokens, and login identity. Everything else is literal text you can read and edit in place. Each variable's description says which request fills it and which consume it:
 
-- `accessToken` / `refreshToken` / `resetToken` / `userId` — captured on register, login, refresh
-- **`otp` is captured automatically** — the API returns the dev OTP in the body while Twilio is unset, so `A-02` and `A-08` never need it typed in
+- `accessToken` / `refreshToken` / `userId` — captured on verify-otp, google login, refresh
+- **`otp` is captured automatically** — the API returns the dev OTP in the body while Twilio is unset, so `A-02` never needs it typed in
 - list → detail: `D-03` → `targetUserId`, `M-01` → `matchId` + `conversationId`, `G-01` → `gameId` + `questionId` + `selectedOption`, `DT-01` → `placeName`/`placeAddress`/lat/lng, `DT-03` → `datePlanId`, `S-02` → `blockedUserId`, `SS-02` → `storyId`
 - `G-03` advances `questionId` to the first **unanswered** question, so `G-04` can be run repeatedly
 
-`userPhone` / `userEmail` have stable defaults, so re-running `A-01` returns 409 "already registered" — which `A-01` treats as expected and points you to `A-03`. To register a fresh account, clear those two variables and the pre-request script generates unique ones.
+`userPhone` / `userEmail` have stable defaults pointing at the seeded Ava Stone account. Re-running `A-01.1` is always safe — there is no uniqueness conflict to hit, because login finds the existing account instead of creating a second one. To walk the genuine first-time onboarding path, set `userPhone` to `{{onboardingPhone}}` (`+8801811000008`), whose profile the seed leaves blank.
 
-> A clean run against a seeded database passes **49/54**. The other 5 are expected: `A-01` returns 409 because the seeded account already exists (the script treats that as success and points you to `A-03`), `P-01` needs a file picked in the GUI, and `DT-07`/`DT-09`/`DT-10` conflict with the date state machine when the folder is run top-to-bottom — `DT-06` has already accepted the date and `DT-08` has cancelled it. Each of those three says so in its description.
+> A clean run against a freshly seeded database passes **47/51**. The other 4 are expected: `P-01` needs a file picked in the GUI, and `DT-07`/`DT-09`/`DT-10` conflict with the date state machine when the folder is run top-to-bottom — `DT-06` has already accepted the date and `DT-08` has cancelled it. Each of those three says so in its description.
 
 ## Common commands
 
@@ -321,13 +336,13 @@ The `app` service builds the Dockerfile and runs `prisma migrate deploy` before 
 Verified against the running server:
 
 - **No admin API.** `AdminModule` is commented out and unregistered; `@Roles()` / `RolesGuard` exist but are unused.
-- **`POST /auth/request-otp` and `GET /auth/me` do not exist** — earlier versions of this README documented them. Registration and login already return tokens plus the user object, and `GET /users/profile` (P-03) replaces `/auth/me`.
+- **`POST /auth/register`, `POST /auth/forgot-password`, `POST /auth/verify-forgot-password`, `POST /auth/reset-password`, `POST /auth/request-otp` and `GET /auth/me` do not exist.** Registration was folded into `POST /auth/login` (which creates the account for an unknown identifier), the password-reset chain went away with passwords themselves, and `GET /users/profile` (P-03) replaces `/auth/me`.
 - **Google login does not verify the ID token signature** — it only base64-decodes the payload to read `email`.
 - **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.
 - **Fixed:** every `env.*` value sourced from `.env` used to be `undefined` at runtime. `env.config.ts` reads `process.env` when it is imported, which happens while resolving `AppModule` — before Nest's `ConfigModule` loads `.env`. Socket.IO auth failed outright (`secret or public key must be provided`), and Twilio, R2, SMTP, Mapbox, the RevenueCat secret and `REDIS_URL` all silently fell back to their no-op paths even when configured. `main.ts` now imports `dotenv/config` first.
 - **Success stories can never be published** — `SS-01` creates them as `PENDING` and no endpoint can approve them.
 - **Reports can never be actioned** — `S-04` creates them as `PENDING` with no review endpoint.
-- Several DTO validation messages in `register.dto.ts` still name removed enum values (`PREFER_NOT_TO_SAY`, `REGULAR`/`OCCASIONALLY`/`NONE`, `HAVE`/`DONT_HAVE`). The messages are stale; the enums enforced are the ones listed in `setup-profile.dto.ts`.
+- `verifyOtpCode()` in `auth.service.ts` returns `true` for the dummy code `123456` **before** it consults Twilio, and there is no environment check around it. With `TWILIO_*` configured in production, `123456` would still verify any phone number.
 
 ## Docs
 
