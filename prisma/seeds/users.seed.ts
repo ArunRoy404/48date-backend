@@ -312,10 +312,16 @@ export async function seedUsers(prisma: PrismaClient): Promise<UserMap> {
     const data = {
       phone: u.phone,
       email: u.email,
-      // Fully verified so the account is visible in Discovery and can be
-      // swiped on — an unverified user is invisible to every other user.
+      // Signed up by phone, so that is what is verified. The email is stored
+      // but NOT verified — that is exactly the state the profile
+      // contact-verification flow exists to resolve, and seeding it as
+      // verified would hide the one path that can set it.
       isPhoneVerified: true,
-      isEmailVerified: true,
+      isEmailVerified: false,
+      // Complete profile, so the account is visible in Discovery.
+      isProfileComplete: true,
+      // Admin-granted badge. Seeded true so the demo data shows a vouched
+      // account; nothing in the user-facing API can set it.
       isUserVerified: true,
       selfieVerified: true,
       selfieUrl: u.images[0],
@@ -342,6 +348,10 @@ export async function seedUsers(prisma: PrismaClient): Promise<UserMap> {
       sports: u.sports,
       moviesAndDramas: u.moviesAndDramas,
       notificationsEnabled: true,
+      // Cleared so OTP cooldowns never carry over from a previous API run —
+      // otherwise a fresh seed can still answer 429.
+      lastOtpSentAt: null,
+      lastContactOtpSentAt: null,
     };
 
     const existing = await prisma.user.findFirst({ where: { email: u.email } });
@@ -448,6 +458,7 @@ async function seedNewcomer(prisma: PrismaClient): Promise<string> {
   const blankProfile = {
     isPhoneVerified: true,
     isEmailVerified: false,
+    isProfileComplete: false,
     isUserVerified: false,
     selfieVerified: false,
     selfieUrl: null,
@@ -477,6 +488,8 @@ async function seedNewcomer(prisma: PrismaClient): Promise<string> {
     sports: [],
     moviesAndDramas: [],
     notificationsEnabled: true,
+    lastOtpSentAt: null,
+    lastContactOtpSentAt: null,
   };
 
   const existing = await prisma.user.findFirst({
