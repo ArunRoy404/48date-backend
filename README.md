@@ -232,7 +232,16 @@ Import `postman/48date-backend.postman_collection.json`. Two root folders:
 - **USER** — all 54 endpoints across 11 subfolders, numbered `01 · Auth` → `11 · Success Stories` in integration order. Each folder carries its own serial prefix: `A` Auth, `P` Profile, `D` Discovery, `M` Matches, `C` Chat, `G` Games, `DT` Dates, `T` Trust Score, `S` Safety, `SB` Subscriptions, `SS` Success Stories — numbered `01..n` inside the folder.
 - **ADMIN** — an intentionally empty placeholder. No admin endpoints exist; nothing has been stubbed or invented.
 
-Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints overriding to *No Auth*. Every request that returns an id captures it into a collection variable (`accessToken`, `matchId`, `datePlanId`, `storyId`, …), so the folders are runnable top-to-bottom without editing variables by hand. A pre-request script generates a unique `phone` and `email` on first run so `A-01` doesn't collide with a previous run.
+Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints overriding to *No Auth*.
+
+The collection defines **99 variables** and every request carries a test script that captures what it returns, so the folders run top-to-bottom without editing anything by hand. Notably:
+
+- `accessToken` / `refreshToken` / `userId` are captured on register, login and refresh
+- **`otp` is captured automatically** — the API returns the dev OTP in the response body whenever Twilio is unset, so `A-02` and `A-08` never need it typed in
+- list endpoints save the first row's id into the matching detail variable (`D-03` → `targetUserId`, `M-01` → `matchId` + `conversationId`, `G-01` → `gameId` + `questionId` + `selectedOption`, `DT-03` → `datePlanId`, `SS-02` → `storyId`, …)
+- request payloads are built from variables too (`{{userGender}}`, `{{placeName}}`, `{{ratingOverall}}`, …), so you change data in one place
+
+`userPhone` / `userEmail` have stable defaults, so re-running `A-01` returns 409 "already registered" — which `A-01` treats as expected and tells you to run `A-03` Login instead. To register a genuinely new account, clear those two variables and the collection's pre-request script generates unique ones.
 
 Id variables default to `REPLACE_ME` so an unset id fails loudly with a clear 404, rather than silently collapsing to a different route (`/dates/` would otherwise hit the list endpoint).
 

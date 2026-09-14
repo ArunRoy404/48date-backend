@@ -21,23 +21,28 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Generate a unique phone + email on first run so A-01 Register doesn't collide",
-          "// with an account from a previous run. Clear these variables to start fresh.",
-          "if (!pm.collectionVariables.get('phone')) {",
-          "  const n = '+8801' + Math.floor(100000000 + Math.random() * 899999999);",
-          "  pm.collectionVariables.set('phone', n);",
-          "  console.log('Generated phone', n);",
-          "}",
-          "if (!pm.collectionVariables.get('email')) {",
-          "  const e = 'u' + Date.now() + '@example.com';",
-          "  pm.collectionVariables.set('email', e);",
-          "  console.log('Generated email', e);",
-          "}",
-          "if (!pm.collectionVariables.get('username')) {",
-          "  const u = 'user_' + Date.now();",
-          "  pm.collectionVariables.set('username', u);",
-          "  console.log('Generated username', u);",
-          "}"
+          "// Safety net for a fresh account.",
+          "//",
+          "// userPhone / userEmail / userUsername ship with stable defaults so you always",
+          "// have one known account to log into. Because they are stable, re-running A-01",
+          "// returns 409 'already registered' — which A-01 handles and explains.",
+          "//",
+          "// To register a genuinely new account instead: CLEAR userPhone and userEmail",
+          "// (and userUsername) in the collection variables, and this script fills them",
+          "// with unique values on the next run.",
+          "const gen = {",
+          "  userPhone: () => '+8801' + Math.floor(100000000 + Math.random() * 899999999),",
+          "  userEmail: () => 'u' + Date.now() + '@example.com',",
+          "  userUsername: () => 'user_' + Date.now(),",
+          "};",
+          "",
+          "Object.keys(gen).forEach((k) => {",
+          "  if (!pm.variables.get(k)) {",
+          "    const v = gen[k]();",
+          "    pm.collectionVariables.set(k, v);",
+          "    console.log('generated ' + k + ' = ' + v);",
+          "  }",
+          "});"
         ]
       }
     }
@@ -49,23 +54,63 @@
       "type": "string"
     },
     {
-      "key": "phone",
-      "value": "",
+      "key": "userPhone",
+      "value": "+8801711000001",
       "type": "string"
     },
     {
-      "key": "email",
-      "value": "",
+      "key": "userEmail",
+      "value": "ava.stone@example.com",
       "type": "string"
     },
     {
-      "key": "username",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "password",
+      "key": "userPassword",
       "value": "Passw0rd123",
+      "type": "string"
+    },
+    {
+      "key": "userName",
+      "value": "Ava Stone",
+      "type": "string"
+    },
+    {
+      "key": "userFirstName",
+      "value": "Ava",
+      "type": "string"
+    },
+    {
+      "key": "userLastName",
+      "value": "Stone",
+      "type": "string"
+    },
+    {
+      "key": "userUsername",
+      "value": "ava_stone",
+      "type": "string"
+    },
+    {
+      "key": "authChannel",
+      "value": "phone",
+      "type": "string"
+    },
+    {
+      "key": "googleIdToken",
+      "value": "<paste-a-google-id-token>",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userRole",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otp",
+      "value": "123456",
       "type": "string"
     },
     {
@@ -84,8 +129,78 @@
       "type": "string"
     },
     {
-      "key": "userId",
-      "value": "",
+      "key": "userBirthDate",
+      "value": "1997-04-12",
+      "type": "string"
+    },
+    {
+      "key": "userOccupation",
+      "value": "Product Designer",
+      "type": "string"
+    },
+    {
+      "key": "userGender",
+      "value": "FEMALE",
+      "type": "string"
+    },
+    {
+      "key": "userInterestedIn",
+      "value": "MALE",
+      "type": "string"
+    },
+    {
+      "key": "userSmoker",
+      "value": "NEVER",
+      "type": "string"
+    },
+    {
+      "key": "userAlcohol",
+      "value": "SOMETIMES",
+      "type": "string"
+    },
+    {
+      "key": "userKids",
+      "value": "DOESNT_HAVE_KIDS",
+      "type": "string"
+    },
+    {
+      "key": "userWantsKids",
+      "value": "true",
+      "type": "string"
+    },
+    {
+      "key": "userLookingFor",
+      "value": "LONG_TERM",
+      "type": "string"
+    },
+    {
+      "key": "userLocation",
+      "value": "Dhaka",
+      "type": "string"
+    },
+    {
+      "key": "userSecondLocation",
+      "value": "Chattogram",
+      "type": "string"
+    },
+    {
+      "key": "userLatitude",
+      "value": "23.8103",
+      "type": "string"
+    },
+    {
+      "key": "userLongitude",
+      "value": "90.4125",
+      "type": "string"
+    },
+    {
+      "key": "userHeightCm",
+      "value": "168",
+      "type": "string"
+    },
+    {
+      "key": "userWeightKg",
+      "value": "58",
       "type": "string"
     },
     {
@@ -94,53 +209,338 @@
       "type": "string"
     },
     {
+      "key": "imageKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "selfieUrl",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "prefMinAge",
+      "value": "22",
+      "type": "string"
+    },
+    {
+      "key": "prefMaxAge",
+      "value": "35",
+      "type": "string"
+    },
+    {
+      "key": "prefMaxDistanceKm",
+      "value": "50",
+      "type": "string"
+    },
+    {
+      "key": "prefGender",
+      "value": "MALE",
+      "type": "string"
+    },
+    {
+      "key": "swipeAction",
+      "value": "LIKE",
+      "type": "string"
+    },
+    {
       "key": "targetUserId",
-      "value": "REPLACE_ME",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "partnerPhone",
+      "value": "+8801711000002",
+      "type": "string"
+    },
+    {
+      "key": "partnerEmail",
+      "value": "liam.chen@example.com",
+      "type": "string"
+    },
+    {
+      "key": "partnerPassword",
+      "value": "Passw0rd123",
+      "type": "string"
+    },
+    {
+      "key": "partnerName",
+      "value": "Liam Chen",
+      "type": "string"
+    },
+    {
+      "key": "partnerGender",
+      "value": "MALE",
+      "type": "string"
+    },
+    {
+      "key": "partnerInterestedIn",
+      "value": "FEMALE",
+      "type": "string"
+    },
+    {
+      "key": "partnerUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "partnerAccessToken",
+      "value": "",
       "type": "string"
     },
     {
       "key": "matchId",
-      "value": "REPLACE_ME",
+      "value": "",
       "type": "string"
     },
     {
       "key": "conversationId",
-      "value": "REPLACE_ME",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "messageId",
+      "value": "",
       "type": "string"
     },
     {
       "key": "gameId",
-      "value": "REPLACE_ME",
+      "value": "",
       "type": "string"
     },
     {
       "key": "questionId",
-      "value": "REPLACE_ME",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "optionA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "optionB",
+      "value": "",
       "type": "string"
     },
     {
       "key": "selectedOption",
-      "value": "REPLACE_ME",
+      "value": "",
       "type": "string"
     },
     {
       "key": "sessionId",
-      "value": "REPLACE_ME",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "placeQuery",
+      "value": "cafe",
+      "type": "string"
+    },
+    {
+      "key": "placeName",
+      "value": "Cafe Mango",
+      "type": "string"
+    },
+    {
+      "key": "placeAddress",
+      "value": "12 Gulshan Ave, Dhaka",
+      "type": "string"
+    },
+    {
+      "key": "placeLatitude",
+      "value": "23.8103",
+      "type": "string"
+    },
+    {
+      "key": "placeLongitude",
+      "value": "90.4125",
+      "type": "string"
+    },
+    {
+      "key": "dateDate",
+      "value": "2026-10-01",
+      "type": "string"
+    },
+    {
+      "key": "dateStartTime",
+      "value": "2026-10-01T18:30:00.000Z",
+      "type": "string"
+    },
+    {
+      "key": "dateEndTime",
+      "value": "2026-10-01T20:30:00.000Z",
+      "type": "string"
+    },
+    {
+      "key": "dateCancelReason",
+      "value": "Something urgent came up",
       "type": "string"
     },
     {
       "key": "datePlanId",
-      "value": "REPLACE_ME",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dateRatingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ratingBehavior",
+      "value": "5",
+      "type": "string"
+    },
+    {
+      "key": "ratingPunctuality",
+      "value": "4",
+      "type": "string"
+    },
+    {
+      "key": "ratingSafety",
+      "value": "5",
+      "type": "string"
+    },
+    {
+      "key": "ratingOverall",
+      "value": "5",
+      "type": "string"
+    },
+    {
+      "key": "ratingComment",
+      "value": "Great conversation, showed up on time.",
+      "type": "string"
+    },
+    {
+      "key": "ratingAnonymous",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "reportReason",
+      "value": "Inappropriate messages",
+      "type": "string"
+    },
+    {
+      "key": "reportDescription",
+      "value": "Sent harassing messages after I declined a date.",
+      "type": "string"
+    },
+    {
+      "key": "reportBlockUser",
+      "value": "true",
+      "type": "string"
+    },
+    {
+      "key": "blockedUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reportId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "planId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "com.date48.monthly",
+      "type": "string"
+    },
+    {
+      "key": "subscriptionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rcEventId",
+      "value": "evt_test_1",
+      "type": "string"
+    },
+    {
+      "key": "rcEventType",
+      "value": "INITIAL_PURCHASE",
+      "type": "string"
+    },
+    {
+      "key": "rcPurchasedAtMs",
+      "value": "1790000000000",
+      "type": "string"
+    },
+    {
+      "key": "rcExpirationAtMs",
+      "value": "1792592000000",
+      "type": "string"
+    },
+    {
+      "key": "rcPrice",
+      "value": "14.99",
+      "type": "string"
+    },
+    {
+      "key": "rcCurrency",
+      "value": "USD",
+      "type": "string"
+    },
+    {
+      "key": "rcStore",
+      "value": "APP_STORE",
+      "type": "string"
+    },
+    {
+      "key": "rcEnvironment",
+      "value": "SANDBOX",
+      "type": "string"
+    },
+    {
+      "key": "storyTitle",
+      "value": "We met on 48Date and never looked back",
+      "type": "string"
+    },
+    {
+      "key": "storyBody",
+      "value": "We matched in March, planned a coffee date within 48 hours, and have been together ever since. Two years later we are engaged.",
+      "type": "string"
+    },
+    {
+      "key": "commentContent",
+      "value": "Congratulations to you both! 🎉",
       "type": "string"
     },
     {
       "key": "storyId",
-      "value": "REPLACE_ME",
+      "value": "",
       "type": "string"
     },
     {
       "key": "commentId",
-      "value": "REPLACE_ME",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "limit",
+      "value": "20",
+      "type": "string"
+    },
+    {
+      "key": "offset",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "dateStatus",
+      "value": "PENDING",
+      "type": "string"
+    },
+    {
+      "key": "storyStatus",
+      "value": "PUBLISHED",
       "type": "string"
     }
   ],
@@ -179,7 +579,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"name\": \"Ava Stone\",\n  \"birthDate\": \"1997-04-12\",\n  \"occupation\": \"Product Designer\",\n  \"gender\": \"FEMALE\",\n  \"interestedIn\": \"MALE\",\n  \"smoker\": \"NEVER\",\n  \"alcohol\": \"SOMETIMES\",\n  \"kids\": \"DOESNT_HAVE_KIDS\",\n  \"wantsKids\": true,\n  \"lookingFor\": \"LONG_TERM\",\n  \"locations\": [\n    \"Dhaka\"\n  ],\n  \"lastLocation\": \"Dhaka\",\n  \"heightCm\": 168,\n  \"weightKg\": 58,\n  \"creativity\": [\n    \"Art\",\n    \"Photography\"\n  ],\n  \"sports\": [\n    \"Running\"\n  ],\n  \"moviesAndDramas\": [\n    \"Romance\",\n    \"K-Drama\"\n  ]\n}",
+                  "raw": "{\n  \"phone\": \"{{userPhone}}\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\",\n  \"name\": \"{{userName}}\",\n  \"birthDate\": \"{{userBirthDate}}\",\n  \"occupation\": \"{{userOccupation}}\",\n  \"gender\": \"{{userGender}}\",\n  \"interestedIn\": \"{{userInterestedIn}}\",\n  \"smoker\": \"{{userSmoker}}\",\n  \"alcohol\": \"{{userAlcohol}}\",\n  \"kids\": \"{{userKids}}\",\n  \"wantsKids\": {{userWantsKids}},\n  \"lookingFor\": \"{{userLookingFor}}\",\n  \"locations\": [\n    \"{{userLocation}}\"\n  ],\n  \"lastLocation\": \"{{userLocation}}\",\n  \"heightCm\": {{userHeightCm}},\n  \"weightKg\": {{userWeightKg}},\n  \"creativity\": [\n    \"Art\",\n    \"Photography\"\n  ],\n  \"sports\": [\n    \"Running\"\n  ],\n  \"moviesAndDramas\": [\n    \"Romance\",\n    \"K-Drama\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -195,18 +595,45 @@
                     "type": "text/javascript",
                     "exec": [
                       "const res = pm.response.json();",
-                      "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                      "",
+                      "// Registering is only 'new' the first time. On every later run the same",
+                      "// userPhone / userEmail already exist, so a 409 is the expected outcome",
+                      "// rather than a failure — fall through to A-03 Login in that case.",
+                      "const created = [200, 201].includes(pm.response.code);",
+                      "const exists = pm.response.code === 409;",
+                      "",
+                      "pm.test('created (201) or already registered (409)', () =>",
+                      "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 409]));",
+                      "",
+                      "if (exists) {",
+                      "  console.log('ℹ ' + res.message + ' — this account already exists.');",
+                      "  console.log('  Run A-03 Login instead, or change userPhone + userEmail to register a new one.');",
+                      "  return;",
+                      "}",
+                      "",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "if (res.data && res.data.accessToken) {",
-                      "  pm.collectionVariables.set('accessToken', res.data.accessToken);",
-                      "  console.log('accessToken saved');",
-                      "}",
-                      "if (res.data && res.data.refreshToken) {",
-                      "  pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
-                      "}",
-                      "if (res.data && res.data.user && res.data.user.id) {",
-                      "  pm.collectionVariables.set('userId', res.data.user.id);",
-                      "}"
+                      "",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "save('accessToken', d.accessToken);",
+                      "save('refreshToken', d.refreshToken);",
+                      "const u = d.user || {};",
+                      "save('userId', u.id || d.userId);",
+                      "const auth = u.auth || u;",
+                      "save('userEmail', auth.email);",
+                      "save('userPhone', auth.phone);",
+                      "save('userRole', auth.role);",
+                      "const basic = u.basicProfile || u;",
+                      "save('userName', basic.name);",
+                      "save('userUsername', basic.username);",
+                      "// The API returns the dev OTP in the body whenever Twilio is not configured,",
+                      "// so A-02 never needs it typed in by hand.",
+                      "save('otp', d.otp);",
+                      "if (d.requiresOtp) console.log('⚠ requiresOtp — run A-02 next');"
                     ]
                   }
                 }
@@ -239,7 +666,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"channel\": \"phone\",\n  \"otp\": \"123456\"\n}",
+                  "raw": "{\n  \"phone\": \"{{userPhone}}\",\n  \"channel\": \"{{authChannel}}\",\n  \"otp\": \"{{otp}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -257,16 +684,33 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "if (res.data && res.data.accessToken) {",
-                      "  pm.collectionVariables.set('accessToken', res.data.accessToken);",
-                      "  console.log('accessToken saved');",
-                      "}",
-                      "if (res.data && res.data.refreshToken) {",
-                      "  pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
-                      "}",
-                      "if (res.data && res.data.user && res.data.user.id) {",
-                      "  pm.collectionVariables.set('userId', res.data.user.id);",
-                      "}"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('accessToken', d.accessToken);",
+                      "save('refreshToken', d.refreshToken);",
+                      "const u = d.user || {};",
+                      "save('userId', u.id || (u.auth && u.auth.id) || d.userId);",
+                      "const auth = u.auth || u;",
+                      "save('userEmail', auth.email);",
+                      "save('userPhone', auth.phone);",
+                      "save('userRole', auth.role);",
+                      "const basic = u.basicProfile || u;",
+                      "save('userName', basic.name);",
+                      "save('userUsername', basic.username);"
                     ]
                   }
                 }
@@ -299,7 +743,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "raw": "{\n  \"phone\": \"{{userPhone}}\",\n  \"password\": \"{{userPassword}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -317,16 +761,37 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "if (res.data && res.data.accessToken) {",
-                      "  pm.collectionVariables.set('accessToken', res.data.accessToken);",
-                      "  console.log('accessToken saved');",
-                      "}",
-                      "if (res.data && res.data.refreshToken) {",
-                      "  pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
-                      "}",
-                      "if (res.data && res.data.user && res.data.user.id) {",
-                      "  pm.collectionVariables.set('userId', res.data.user.id);",
-                      "}"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('accessToken', d.accessToken);",
+                      "save('refreshToken', d.refreshToken);",
+                      "const u = d.user || {};",
+                      "save('userId', u.id || (u.auth && u.auth.id) || d.userId);",
+                      "const auth = u.auth || u;",
+                      "save('userEmail', auth.email);",
+                      "save('userPhone', auth.phone);",
+                      "save('userRole', auth.role);",
+                      "const basic = u.basicProfile || u;",
+                      "save('userName', basic.name);",
+                      "save('userUsername', basic.username);",
+                      "// The API returns the dev OTP in the body whenever Twilio is not configured,",
+                      "// so A-02 / A-08 never need it typed in by hand.",
+                      "save('otp', d.otp);",
+                      "if (d.requiresOtp) console.log('⚠ requiresOtp — run A-02 next');"
                     ]
                   }
                 }
@@ -359,7 +824,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"idToken\": \"<google-id-token>\"\n}",
+                  "raw": "{\n  \"idToken\": \"{{googleIdToken}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -374,17 +839,36 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "// Placeholder token: this request only passes once you paste a real Google ID token.",
-                      "const raw = pm.request.body && pm.request.body.raw ? pm.request.body.raw : '';",
-                      "if (raw.indexOf('<google-id-token>') !== -1) {",
-                      "  pm.test('SKIPPED - paste a real Google ID token into the body to run this', () => true);",
-                      "} else {",
-                      "  const res = pm.response.json();",
-                      "  pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "  pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "  if (res.data && res.data.accessToken) pm.collectionVariables.set('accessToken', res.data.accessToken);",
-                      "  if (res.data && res.data.refreshToken) pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
-                      "}"
+                      "const res = pm.response.json();",
+                      "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('accessToken', d.accessToken);",
+                      "save('refreshToken', d.refreshToken);",
+                      "const u = d.user || {};",
+                      "save('userId', u.id || (u.auth && u.auth.id) || d.userId);",
+                      "const auth = u.auth || u;",
+                      "save('userEmail', auth.email);",
+                      "save('userPhone', auth.phone);",
+                      "save('userRole', auth.role);",
+                      "const basic = u.basicProfile || u;",
+                      "save('userName', basic.name);",
+                      "save('userUsername', basic.username);"
                     ]
                   }
                 }
@@ -435,16 +919,24 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "if (res.data && res.data.accessToken) {",
-                      "  pm.collectionVariables.set('accessToken', res.data.accessToken);",
-                      "  console.log('accessToken saved');",
-                      "}",
-                      "if (res.data && res.data.refreshToken) {",
-                      "  pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
-                      "}",
-                      "if (res.data && res.data.user && res.data.user.id) {",
-                      "  pm.collectionVariables.set('userId', res.data.user.id);",
-                      "}"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('accessToken', d.accessToken);",
+                      "save('refreshToken', d.refreshToken);"
                     ]
                   }
                 }
@@ -477,7 +969,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('Logged out — tokens kept so later requests still run.');"
                     ]
                   }
                 }
@@ -510,7 +1019,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"channel\": \"phone\"\n}",
+                  "raw": "{\n  \"phone\": \"{{userPhone}}\",\n  \"channel\": \"{{authChannel}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -527,7 +1036,27 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "// The API returns the dev OTP in the body whenever Twilio is not configured,",
+                      "// so A-02 / A-08 never need it typed in by hand.",
+                      "save('otp', d.otp);",
+                      "if (d.requiresOtp) console.log('⚠ requiresOtp — run A-02 next');"
                     ]
                   }
                 }
@@ -560,7 +1089,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"channel\": \"phone\",\n  \"otp\": \"123456\"\n}",
+                  "raw": "{\n  \"phone\": \"{{userPhone}}\",\n  \"channel\": \"{{authChannel}}\",\n  \"otp\": \"{{otp}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -578,9 +1107,23 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "if (res.data && res.data.resetToken) {",
-                      "  pm.collectionVariables.set('resetToken', res.data.resetToken);",
-                      "}"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('resetToken', d.resetToken);"
                     ]
                   }
                 }
@@ -613,7 +1156,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"{{password}}\"\n}",
+                  "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"{{userPassword}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -630,7 +1173,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('Password reset — A-03 now needs the new userPassword.');"
                     ]
                   }
                 }
@@ -682,8 +1242,27 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const first = res.data && (res.data.images || res.data.uploaded || [])[0];",
-                      "if (first && first.url) { pm.collectionVariables.set('imageUrl', first.url); }"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('imageUrl', d.url);",
+                      "save('imageKey', d.key);",
+                      "const imgs = Array.isArray(d.images) ? d.images : [];",
+                      "if (imgs.length) { save('imageUrl', imgs[0].url); save('imageKey', imgs[0].key); }",
+                      "if (!pm.collectionVariables.get('selfieUrl')) save('selfieUrl', pm.collectionVariables.get('imageUrl'));"
                     ]
                   }
                 }
@@ -713,7 +1292,7 @@
                 "description": "**Updates any subset of profile fields.**\n\nAuth: Bearer. Every field is optional — send only what changed.\n\n`images[]` entries need `url` (valid URL) + `isMain` (boolean); 1–6 items. Use URLs returned by **P-01**.\n\n`creativity` / `sports` / `moviesAndDramas` accept only values from the fixed lists in `register.dto.ts` — anything else is rejected by validation.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Ava Stone\",\n  \"firstName\": \"Ava\",\n  \"lastName\": \"Stone\",\n  \"username\": \"{{username}}\",\n  \"birthDate\": \"1997-04-12\",\n  \"occupation\": \"Product Designer\",\n  \"gender\": \"FEMALE\",\n  \"interestedIn\": \"MALE\",\n  \"smoker\": \"NEVER\",\n  \"alcohol\": \"SOMETIMES\",\n  \"kids\": \"DOESNT_HAVE_KIDS\",\n  \"wantsKids\": true,\n  \"lookingFor\": \"LONG_TERM\",\n  \"locations\": [\n    \"Dhaka\",\n    \"Chattogram\"\n  ],\n  \"lastLocation\": \"Dhaka\",\n  \"latitude\": 23.8103,\n  \"longitude\": 90.4125,\n  \"heightCm\": 168,\n  \"weightKg\": 58,\n  \"creativity\": [\n    \"Art\",\n    \"Photography\"\n  ],\n  \"sports\": [\n    \"Running\",\n    \"Gym\"\n  ],\n  \"moviesAndDramas\": [\n    \"Romance\",\n    \"K-Drama\"\n  ],\n  \"images\": [\n    {\n      \"url\": \"{{imageUrl}}\",\n      \"isMain\": true,\n      \"sortOrder\": 0\n    }\n  ],\n  \"notificationsEnabled\": true\n}",
+                  "raw": "{\n  \"name\": \"{{userName}}\",\n  \"firstName\": \"{{userFirstName}}\",\n  \"lastName\": \"{{userLastName}}\",\n  \"username\": \"{{userUsername}}\",\n  \"birthDate\": \"{{userBirthDate}}\",\n  \"occupation\": \"{{userOccupation}}\",\n  \"gender\": \"{{userGender}}\",\n  \"interestedIn\": \"{{userInterestedIn}}\",\n  \"smoker\": \"{{userSmoker}}\",\n  \"alcohol\": \"{{userAlcohol}}\",\n  \"kids\": \"{{userKids}}\",\n  \"wantsKids\": {{userWantsKids}},\n  \"lookingFor\": \"{{userLookingFor}}\",\n  \"locations\": [\n    \"{{userLocation}}\",\n    \"{{userSecondLocation}}\"\n  ],\n  \"lastLocation\": \"{{userLocation}}\",\n  \"latitude\": {{userLatitude}},\n  \"longitude\": {{userLongitude}},\n  \"heightCm\": {{userHeightCm}},\n  \"weightKg\": {{userWeightKg}},\n  \"creativity\": [\n    \"Art\",\n    \"Photography\"\n  ],\n  \"sports\": [\n    \"Running\",\n    \"Gym\"\n  ],\n  \"moviesAndDramas\": [\n    \"Romance\",\n    \"K-Drama\"\n  ],\n  \"images\": [\n    {\n      \"url\": \"{{imageUrl}}\",\n      \"isMain\": true,\n      \"sortOrder\": 0\n    }\n  ],\n  \"notificationsEnabled\": true\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -730,7 +1309,28 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('userId', d.id);",
+                      "save('userUsername', (d.basicProfile && d.basicProfile.username) || d.username);",
+                      "const media = d.media || {};",
+                      "const mi = Array.isArray(media.images) ? media.images : [];",
+                      "if (mi.length) save('imageUrl', mi[0].url);"
                     ]
                   }
                 }
@@ -763,7 +1363,31 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('userId', d.id);",
+                      "const a = d.auth || {}; const b = d.basicProfile || {};",
+                      "save('userEmail', a.email); save('userPhone', a.phone); save('userRole', a.role);",
+                      "save('userName', b.name); save('userUsername', b.username);",
+                      "const m = d.media || {};",
+                      "save('selfieUrl', m.selfieUrl);",
+                      "const im = Array.isArray(m.images) ? m.images : [];",
+                      "if (im.length) save('imageUrl', im[0].url);"
                     ]
                   }
                 }
@@ -814,7 +1438,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('selfieUrl', d.selfieUrl || d.url);"
                     ]
                   }
                 }
@@ -847,7 +1488,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('verified:', d.isUserVerified, '| selfie:', d.selfieVerified);"
                     ]
                   }
                 }
@@ -887,7 +1545,25 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('prefMinAge', d.minAge); save('prefMaxAge', d.maxAge);",
+                      "save('prefMaxDistanceKm', d.maxDistanceKm); save('prefGender', d.preferredGender);"
                     ]
                   }
                 }
@@ -917,7 +1593,7 @@
                 "description": "**Updates age range, distance and preferred gender.**\n\nAuth: Bearer. All fields optional.\n\nConstraints: `minAge`/`maxAge` 18–99, `maxDistanceKm` ≥ 1, `preferredGender` = MALE | FEMALE | NON_BINARY | OTHER.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"minAge\": 22,\n  \"maxAge\": 35,\n  \"maxDistanceKm\": 50,\n  \"preferredGender\": \"MALE\"\n}",
+                  "raw": "{\n  \"minAge\": {{prefMinAge}},\n  \"maxAge\": {{prefMaxAge}},\n  \"maxDistanceKm\": {{prefMaxDistanceKm}},\n  \"preferredGender\": \"{{prefGender}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -934,7 +1610,25 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('prefMinAge', d.minAge); save('prefMaxAge', d.maxAge);",
+                      "save('prefMaxDistanceKm', d.maxDistanceKm); save('prefGender', d.preferredGender);"
                     ]
                   }
                 }
@@ -967,11 +1661,32 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const list = Array.isArray(res.data) ? res.data : (res.data && res.data.profiles) || [];",
-                      "if (list.length && list[0].id) {",
-                      "  pm.collectionVariables.set('targetUserId', list[0].id);",
-                      "  console.log('targetUserId =', list[0].id);",
-                      "} else { console.log('Feed empty — seed more users or widen preferences (D-02).'); }"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('profiles', 'users');",
+                      "if (list.length) {",
+                      "  save('targetUserId', list[0].id);",
+                      "} else {",
+                      "  console.log('⚠ Feed empty — you only have one account, and you cannot discover yourself.');",
+                      "  console.log('  To populate targetUserId, create the partner account:');",
+                      "  console.log('  1. set userPhone={{partnerPhone}}, userEmail={{partnerEmail}}, userGender={{partnerGender}}');",
+                      "  console.log('  2. run A-01 then A-02, and note the new userId');",
+                      "  console.log('  3. mark both users verified, restore your own credentials, re-run D-03');",
+                      "}"
                     ]
                   }
                 }
@@ -1004,7 +1719,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('targetUserId', d.id);"
                     ]
                   }
                 }
@@ -1034,7 +1766,7 @@
                 "description": "**Records a LIKE / PASS / SUPER_LIKE.**\n\nAuth: Bearer.\n\n`action` = LIKE | PASS | SUPER_LIKE.\n\nIf the target had already liked the caller, a match is created and the response contains `isMatch: true` with the new match — captured into `{{matchId}}`. A SUPER_LIKE also queues a push notification.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"targetUserId\": \"{{targetUserId}}\",\n  \"action\": \"LIKE\"\n}",
+                  "raw": "{\n  \"targetUserId\": \"{{targetUserId}}\",\n  \"action\": \"{{swipeAction}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1052,10 +1784,26 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "if (res.data && res.data.isMatch && res.data.match && res.data.match.id) {",
-                      "  pm.collectionVariables.set('matchId', res.data.match.id);",
-                      "  console.log('Matched! matchId =', res.data.match.id);",
-                      "}"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "if (d.isMatch && d.match) {",
+                      "  save('matchId', d.match.id);",
+                      "  save('conversationId', d.match.conversationId || (d.match.conversation && d.match.conversation.id));",
+                      "} else { console.log('No match yet — the other user has to LIKE back.'); }"
                     ]
                   }
                 }
@@ -1095,12 +1843,32 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const list = Array.isArray(res.data) ? res.data : (res.data && res.data.matches) || [];",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('matches');",
                       "if (list.length) {",
-                      "  if (list[0].id) pm.collectionVariables.set('matchId', list[0].id);",
-                      "  const conv = list[0].conversationId || (list[0].conversation && list[0].conversation.id);",
-                      "  if (conv) pm.collectionVariables.set('conversationId', conv);",
-                      "} else { console.log('No matches yet — run D-05 from both sides.'); }"
+                      "  save('matchId', list[0].id);",
+                      "  save('conversationId', list[0].conversationId || (list[0].conversation && list[0].conversation.id));",
+                      "  const other = list[0].matchedUser || list[0].user || {};",
+                      "  save('targetUserId', other.id);",
+                      "} else {",
+                      "  console.log('⚠ No matches — a match needs BOTH users to swipe LIKE on each other.');",
+                      "  console.log('  Log in as the partner account and run D-05 with targetUserId = your userId.');",
+                      "}"
                     ]
                   }
                 }
@@ -1133,7 +1901,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('Unmatched — matchId is now stale.');"
                     ]
                   }
                 }
@@ -1174,8 +1959,29 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const list = Array.isArray(res.data) ? res.data : (res.data && res.data.conversations) || [];",
-                      "if (list.length && list[0].id) pm.collectionVariables.set('conversationId', list[0].id);"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('conversations');",
+                      "if (list.length) {",
+                      "  save('conversationId', list[0].id);",
+                      "  save('matchId', list[0].matchId);",
+                      "  const lm = list[0].lastMessage;",
+                      "  if (lm) save('messageId', lm.id);",
+                      "} else console.log('No conversations — a match creates one automatically.');"
                     ]
                   }
                 }
@@ -1188,7 +1994,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages?limit=50&offset=0",
+                  "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages?limit={{limit}}&offset={{offset}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -1201,12 +2007,12 @@
                   "query": [
                     {
                       "key": "limit",
-                      "value": "50",
+                      "value": "{{limit}}",
                       "description": "Page size. Integer, defaults to 50."
                     },
                     {
                       "key": "offset",
-                      "value": "0",
+                      "value": "{{offset}}",
                       "description": "Rows to skip. Integer, defaults to 0."
                     }
                   ]
@@ -1222,7 +2028,26 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('messages');",
+                      "if (list.length) save('messageId', list[0].id);",
+                      "else console.log('No messages — send one over the WebSocket first.');"
                     ]
                   }
                 }
@@ -1262,17 +2087,34 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const list = Array.isArray(res.data) ? res.data : (res.data && res.data.games) || [];",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('games');",
                       "if (list.length) {",
-                      "  if (list[0].id) pm.collectionVariables.set('gameId', list[0].id);",
+                      "  save('gameId', list[0].id);",
                       "  const qs = list[0].questions || [];",
-                      "  if (qs.length && qs[0].id) {",
-                      "    pm.collectionVariables.set('questionId', qs[0].id);",
-                      "    // Capture this question's real optionA: submitAnswer rejects anything",
-                      "    // that isn't an exact match for optionA/optionB.",
-                      "    if (qs[0].optionA) pm.collectionVariables.set('selectedOption', qs[0].optionA);",
+                      "  if (qs.length) {",
+                      "    save('questionId', qs[0].id);",
+                      "    save('optionA', qs[0].optionA);",
+                      "    save('optionB', qs[0].optionB);",
+                      "    // submitAnswer rejects anything that is not an exact optionA/optionB match.",
+                      "    save('selectedOption', qs[0].optionA);",
                       "  }",
-                      "}"
+                      "} else console.log('No games — run: npm run db:seed');"
                     ]
                   }
                 }
@@ -1320,8 +2162,31 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const s = res.data && (res.data.session || res.data);",
-                      "if (s && s.id) pm.collectionVariables.set('sessionId', s.id);"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('sessionId', d.id);",
+                      "const g = d.game || {};",
+                      "save('gameId', g.id);",
+                      "const qs = g.questions || [];",
+                      "if (qs.length) {",
+                      "  save('questionId', qs[0].id);",
+                      "  save('optionA', qs[0].optionA); save('optionB', qs[0].optionB);",
+                      "  save('selectedOption', qs[0].optionA);",
+                      "}"
                     ]
                   }
                 }
@@ -1355,7 +2220,32 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('sessionId', d.id);",
+                      "const qs = (d.game && d.game.questions) || [];",
+                      "const answered = (d.answers || []).map(a => a.questionId);",
+                      "const next = qs.find(q => !answered.includes(q.id)) || qs[0];",
+                      "if (next) {",
+                      "  save('questionId', next.id);",
+                      "  save('optionA', next.optionA); save('optionB', next.optionB);",
+                      "  save('selectedOption', next.optionA);",
+                      "}"
                     ]
                   }
                 }
@@ -1404,7 +2294,25 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "if (d.completed) console.log('Game complete — compatibility', d.compatibility + '%');",
+                      "else if (d.waitingForPartner) console.log('Waiting for the partner to answer.');"
                     ]
                   }
                 }
@@ -1424,7 +2332,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/dates/places/search?q=coffee&latitude=23.8103&longitude=90.4125&limit=10",
+                  "raw": "{{baseUrl}}/dates/places/search?q={{placeQuery}}&latitude={{userLatitude}}&longitude={{userLongitude}}&limit={{limit}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -1436,22 +2344,22 @@
                   "query": [
                     {
                       "key": "q",
-                      "value": "coffee",
+                      "value": "{{placeQuery}}",
                       "description": "Search text. Required, non-empty."
                     },
                     {
                       "key": "latitude",
-                      "value": "23.8103",
+                      "value": "{{userLatitude}}",
                       "description": "Optional bias latitude."
                     },
                     {
                       "key": "longitude",
-                      "value": "90.4125",
+                      "value": "{{userLongitude}}",
                       "description": "Optional bias longitude."
                     },
                     {
                       "key": "limit",
-                      "value": "10",
+                      "value": "{{limit}}",
                       "description": "Results to return, 1–20. Defaults to 10."
                     }
                   ]
@@ -1467,7 +2375,30 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = Array.isArray(d) ? d : rows('places', 'features');",
+                      "if (list.length) {",
+                      "  save('placeName', list[0].name);",
+                      "  save('placeAddress', list[0].address);",
+                      "  save('placeLatitude', list[0].latitude);",
+                      "  save('placeLongitude', list[0].longitude);",
+                      "} else console.log('No places — MAPBOX_ACCESS_TOKEN is unset, so this returns []. The DT-02 defaults still work.');"
                     ]
                   }
                 }
@@ -1496,7 +2427,7 @@
                 "description": "**Sends a date invitation to a match.** Creates the plan in `PENDING`.\n\nAuth: Bearer.\n\nRequired: `matchId` (UUID), `date` + `startTime` (ISO 8601), `venueName`, `venueAddress`. Optional: `endTime`, `latitude`, `longitude`, `mapboxPlaceId` (from **DT-01**).",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"matchId\": \"{{matchId}}\",\n  \"date\": \"2026-10-01\",\n  \"startTime\": \"2026-10-01T18:30:00.000Z\",\n  \"endTime\": \"2026-10-01T20:30:00.000Z\",\n  \"venueName\": \"Cafe Mango\",\n  \"venueAddress\": \"12 Gulshan Ave, Dhaka\",\n  \"latitude\": 23.8103,\n  \"longitude\": 90.4125\n}",
+                  "raw": "{\n  \"matchId\": \"{{matchId}}\",\n  \"date\": \"{{dateDate}}\",\n  \"startTime\": \"{{dateStartTime}}\",\n  \"endTime\": \"{{dateEndTime}}\",\n  \"venueName\": \"{{placeName}}\",\n  \"venueAddress\": \"{{placeAddress}}\",\n  \"latitude\": {{placeLatitude}},\n  \"longitude\": {{placeLongitude}}\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1514,8 +2445,23 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const d = res.data && (res.data.datePlan || res.data);",
-                      "if (d && d.id) pm.collectionVariables.set('datePlanId', d.id);"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('datePlanId', d.id);"
                     ]
                   }
                 }
@@ -1528,7 +2474,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/dates?status=PENDING&matchId=&upcoming=true&limit=20&offset=0",
+                  "raw": "{{baseUrl}}/dates?status={{dateStatus}}&limit={{limit}}&offset={{offset}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -1538,12 +2484,12 @@
                   "query": [
                     {
                       "key": "status",
-                      "value": "PENDING",
+                      "value": "{{dateStatus}}",
                       "description": "DRAFT | PENDING | ACCEPTED | DECLINED | CANCELLED | COMPLETED | NO_SHOW"
                     },
                     {
                       "key": "matchId",
-                      "value": "",
+                      "value": "{{matchId}}",
                       "description": "Filter to one match (UUID).",
                       "disabled": true
                     },
@@ -1555,12 +2501,12 @@
                     },
                     {
                       "key": "limit",
-                      "value": "20",
+                      "value": "{{limit}}",
                       "description": "1–100, defaults to 20."
                     },
                     {
                       "key": "offset",
-                      "value": "0",
+                      "value": "{{offset}}",
                       "description": "Defaults to 0."
                     }
                   ]
@@ -1577,8 +2523,25 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const list = Array.isArray(res.data) ? res.data : (res.data && (res.data.dates || res.data.items)) || [];",
-                      "if (list.length && list[0].id) pm.collectionVariables.set('datePlanId', list[0].id);"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('dates');",
+                      "if (list.length) save('datePlanId', list[0].id);",
+                      "else console.log('No dates yet — create one with DT-02.');"
                     ]
                   }
                 }
@@ -1611,7 +2574,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('datePlanId', d.id); save('matchId', d.matchId);"
                     ]
                   }
                 }
@@ -1641,7 +2621,7 @@
                 "description": "**Reschedules or edits a date plan.**\n\nAuth: Bearer. All fields optional — send only what changed.\n\nTypically restricted to the organiser and to plans not yet `COMPLETED` / `CANCELLED`.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"date\": \"2026-10-02\",\n  \"startTime\": \"2026-10-02T19:00:00.000Z\",\n  \"venueName\": \"Cafe Mango (Banani)\",\n  \"venueAddress\": \"45 Banani Rd, Dhaka\"\n}",
+                  "raw": "{\n  \"date\": \"{{dateDate}}\",\n  \"startTime\": \"{{dateStartTime}}\",\n  \"venueName\": \"{{placeName}}\",\n  \"venueAddress\": \"{{placeAddress}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1658,7 +2638,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('datePlanId', d.id);"
                     ]
                   }
                 }
@@ -1692,7 +2689,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('status:', d.status);"
                     ]
                   }
                 }
@@ -1726,7 +2740,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('status:', d.status);"
                     ]
                   }
                 }
@@ -1757,7 +2788,7 @@
                 "description": "**Either party cancels a PENDING or ACCEPTED date.** → `CANCELLED`.\n\nAuth: Bearer.\n\n`reason` is optional, max 300 characters. A late cancellation can log a negative trust event (see folder **08**).",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"reason\": \"Something urgent came up\"\n}",
+                  "raw": "{\n  \"reason\": \"{{dateCancelReason}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1774,7 +2805,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('status:', d.status);"
                     ]
                   }
                 }
@@ -1808,7 +2856,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('status:', d.status, '— DT-10 can now rate it.');"
                     ]
                   }
                 }
@@ -1839,7 +2904,7 @@
                 "description": "**Rates the other party after a completed date.**\n\nAuth: Bearer. Only valid once the date is `COMPLETED`; one rating per user per date.\n\nAll four scores are integers 1–5 and required. `comment` max 500 chars. `isAnonymous` hides the rater's identity from the ratee. Feeds the trust score in folder **08**.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"behaviorScore\": 5,\n  \"punctualityScore\": 4,\n  \"safetyScore\": 5,\n  \"overallScore\": 5,\n  \"comment\": \"Great conversation, showed up on time.\",\n  \"isAnonymous\": false\n}",
+                  "raw": "{\n  \"behaviorScore\": {{ratingBehavior}},\n  \"punctualityScore\": {{ratingPunctuality}},\n  \"safetyScore\": {{ratingSafety}},\n  \"overallScore\": {{ratingOverall}},\n  \"comment\": \"{{ratingComment}}\",\n  \"isAnonymous\": {{ratingAnonymous}}\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1856,7 +2921,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('dateRatingId', d.id);"
                     ]
                   }
                 }
@@ -1890,7 +2972,25 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('ratings');",
+                      "if (list.length) save('dateRatingId', list[0].id);"
                     ]
                   }
                 }
@@ -1929,7 +3029,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('trust score:', d.score, '| badge:', d.badge || d.tier);"
                     ]
                   }
                 }
@@ -1942,7 +3059,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/trust-score/history?limit=20&offset=0",
+                  "raw": "{{baseUrl}}/trust-score/history?limit={{limit}}&offset={{offset}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -1953,12 +3070,12 @@
                   "query": [
                     {
                       "key": "limit",
-                      "value": "20",
+                      "value": "{{limit}}",
                       "description": "1–100, defaults to 20."
                     },
                     {
                       "key": "offset",
-                      "value": "0",
+                      "value": "{{offset}}",
                       "description": "Defaults to 0."
                     }
                   ]
@@ -1974,7 +3091,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('history rows:', rows('events', 'history').length);"
                     ]
                   }
                 }
@@ -2014,7 +3148,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('blockedUserId', d.blockedUserId || d.blockedId || pm.collectionVariables.get('targetUserId'));"
                     ]
                   }
                 }
@@ -2027,7 +3178,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/blocks?limit=20&offset=0",
+                  "raw": "{{baseUrl}}/blocks?limit={{limit}}&offset={{offset}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2037,12 +3188,12 @@
                   "query": [
                     {
                       "key": "limit",
-                      "value": "20",
+                      "value": "{{limit}}",
                       "description": "1–100, defaults to 20."
                     },
                     {
                       "key": "offset",
-                      "value": "0",
+                      "value": "{{offset}}",
                       "description": "Defaults to 0."
                     }
                   ]
@@ -2058,7 +3209,26 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('blocks', 'blockedUsers');",
+                      "if (list.length) save('blockedUserId', list[0].blockedUserId || list[0].id);",
+                      "else console.log('No blocked users — run S-01 first.');"
                     ]
                   }
                 }
@@ -2091,7 +3261,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('Unblocked.');"
                     ]
                   }
                 }
@@ -2120,7 +3307,7 @@
                 "description": "**Files a safety/moderation report.** Created with status `PENDING`.\n\nAuth: Bearer.\n\n`reportedUserId` must be a UUID. `reason` required, max 100 chars; `description` optional, max 1000. Set `blockUser: true` to block in the same call.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"reportedUserId\": \"{{targetUserId}}\",\n  \"reason\": \"Inappropriate messages\",\n  \"description\": \"Sent harassing messages after I declined a date.\",\n  \"blockUser\": true\n}",
+                  "raw": "{\n  \"reportedUserId\": \"{{targetUserId}}\",\n  \"reason\": \"{{reportReason}}\",\n  \"description\": \"{{reportDescription}}\",\n  \"blockUser\": {{reportBlockUser}}\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2137,7 +3324,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('reportId', d.id);"
                     ]
                   }
                 }
@@ -2150,7 +3354,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/reports/my-reports?limit=20&offset=0",
+                  "raw": "{{baseUrl}}/reports/my-reports?limit={{limit}}&offset={{offset}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2161,12 +3365,12 @@
                   "query": [
                     {
                       "key": "limit",
-                      "value": "20",
+                      "value": "{{limit}}",
                       "description": "1–100, defaults to 20."
                     },
                     {
                       "key": "offset",
-                      "value": "0",
+                      "value": "{{offset}}",
                       "description": "Defaults to 0."
                     }
                   ]
@@ -2182,7 +3386,25 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('reports');",
+                      "if (list.length) save('reportId', list[0].id);"
                     ]
                   }
                 }
@@ -2225,7 +3447,25 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = Array.isArray(d) ? d : rows('plans');",
+                      "if (list.length) { save('planId', list[0].id); save('productId', list[0].productId); }"
                     ]
                   }
                 }
@@ -2258,7 +3498,25 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('subscriptionId', (d.subscription && d.subscription.id) || d.id);",
+                      "console.log('premium:', d.isPremium);"
                     ]
                   }
                 }
@@ -2291,7 +3549,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"api_version\": \"1.0\",\n  \"event\": {\n    \"id\": \"evt_test_1\",\n    \"type\": \"INITIAL_PURCHASE\",\n    \"app_user_id\": \"{{userId}}\",\n    \"product_id\": \"com.date48.monthly\",\n    \"purchased_at_ms\": 1790000000000,\n    \"expiration_at_ms\": 1792592000000,\n    \"price_in_purchased_currency\": 14.99,\n    \"currency\": \"USD\",\n    \"store\": \"APP_STORE\",\n    \"environment\": \"SANDBOX\"\n  }\n}",
+                  "raw": "{\n  \"api_version\": \"1.0\",\n  \"event\": {\n    \"id\": \"{{rcEventId}}\",\n    \"type\": \"{{rcEventType}}\",\n    \"app_user_id\": \"{{userId}}\",\n    \"product_id\": \"{{productId}}\",\n    \"purchased_at_ms\": {{rcPurchasedAtMs}},\n    \"expiration_at_ms\": {{rcExpirationAtMs}},\n    \"price_in_purchased_currency\": {{rcPrice}},\n    \"currency\": \"{{rcCurrency}}\",\n    \"store\": \"{{rcStore}}\",\n    \"environment\": \"{{rcEnvironment}}\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2308,7 +3566,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('webhook processed:', res.message);"
                     ]
                   }
                 }
@@ -2344,7 +3619,7 @@
                 "description": "**Submits a success story for moderation.** Created with status `PENDING`.\n\nAuth: Bearer.\n\n`partnerId` required (UUID). `title` max 120 chars; `story` 20–5000 chars. `images[]` is an array of URL strings (upload via **P-01** first).",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"partnerId\": \"{{targetUserId}}\",\n  \"matchId\": \"{{matchId}}\",\n  \"title\": \"We met on 48Date and never looked back\",\n  \"story\": \"We matched in March, planned a coffee date within 48 hours, and have been together ever since. Two years later we are engaged.\",\n  \"images\": [\n    \"{{imageUrl}}\"\n  ]\n}",
+                  "raw": "{\n  \"partnerId\": \"{{targetUserId}}\",\n  \"matchId\": \"{{matchId}}\",\n  \"title\": \"{{storyTitle}}\",\n  \"story\": \"{{storyBody}}\",\n  \"images\": [\n    \"{{imageUrl}}\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2362,8 +3637,23 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const s = res.data && (res.data.story || res.data);",
-                      "if (s && s.id) pm.collectionVariables.set('storyId', s.id);"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('storyId', d.id);"
                     ]
                   }
                 }
@@ -2376,7 +3666,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/success-stories?limit=20&offset=0&status=",
+                  "raw": "{{baseUrl}}/success-stories?limit={{limit}}&offset={{offset}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2386,17 +3676,17 @@
                   "query": [
                     {
                       "key": "limit",
-                      "value": "20",
+                      "value": "{{limit}}",
                       "description": "1–100, defaults to 20."
                     },
                     {
                       "key": "offset",
-                      "value": "0",
+                      "value": "{{offset}}",
                       "description": "Defaults to 0."
                     },
                     {
                       "key": "status",
-                      "value": "",
+                      "value": "{{storyStatus}}",
                       "description": "PENDING | PUBLISHED | REJECTED",
                       "disabled": true
                     }
@@ -2417,8 +3707,25 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const list = Array.isArray(res.data) ? res.data : (res.data && (res.data.stories || res.data.items)) || [];",
-                      "if (list.length && list[0].id) pm.collectionVariables.set('storyId', list[0].id);"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "const list = rows('stories', 'successStories');",
+                      "if (list.length) save('storyId', list[0].id);",
+                      "else console.log('No published stories — SS-01 creates them as PENDING, and there is no admin API to publish them yet.');"
                     ]
                   }
                 }
@@ -2455,8 +3762,25 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const c = res.data && (res.data.comments || [])[0];",
-                      "if (c && c.id) pm.collectionVariables.set('commentId', c.id);"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('storyId', d.id);",
+                      "const cs = d.comments || [];",
+                      "if (cs.length) save('commentId', cs[0].id);"
                     ]
                   }
                 }
@@ -2490,7 +3814,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('liked:', d.isLiked, '| likes:', d.likeCount);"
                     ]
                   }
                 }
@@ -2521,7 +3862,7 @@
                 "description": "**Comments on a published story.**\n\nAuth: Bearer. `content` required, max 500 chars.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"content\": \"Congratulations to you both! 🎉\"\n}",
+                  "raw": "{\n  \"content\": \"{{commentContent}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2539,8 +3880,23 @@
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
                       "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
-                      "const c = res.data && (res.data.comment || res.data);",
-                      "if (c && c.id) pm.collectionVariables.set('commentId', c.id);"
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "save('commentId', d.id);"
                     ]
                   }
                 }
@@ -2575,7 +3931,24 @@
                     "exec": [
                       "const res = pm.response.json();",
                       "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
-                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));"
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "// save(key, value) — skips empty values so a variable is never blanked out",
+                      "// by a response that simply did not include that field.",
+                      "const d = res.data || {};",
+                      "const save = (k, v) => {",
+                      "  if (v === undefined || v === null || v === '') return;",
+                      "  pm.collectionVariables.set(k, String(v));",
+                      "  console.log('✔ ' + k + ' = ' + v);",
+                      "};",
+                      "const rows = (...keys) => {",
+                      "  if (Array.isArray(d)) return d;",
+                      "  for (const k of keys) if (Array.isArray(d[k])) return d[k];",
+                      "  for (const k of ['items', 'results', 'list']) if (Array.isArray(d[k])) return d[k];",
+                      "  return [];",
+                      "};",
+                      "",
+                      "console.log('Comment deleted — commentId is now stale.');"
                     ]
                   }
                 }
