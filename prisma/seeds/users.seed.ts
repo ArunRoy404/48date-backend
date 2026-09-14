@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt';
 import {
   Gender,
   HabitFrequency,
@@ -8,8 +7,14 @@ import {
 } from '../../src/generated/prisma/enums.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 
-/** Every demo account shares this password. */
-export const DEMO_PASSWORD = 'Passw0rd123';
+/**
+ * A deliberately *incomplete* account, reset on every seed run.
+ *
+ * Log in with this phone (A-01.1 → A-02) and the token you get back reports
+ * `isUserVerified: false`, so `POST /auth/verify-user-information` (A-03) has
+ * a real target. Re-seeding wipes the profile again, so A-03 is repeatable.
+ */
+export const NEWCOMER_PHONE = '+8801811000008';
 
 /** Image host used by the seed. Real uploads replace these. */
 const CDN = 'https://cdn.48date.app/demo';
@@ -148,7 +153,6 @@ export type UserMap = Record<string, string>;
 
 export async function seedUsers(prisma: PrismaClient): Promise<UserMap> {
   console.log('👤 Seeding demo users...');
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   const map: UserMap = {};
   let created = 0;
   let updated = 0;
@@ -157,7 +161,6 @@ export async function seedUsers(prisma: PrismaClient): Promise<UserMap> {
     const data = {
       phone: u.phone,
       email: u.email,
-      passwordHash,
       // Fully verified so the account is visible in Discovery and can be
       // swiped on — an unverified user is invisible to every other user.
       isPhoneVerified: true,
@@ -236,8 +239,109 @@ export async function seedUsers(prisma: PrismaClient): Promise<UserMap> {
     });
   }
 
-  console.log(
-    `  👤 ${created} created, ${updated} updated (password for all: ${DEMO_PASSWORD})`,
-  );
+  map.newcomer = await seedNewcomer(prisma);
+  await pruneAbandonedAccounts(prisma);
+
+  console.log(`  👤 ${created} created, ${updated} updated`);
   return map;
+}
+
+/**
+ * Deletes half-finished accounts left behind by API runs.
+ *
+ * `POST /auth/login` creates an account for any unknown phone/email, so
+ * exercising the collection with a throwaway identifier accumulates ghost
+ * users. Only accounts that never completed onboarding are removed — no
+ * username, no photos, not verified — so a real profile can never be caught
+ * by this. The seeded accounts are excluded by identifier.
+ */
+async function pruneAbandonedAccounts(prisma: PrismaClient): Promise<void> {
+  const { count } = await prisma.user.deleteMany({
+    where: {
+      username: null,
+      isUserVerified: false,
+      images: { none: {} },
+      // `notIn` alone would skip these rows: in SQL, `phone NOT IN (...)` is
+      // NULL — not true — when phone is NULL, and a ghost account has one of
+      // the two identifiers unset by definition.
+      AND: [
+        {
+          OR: [
+            { phone: null },
+            {
+              phone: {
+                notIn: [...SEED_USERS.map((u) => u.phone), NEWCOMER_PHONE],
+              },
+            },
+          ],
+        },
+        {
+          OR: [
+            { email: null },
+            { email: { notIn: SEED_USERS.map((u) => u.email) } },
+          ],
+        },
+      ],
+    },
+  });
+  if (count > 0) {
+    console.log(`  🧹 removed ${count} abandoned account(s) from API runs`);
+  }
+}
+
+/**
+ * Creates (or resets) the onboarding test account: phone-verified, but with
+ * every profile field blank so `isUserVerified` stays false.
+ */
+async function seedNewcomer(prisma: PrismaClient): Promise<string> {
+  const blankProfile = {
+    isPhoneVerified: true,
+    isEmailVerified: false,
+    isUserVerified: false,
+    selfieVerified: false,
+    selfieUrl: null,
+    email: null,
+    name: null,
+    firstName: null,
+    lastName: null,
+    username: null,
+    birthDate: null,
+    occupation: null,
+    gender: null,
+    interestedIn: null,
+    smoker: null,
+    alcohol: null,
+    kids: null,
+    wantsKids: null,
+    lookingFor: null,
+    locations: [],
+    lastLocation: null,
+    latitude: null,
+    longitude: null,
+    heightCm: null,
+    weightKg: null,
+    creativity: [],
+    sports: [],
+    moviesAndDramas: [],
+    notificationsEnabled: true,
+  };
+
+  const existing = await prisma.user.findFirst({
+    where: { phone: NEWCOMER_PHONE },
+  });
+  const user = existing
+    ? await prisma.user.update({
+        where: { id: existing.id },
+        data: blankProfile,
+      })
+    : await prisma.user.create({
+        data: { phone: NEWCOMER_PHONE, ...blankProfile },
+      });
+
+  // Wipe anything a previous A-03 run left behind so the account is blank again.
+  await prisma.image.deleteMany({ where: { userId: user.id } });
+  await prisma.discoveryPreference.deleteMany({ where: { userId: user.id } });
+
+  console.log(`  🆕 onboarding test account reset: ${NEWCOMER_PHONE}`);
+  return user.id;
 }

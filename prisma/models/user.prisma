@@ -3,7 +3,6 @@ model User {
   id              String   @id @default(uuid())
   phone           String?  @unique
   email           String?  @unique
-  passwordHash    String?
   role            Role     @default(USER)
   isEmailVerified Boolean  @default(false)
   isPhoneVerified Boolean  @default(false)
