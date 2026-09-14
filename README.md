@@ -96,7 +96,8 @@ Every third-party integration is wired up but falls back to a no-op when its var
 | | |
 |---|---|
 | **7 accounts** | all verified, full profiles, images and preferences |
-| **1 blank account** | `+8801811000008` — phone-verified but with an empty profile, so `A-03 Verify user information` has a real target. Reset to blank on every seed run. |
+| **1 blank account** | `+8801811000008` — phone-verified but with an empty profile and `locationPermission: NOT_ASKED`, so `A-03 Verify user information` has a real target. Reset to blank on every seed run. |
+| **1 far-away account** | Rafiq Das, ~190 km away in Sylhet. Filtered out of Ava's feed at the default `maxDistanceKm` of 50; raise it past 200 with `D-02` and he appears. |
 | **2 matches** | `ava ↔ liam` (6 chat messages, a finished game, a completed date + ratings) and `ava ↔ noah` (a **PENDING** invitation addressed to ava, so `DT-06` accept works) |
 | **plus** | trust scores and events, a block, a report, an active and an expired subscription, a PUBLISHED success story with likes and comments, notifications |
 
@@ -106,7 +107,7 @@ Re-running the seed also **prunes** swipes, matches, and the half-finished accou
 
 ## API
 
-All 51 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
+All 52 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
 
 Every response — success or error — uses the same envelope:
 
@@ -154,6 +155,7 @@ edits go through `PATCH /users/profile-setup` (P-02), which accepts any subset.
 | P-03 | GET | `/users/profile` | Bearer | Categorized profile + images |
 | P-04 | POST | `/face-verification/verify` | Bearer | Submit selfie → `selfieVerified` |
 | P-05 | GET | `/face-verification/status` | Bearer | Verification flags + what's missing |
+| P-06 | PATCH | `/users/location` | Bearer | Coordinates and/or permission state — see **Location and distance** below |
 
 ### Discovery
 
@@ -161,9 +163,44 @@ edits go through `PATCH /users/profile-setup` (P-02), which accepts any subset.
 |---|---|---|---|---|
 | D-01 | GET | `/discovery/preferences` | Bearer | Current filters (creates defaults on first call) |
 | D-02 | PATCH | `/discovery/preferences` | Bearer | Age range, distance, preferred gender |
-| D-03 | GET | `/discovery` | Bearer | Candidate feed |
+| D-03 | GET | `/discovery` | Bearer | Candidate feed, distance-filtered, each entry carries `distanceKm` |
 | D-04 | GET | `/discovery/:id` | Bearer | Single candidate detail |
 | D-05 | POST | `/discovery/swipe` | Bearer | LIKE / PASS / SUPER_LIKE → may create a match |
+
+### Location and distance
+
+The "Set Your Location" screen can end three ways, and all three are storable:
+
+| App outcome | Send to `PATCH /users/location` |
+|---|---|
+| *While using the app* / *Only this time* | `latitude`, `longitude`, `city`, `permission` |
+| *Not Now* / *Deny* | `permission` alone — no coordinates |
+| Never prompted | nothing; the column defaults to `NOT_ASKED` |
+
+`permission` maps 1:1 onto Flutter `geolocator`'s `LocationPermission`, plus `ONE_TIME` for
+iOS's *"Only this time"*. `DENIED` and `DENIED_FOREVER` **clear** any stored coordinates and
+null `locationUpdatedAt` — the API will not keep matching on a position the user withdrew
+consent for.
+
+Location gets its own endpoint rather than riding along with `P-02` because it refreshes on
+almost every app open, and pushing a whole profile to move a coordinate risks clobbering
+unrelated fields. `A-03` and `P-02` still accept `latitude` / `longitude` / `locationPermission`
+for the onboarding submission, and stamp `locationUpdatedAt` whenever they write a coordinate.
+
+**Distance filtering** (`maxDistanceKm` in `D-02`) is enforced in two stages: a bounding box the
+database serves from `@@index([latitude, longitude])`, then exact Haversine over that pool in
+memory ([geo.ts](src/common/utils/geo.ts)). Deliberately no PostGIS — when a bounding box stops
+being selective enough, only `buildBoundingBox` and its one caller need to change.
+
+Two behaviours worth knowing before the app relies on them:
+
+- **Viewer has no coordinates** → no distance filtering at all. An unfiltered feed beats an
+  empty screen the user cannot explain. `distanceKm` comes back `null`.
+- **Candidate has no coordinates** → excluded while filtering is active, because an unknown
+  distance cannot satisfy a distance preference. A user who refuses location is therefore
+  undiscoverable to users who granted it.
+
+Other users' raw coordinates are never returned — only `distanceKm`, rounded to one decimal.
 
 ### Matches
 
@@ -283,7 +320,7 @@ Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints o
 
 `userPhone` / `userEmail` have stable defaults pointing at the seeded Ava Stone account. Re-running `A-01.1` is always safe — there is no uniqueness conflict to hit, because login finds the existing account instead of creating a second one. To walk the genuine first-time onboarding path, set `userPhone` to `{{onboardingPhone}}` (`+8801811000008`), whose profile the seed leaves blank.
 
-> A clean run against a freshly seeded database passes **47/51**. The other 4 are expected: `P-01` needs a file picked in the GUI, and `DT-07`/`DT-09`/`DT-10` conflict with the date state machine when the folder is run top-to-bottom — `DT-06` has already accepted the date and `DT-08` has cancelled it. Each of those three says so in its description.
+> A clean run against a freshly seeded database passes **48/52**. The other 4 are expected: `P-01` needs a file picked in the GUI, and `DT-07`/`DT-09`/`DT-10` conflict with the date state machine when the folder is run top-to-bottom — `DT-06` has already accepted the date and `DT-08` has cancelled it. Each of those three says so in its description.
 
 ## Common commands
 
