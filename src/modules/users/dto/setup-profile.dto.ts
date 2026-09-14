@@ -20,6 +20,7 @@ import {
   Gender,
   HabitFrequency,
   KidsStatus,
+  LocationPermission,
   LookingFor,
 } from '../../../generated/prisma/client.js';
 import {
@@ -124,6 +125,13 @@ export class SetupProfileDto {
   @IsOptional()
   @IsNumber()
   longitude?: number;
+
+  @IsOptional()
+  @IsEnum(LocationPermission, {
+    message:
+      'locationPermission must be one of: NOT_ASKED, WHILE_IN_USE, ONE_TIME, ALWAYS, DENIED, DENIED_FOREVER',
+  })
+  locationPermission?: LocationPermission;
 
   @IsOptional()
   @IsInt()
