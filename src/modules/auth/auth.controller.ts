@@ -5,6 +5,7 @@ import { successResponse } from '../../common/response/api-response.util.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
+import { ResendOtpDto } from './dto/resend-otp.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
 import { VerifyUserInformationDto } from './dto/verify-user-information.dto.js';
 import { GoogleLoginDto } from './dto/google-login.dto.js';
@@ -21,6 +22,15 @@ export class AuthController {
   async login(@Body() dto: LoginDto) {
     const data = await this.authService.login(dto);
     return successResponse(data, 'OTP sent successfully');
+  }
+
+  /**
+   * A-01.3 — re-sends the OTP from A-01.1. Refuses inside the 30s cooldown.
+   */
+  @Post('resend-otp')
+  async resendOtp(@Body() dto: ResendOtpDto) {
+    const data = await this.authService.resendOtp(dto);
+    return successResponse(data, 'OTP resent successfully');
   }
 
   @Post('google')

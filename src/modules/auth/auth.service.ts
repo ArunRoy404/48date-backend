@@ -8,17 +8,18 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import twilio from 'twilio';
-import { env } from '../../config/env.config.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import {
+  OTP_COOLDOWN_SECONDS,
+  OtpService,
+} from '../../common/otp/otp.service.js';
 import { UsersService } from '../users/users.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
+import { ResendOtpDto } from './dto/resend-otp.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
 import { VerifyUserInformationDto } from './dto/verify-user-information.dto.js';
 import { GoogleLoginDto } from './dto/google-login.dto.js';
-
-const DUMMY_OTP = '123456';
 
 @Injectable()
 export class AuthService {
@@ -29,79 +30,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly otp: OtpService,
   ) {}
-
-  /**
-   * Dispatches an OTP via Twilio Verify if configured in production,
-   * otherwise logs and returns the development dummy OTP.
-   */
-  private async sendOtp(
-    phone: string,
-  ): Promise<{ sent: boolean; message: string; otp?: string }> {
-    const accountSid = env.TWILIO_ACCOUNT_SID;
-    const authToken = env.TWILIO_AUTH_TOKEN;
-    const serviceSid = env.TWILIO_VERIFY_SERVICE_SID;
-
-    if (accountSid && authToken && serviceSid) {
-      try {
-        const client = twilio(accountSid, authToken);
-        await client.verify.v2.services(serviceSid).verifications.create({
-          to: phone,
-          channel: 'sms',
-        });
-        return { sent: true, message: 'OTP sent via SMS' };
-      } catch (error) {
-        this.logger.warn(
-          `Twilio Verify dispatch failed: ${(error as Error)?.message}. Falling back to dev OTP.`,
-        );
-        return {
-          sent: true,
-          message: 'Twilio Verify unavailable, using development dummy OTP',
-          otp: DUMMY_OTP,
-        };
-      }
-    }
-
-    return {
-      sent: true,
-      message: 'Development mode: dummy OTP active',
-      otp: DUMMY_OTP,
-    };
-  }
-
-  /**
-   * Verifies the OTP with Twilio Verify if configured,
-   * or matches against development dummy OTP.
-   */
-  private async verifyOtpCode(phone: string, otp: string): Promise<boolean> {
-    if (otp === DUMMY_OTP) {
-      return true;
-    }
-
-    const accountSid = env.TWILIO_ACCOUNT_SID;
-    const authToken = env.TWILIO_AUTH_TOKEN;
-    const serviceSid = env.TWILIO_VERIFY_SERVICE_SID;
-
-    if (accountSid && authToken && serviceSid) {
-      try {
-        const client = twilio(accountSid, authToken);
-        const check = await client.verify.v2
-          .services(serviceSid)
-          .verificationChecks.create({
-            to: phone,
-            code: otp,
-          });
-        return check.status === 'approved';
-      } catch (error) {
-        this.logger.warn(
-          `Twilio Verify check failed: ${(error as Error)?.message}`,
-        );
-        return false;
-      }
-    }
-
-    return false;
-  }
 
   /**
    * Unified login / sign-up handler — there is no separate register endpoint.
@@ -127,7 +57,6 @@ export class AuthService {
           data: {
             phone: dto.phone,
             isPhoneVerified: false,
-            isUserVerified: false,
           },
         })
         .catch((error: unknown) => {
@@ -140,20 +69,70 @@ export class AuthService {
         });
     }
 
-    const otpResult = await this.sendOtp(dto.phone);
+    // A brand-new account has never been sent anything, so it skips the wait.
+    if (!isNewAccount) {
+      this.otp.assertCooldown(user.lastOtpSentAt);
+    }
+
+    const otpResult = await this.otp.dispatchForUser(
+      user.id,
+      'PHONE',
+      dto.phone,
+    );
 
     return {
       requiresOtp: true,
       isNewAccount,
       phone: user.phone,
       isPhoneVerified: user.isPhoneVerified,
+      isEmailVerified: user.isEmailVerified,
+      isProfileComplete: user.isProfileComplete,
       isUserVerified: user.isUserVerified,
+      // So the OTP screen can disable its resend button for the right length
+      // of time without hard-coding the window.
+      resendCooldownSeconds: OTP_COOLDOWN_SECONDS,
       message: otpResult.message,
       ...(otpResult.otp ? { otp: otpResult.otp } : {}),
     };
   }
 
   /** Verifies an OTP and flips the matching verification flag on the account. */
+  /**
+   * Re-sends the OTP for an existing account.
+   *
+   * Never creates an account — a number we have not seen is a 404 here, unlike
+   * `login`, because resending implies something was sent in the first place.
+   */
+  async resendOtp(dto: ResendOtpDto) {
+    const user = await this.prisma.user.findFirst({
+      where: { phone: dto.phone },
+    });
+
+    if (!user) {
+      throw new NotFoundException('No account found with this phone number');
+    }
+
+    this.otp.assertCooldown(user.lastOtpSentAt);
+
+    const otpResult = await this.otp.dispatchForUser(
+      user.id,
+      'PHONE',
+      dto.phone,
+    );
+
+    return {
+      requiresOtp: true,
+      phone: user.phone,
+      isPhoneVerified: user.isPhoneVerified,
+      isEmailVerified: user.isEmailVerified,
+      isProfileComplete: user.isProfileComplete,
+      isUserVerified: user.isUserVerified,
+      resendCooldownSeconds: OTP_COOLDOWN_SECONDS,
+      message: otpResult.message,
+      ...(otpResult.otp ? { otp: otpResult.otp } : {}),
+    };
+  }
+
   async verifyOtp(dto: VerifyOtpDto) {
     const user = await this.prisma.user.findFirst({
       where: { phone: dto.phone },
@@ -163,7 +142,7 @@ export class AuthService {
       throw new NotFoundException('No account found with this phone number');
     }
 
-    const isValid = await this.verifyOtpCode(dto.phone, dto.otp);
+    const isValid = await this.otp.verify('PHONE', dto.phone, dto.otp);
     if (!isValid) {
       throw new UnauthorizedException('Invalid OTP');
     }
@@ -178,8 +157,10 @@ export class AuthService {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       isPhoneVerified: updated.isPhoneVerified,
+      isEmailVerified: updated.isEmailVerified,
+      isProfileComplete: updated.isProfileComplete,
       isUserVerified: updated.isUserVerified,
-      nextStep: updated.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
+      nextStep: updated.isProfileComplete ? 'MAIN_APP' : 'PROFILE_SETUP',
     };
   }
 
@@ -204,7 +185,7 @@ export class AuthService {
     });
 
     // `formatUser` nests the verification flags under `auth`.
-    if (!user.auth.isUserVerified) {
+    if (!user.auth.isProfileComplete) {
       throw new BadRequestException(
         'Profile is still incomplete — the account could not be verified.',
       );
@@ -212,6 +193,9 @@ export class AuthService {
 
     return {
       user,
+      isProfileComplete: user.auth.isProfileComplete,
+      // Stays false until an admin vouches for the account; completing
+      // onboarding is not the same thing.
       isUserVerified: user.auth.isUserVerified,
       nextStep: 'MAIN_APP',
     };
@@ -331,9 +315,10 @@ export class AuthService {
           // split on the first space and let the user correct it in A-03.
           firstName: name.split(' ')[0] || null,
           lastName: name.split(' ').slice(1).join(' ') || null,
+          // Google has already proven the address, so this is the one path
+          // that can set it without an OTP of our own.
           isEmailVerified: true,
           isPhoneVerified: false,
-          isUserVerified: false,
         },
       });
     } else {
@@ -352,8 +337,9 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       isEmailVerified: true,
       isPhoneVerified: user.isPhoneVerified,
+      isProfileComplete: user.isProfileComplete,
       isUserVerified: user.isUserVerified,
-      nextStep: user.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
+      nextStep: user.isProfileComplete ? 'MAIN_APP' : 'PROFILE_SETUP',
     };
   }
 

@@ -12,6 +12,8 @@ import { errorResponse } from '../response/api-response.util.js';
 interface HttpExceptionBody {
   message?: string | string[];
   error?: string;
+  /** Seconds until the caller may retry; rendered as the `Retry-After` header. */
+  retryAfterSeconds?: number;
 }
 
 /**
@@ -37,7 +39,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
           .json(errorResponse(body, [body], status));
       }
 
-      const { message, error } = (body ?? {}) as HttpExceptionBody;
+      const { message, error, retryAfterSeconds } = (body ??
+        {}) as HttpExceptionBody;
+
+      // The response envelope has a fixed shape, so a rate-limit countdown
+      // travels in the standard header rather than as an extra body field.
+      if (typeof retryAfterSeconds === 'number') {
+        response.setHeader('Retry-After', String(retryAfterSeconds));
+      }
 
       if (Array.isArray(message)) {
         // Validation errors — one message per failed field.

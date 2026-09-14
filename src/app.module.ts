@@ -19,10 +19,13 @@ import { SuccessStoriesModule } from './modules/success-stories/success-stories.
 import { FaceVerificationModule } from './modules/face-verification/face-verification.module.js';
 import { env } from './config/env.config.js';
 
+import { OtpModule } from './common/otp/otp.module.js';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    OtpModule,
     BullModule.forRoot({
       connection: {
         url: env.REDIS_URL,

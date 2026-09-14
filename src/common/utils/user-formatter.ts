@@ -33,6 +33,9 @@ export interface FormattedUser {
     role: 'USER' | 'ADMIN';
     isEmailVerified: boolean;
     isPhoneVerified: boolean;
+    /** Set by A-03 once onboarding lands. */
+    isProfileComplete: boolean;
+    /** Admin-granted trust badge — never set by a user-facing endpoint. */
     isUserVerified: boolean;
   };
   basicProfile: {
@@ -110,6 +113,7 @@ export function formatUser(
       role: user.role,
       isEmailVerified: user.isEmailVerified,
       isPhoneVerified: user.isPhoneVerified,
+      isProfileComplete: user.isProfileComplete,
       isUserVerified: user.isUserVerified,
     },
     basicProfile: {
