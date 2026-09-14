@@ -102,116 +102,116 @@ Profiles are returned categorized (`auth`, `basicProfile`, `lifestyle`, `locatio
 
 ### Auth
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-01 | POST | `/auth/register` | — | Create account, returns profile + tokens |
-| U-02 | POST | `/auth/verify-otp` | — | Verify OTP → sets `isPhoneVerified` / `isEmailVerified` |
-| U-03 | POST | `/auth/login` | — | Phone/email + password → tokens |
-| U-04 | POST | `/auth/google` | — | Google ID token → tokens (⚠️ signature not verified) |
-| U-05 | POST | `/auth/refresh` | — | Refresh token → new token pair |
-| U-06 | POST | `/auth/logout` | Bearer | Stateless — client discards tokens |
-| U-07 | POST | `/auth/forgot-password` | — | Request dummy reset OTP |
-| U-08 | POST | `/auth/verify-forgot-password` | — | Verify reset OTP → `resetToken` (15 min) |
-| U-09 | POST | `/auth/reset-password` | — | Set new password with `resetToken` |
+| A-01 | POST | `/auth/register` | — | Create account, returns profile + tokens |
+| A-02 | POST | `/auth/verify-otp` | — | Verify OTP → sets `isPhoneVerified` / `isEmailVerified` |
+| A-03 | POST | `/auth/login` | — | Phone/email + password → tokens |
+| A-04 | POST | `/auth/google` | — | Google ID token → tokens (⚠️ signature not verified) |
+| A-05 | POST | `/auth/refresh` | — | Refresh token → new token pair |
+| A-06 | POST | `/auth/logout` | Bearer | Stateless — client discards tokens |
+| A-07 | POST | `/auth/forgot-password` | — | Request dummy reset OTP |
+| A-08 | POST | `/auth/verify-forgot-password` | — | Verify reset OTP → `resetToken` (15 min) |
+| A-09 | POST | `/auth/reset-password` | — | Set new password with `resetToken` |
 
 ### Profile & Media
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-10 | POST | `/images/upload` | Bearer | Upload 1–6 images (multipart) |
-| U-11 | PATCH | `/users/profile-setup` | Bearer | Update any subset of profile fields |
-| U-12 | GET | `/users/profile` | Bearer | Categorized profile + images |
-| U-13 | POST | `/face-verification/verify` | Bearer | Submit selfie → `selfieVerified` |
-| U-14 | GET | `/face-verification/status` | Bearer | Verification flags + what's missing |
+| P-01 | POST | `/images/upload` | Bearer | Upload 1–6 images (multipart) |
+| P-02 | PATCH | `/users/profile-setup` | Bearer | Update any subset of profile fields |
+| P-03 | GET | `/users/profile` | Bearer | Categorized profile + images |
+| P-04 | POST | `/face-verification/verify` | Bearer | Submit selfie → `selfieVerified` |
+| P-05 | GET | `/face-verification/status` | Bearer | Verification flags + what's missing |
 
 ### Discovery
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-15 | GET | `/discovery/preferences` | Bearer | Current filters (creates defaults on first call) |
-| U-16 | PATCH | `/discovery/preferences` | Bearer | Age range, distance, preferred gender |
-| U-17 | GET | `/discovery` | Bearer | Candidate feed |
-| U-18 | GET | `/discovery/:id` | Bearer | Single candidate detail |
-| U-19 | POST | `/discovery/swipe` | Bearer | LIKE / PASS / SUPER_LIKE → may create a match |
+| D-01 | GET | `/discovery/preferences` | Bearer | Current filters (creates defaults on first call) |
+| D-02 | PATCH | `/discovery/preferences` | Bearer | Age range, distance, preferred gender |
+| D-03 | GET | `/discovery` | Bearer | Candidate feed |
+| D-04 | GET | `/discovery/:id` | Bearer | Single candidate detail |
+| D-05 | POST | `/discovery/swipe` | Bearer | LIKE / PASS / SUPER_LIKE → may create a match |
 
 ### Matches
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-20 | GET | `/matches` | Bearer | Active matches + linked conversation |
-| U-21 | DELETE | `/matches/:id` | Bearer | Unmatch |
+| M-01 | GET | `/matches` | Bearer | Active matches + linked conversation |
+| M-02 | DELETE | `/matches/:id` | Bearer | Unmatch |
 
 ### Chat
 
 REST endpoints **read only** — sending is WebSocket-only, see [Realtime chat](#realtime-chat).
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-22 | GET | `/chat/conversations` | Bearer | Conversations with last message + unread count |
-| U-23 | GET | `/chat/conversations/:id/messages` | Bearer | Paginated history (`limit`, `offset`) |
+| C-01 | GET | `/chat/conversations` | Bearer | Conversations with last message + unread count |
+| C-02 | GET | `/chat/conversations/:id/messages` | Bearer | Paginated history (`limit`, `offset`) |
 
 ### Games
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-24 | GET | `/games` | Bearer | Active games + questions |
-| U-25 | POST | `/games/sessions` | Bearer | Open (or resume) a session for a match |
-| U-26 | GET | `/games/sessions/:id` | Bearer | Session state and both players' answers |
-| U-27 | POST | `/games/sessions/:id/answers` | Bearer | Submit one answer |
+| G-01 | GET | `/games` | Bearer | Active games + questions |
+| G-02 | POST | `/games/sessions` | Bearer | Open (or resume) a session for a match |
+| G-03 | GET | `/games/sessions/:id` | Bearer | Session state and both players' answers |
+| G-04 | POST | `/games/sessions/:id/answers` | Bearer | Submit one answer |
 
 ### Dates
 
 Status machine: `PENDING` → `ACCEPTED` → `COMPLETED`, with `DECLINED` / `CANCELLED` / `NO_SHOW` as terminal branches.
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-28 | GET | `/dates/places/search` | Bearer | Mapbox venue autocomplete (`[]` without a token) |
-| U-29 | POST | `/dates` | Bearer | Send a date invitation → `PENDING` |
-| U-30 | GET | `/dates` | Bearer | List dates (filter by status, match, upcoming) |
-| U-31 | GET | `/dates/:id` | Bearer | Date plan detail |
-| U-32 | PATCH | `/dates/:id` | Bearer | Reschedule / edit |
-| U-33 | POST | `/dates/:id/accept` | Bearer | Invitee accepts → `ACCEPTED` |
-| U-34 | POST | `/dates/:id/decline` | Bearer | Invitee declines → `DECLINED` |
-| U-35 | POST | `/dates/:id/cancel` | Bearer | Either party cancels → `CANCELLED` |
-| U-36 | POST | `/dates/:id/complete` | Bearer | Mark `COMPLETED` (required before rating) |
-| U-37 | POST | `/dates/:id/ratings` | Bearer | 4 scores 1–5, optional comment, feeds trust score |
-| U-38 | GET | `/dates/:id/ratings` | Bearer | Ratings for a date |
+| DT-01 | GET | `/dates/places/search` | Bearer | Mapbox venue autocomplete (`[]` without a token) |
+| DT-02 | POST | `/dates` | Bearer | Send a date invitation → `PENDING` |
+| DT-03 | GET | `/dates` | Bearer | List dates (filter by status, match, upcoming) |
+| DT-04 | GET | `/dates/:id` | Bearer | Date plan detail |
+| DT-05 | PATCH | `/dates/:id` | Bearer | Reschedule / edit |
+| DT-06 | POST | `/dates/:id/accept` | Bearer | Invitee accepts → `ACCEPTED` |
+| DT-07 | POST | `/dates/:id/decline` | Bearer | Invitee declines → `DECLINED` |
+| DT-08 | POST | `/dates/:id/cancel` | Bearer | Either party cancels → `CANCELLED` |
+| DT-09 | POST | `/dates/:id/complete` | Bearer | Mark `COMPLETED` (required before rating) |
+| DT-10 | POST | `/dates/:id/ratings` | Bearer | 4 scores 1–5, optional comment, feeds trust score |
+| DT-11 | GET | `/dates/:id/ratings` | Bearer | Ratings for a date |
 
 ### Trust Score
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-39 | GET | `/trust-score` | Bearer | Score, badge tier, aggregate stats |
-| U-40 | GET | `/trust-score/history` | Bearer | Paginated log of scoring events |
+| T-01 | GET | `/trust-score` | Bearer | Score, badge tier, aggregate stats |
+| T-02 | GET | `/trust-score/history` | Bearer | Paginated log of scoring events |
 
 ### Safety
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-41 | POST | `/blocks/:userId` | Bearer | Block a user |
-| U-42 | GET | `/blocks` | Bearer | Blocked users (paginated) |
-| U-43 | DELETE | `/blocks/:userId` | Bearer | Unblock |
-| U-44 | POST | `/reports` | Bearer | File a report (optionally block in the same call) |
-| U-45 | GET | `/reports/my-reports` | Bearer | Reports filed by the caller |
+| S-01 | POST | `/blocks/:userId` | Bearer | Block a user |
+| S-02 | GET | `/blocks` | Bearer | Blocked users (paginated) |
+| S-03 | DELETE | `/blocks/:userId` | Bearer | Unblock |
+| S-04 | POST | `/reports` | Bearer | File a report (optionally block in the same call) |
+| S-05 | GET | `/reports/my-reports` | Bearer | Reports filed by the caller |
 
 ### Subscriptions
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-46 | GET | `/subscriptions/plans` | — | Static plan catalogue (public, for the paywall) |
-| U-47 | GET | `/subscriptions/me` | Bearer | Subscription state + premium flag |
-| U-48 | POST | `/subscriptions/webhook` | Secret | RevenueCat server-to-server callback |
+| SB-01 | GET | `/subscriptions/plans` | — | Static plan catalogue (public, for the paywall) |
+| SB-02 | GET | `/subscriptions/me` | Bearer | Subscription state + premium flag |
+| SB-03 | POST | `/subscriptions/webhook` | Secret | RevenueCat server-to-server callback |
 
 ### Success Stories
 
-| Serial | Method | Path | Auth | Description |
+| # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| U-49 | POST | `/success-stories` | Bearer | Submit a story → `PENDING` |
-| U-50 | GET | `/success-stories` | — | List published stories (public) |
-| U-51 | GET | `/success-stories/:id` | — | Story + comments (public) |
-| U-52 | POST | `/success-stories/:id/like` | Bearer | Toggle like |
-| U-53 | POST | `/success-stories/:id/comments` | Bearer | Add a comment |
-| U-54 | DELETE | `/success-stories/:id/comments/:commentId` | Bearer | Delete own comment |
+| SS-01 | POST | `/success-stories` | Bearer | Submit a story → `PENDING` |
+| SS-02 | GET | `/success-stories` | — | List published stories (public) |
+| SS-03 | GET | `/success-stories/:id` | — | Story + comments (public) |
+| SS-04 | POST | `/success-stories/:id/like` | Bearer | Toggle like |
+| SS-05 | POST | `/success-stories/:id/comments` | Bearer | Add a comment |
+| SS-06 | DELETE | `/success-stories/:id/comments/:commentId` | Bearer | Delete own comment |
 
 ## Realtime chat
 
@@ -229,10 +229,10 @@ Socket.IO on the same origin as the REST API, with the JWT passed in the handsha
 
 Import `postman/48date-backend.postman_collection.json`. Two root folders:
 
-- **USER** — all 54 endpoints, serialised `U-01` → `U-54` in integration order across 11 subfolders.
+- **USER** — all 54 endpoints across 11 subfolders, numbered `01 · Auth` → `11 · Success Stories` in integration order. Each folder carries its own serial prefix: `A` Auth, `P` Profile, `D` Discovery, `M` Matches, `C` Chat, `G` Games, `DT` Dates, `T` Trust Score, `S` Safety, `SB` Subscriptions, `SS` Success Stories — numbered `01..n` inside the folder.
 - **ADMIN** — an intentionally empty placeholder. No admin endpoints exist; nothing has been stubbed or invented.
 
-Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints overriding to *No Auth*. Every request that returns an id captures it into a collection variable (`accessToken`, `matchId`, `datePlanId`, `storyId`, …), so the folders are runnable top-to-bottom without editing variables by hand. A pre-request script generates a unique `phone` and `email` on first run so `U-01` doesn't collide with a previous run.
+Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints overriding to *No Auth*. Every request that returns an id captures it into a collection variable (`accessToken`, `matchId`, `datePlanId`, `storyId`, …), so the folders are runnable top-to-bottom without editing variables by hand. A pre-request script generates a unique `phone` and `email` on first run so `A-01` doesn't collide with a previous run.
 
 Id variables default to `REPLACE_ME` so an unset id fails loudly with a clear 404, rather than silently collapsing to a different route (`/dates/` would otherwise hit the list endpoint).
 
@@ -289,11 +289,11 @@ The `app` service builds the Dockerfile and runs `prisma migrate deploy` before 
 Verified against the running server:
 
 - **No admin API.** `AdminModule` is commented out and unregistered; `@Roles()` / `RolesGuard` exist but are unused.
-- **`POST /auth/request-otp` and `GET /auth/me` do not exist** — earlier versions of this README documented them. Registration and login already return tokens plus the user object, and `GET /users/profile` (U-12) replaces `/auth/me`.
+- **`POST /auth/request-otp` and `GET /auth/me` do not exist** — earlier versions of this README documented them. Registration and login already return tokens plus the user object, and `GET /users/profile` (P-03) replaces `/auth/me`.
 - **Google login does not verify the ID token signature** — it only base64-decodes the payload to read `email`.
 - **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.
-- **Success stories can never be published** — `U-49` creates them as `PENDING` and no endpoint can approve them.
-- **Reports can never be actioned** — `U-44` creates them as `PENDING` with no review endpoint.
+- **Success stories can never be published** — `SS-01` creates them as `PENDING` and no endpoint can approve them.
+- **Reports can never be actioned** — `S-04` creates them as `PENDING` with no review endpoint.
 - Several DTO validation messages in `register.dto.ts` still name removed enum values (`PREFER_NOT_TO_SAY`, `REGULAR`/`OCCASIONALLY`/`NONE`, `HAVE`/`DONT_HAVE`). The messages are stale; the enums enforced are the ones listed in `setup-profile.dto.ts`.
 
 ## Docs
