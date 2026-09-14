@@ -1,9 +1,22 @@
 import { Module } from '@nestjs/common';
-// import { ChatGateway } from './chat.gateway.js';
-// import { ChatService } from './chat.service.js';
+import { JwtModule } from '@nestjs/jwt';
+import { PrismaModule } from '../../common/prisma/prisma.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
+import { ChatGateway } from './chat.gateway.js';
+import { ChatService } from './chat.service.js';
+import { ChatController } from './chat.controller.js';
+import { env } from '../../config/env.config.js';
 
 @Module({
-  // providers: [ChatGateway, ChatService],
-  // exports: [ChatService],
+  imports: [
+    PrismaModule,
+    NotificationsModule,
+    JwtModule.register({
+      secret: env.JWT_ACCESS_SECRET,
+    }),
+  ],
+  controllers: [ChatController],
+  providers: [ChatGateway, ChatService],
+  exports: [ChatGateway, ChatService],
 })
 export class ChatModule {}

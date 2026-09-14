@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
-// import { FaceVerificationService } from './face-verification.service.js';
+import { ImagesModule } from '../images/images.module.js';
+import { FaceVerificationController } from './face-verification.controller.js';
+import { FaceVerificationService } from './face-verification.service.js';
 
 @Module({
-  // providers: [FaceVerificationService],
-  // exports: [FaceVerificationService],
+  imports: [ImagesModule],
+  controllers: [FaceVerificationController],
+  providers: [FaceVerificationService],
+  exports: [FaceVerificationService],
 })
 export class FaceVerificationModule {}

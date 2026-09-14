@@ -50,11 +50,36 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return response.status(status).json(errorResponse(text, [text], status));
     }
 
-    // Unknown/unexpected error — hide details, log them server-side.
+    // Unknown/unexpected error — log details server-side.
+    const errObj =
+      typeof exception === 'object' && exception !== null
+        ? (exception as Record<string, unknown>)
+        : undefined;
+    const errCode =
+      (typeof errObj?.code === 'string' && errObj.code) ||
+      (typeof errObj?.name === 'string' && errObj.name) ||
+      'ERROR';
+    const errMsg =
+      (typeof errObj?.message === 'string' && errObj.message) ||
+      String(exception);
+
     this.logger.error(
-      'Unhandled exception',
+      `Unhandled exception [${errCode}]: ${errMsg}`,
       exception instanceof Error ? exception.stack : String(exception),
     );
+
+    if (errCode === 'ECONNREFUSED') {
+      return response
+        .status(HttpStatus.SERVICE_UNAVAILABLE)
+        .json(
+          errorResponse(
+            'Database connection refused. Please start your PostgreSQL container with "docker compose up -d".',
+            ['Cannot connect to PostgreSQL database'],
+            HttpStatus.SERVICE_UNAVAILABLE,
+          ),
+        );
+    }
+
     return response
       .status(HttpStatus.INTERNAL_SERVER_ERROR)
       .json(
