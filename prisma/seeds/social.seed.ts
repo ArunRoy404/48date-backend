@@ -30,7 +30,10 @@ const daysFromNow = (d: number) => new Date(Date.now() + d * 86_400_000);
  * - zara         : blocked and reported by ava
  * - liam ↔ mia   : the PUBLISHED success story, with a like and a comment
  */
-export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void> {
+export async function seedSocial(
+  prisma: PrismaClient,
+  u: UserMap,
+): Promise<void> {
   console.log('🤝 Seeding matches, chat, games, dates and social data...');
 
   // ---------------------------------------------------------------- swipes
@@ -63,8 +66,12 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
     .filter((a) => !keptPairs.includes(`${a.actorId}:${a.targetUserId}`))
     .map((a) => a.id);
   if (strayIds.length) {
-    await prisma.discoveryAction.deleteMany({ where: { id: { in: strayIds } } });
-    console.log(`  🧹 removed ${strayIds.length} swipe(s) left over from API runs`);
+    await prisma.discoveryAction.deleteMany({
+      where: { id: { in: strayIds } },
+    });
+    console.log(
+      `  🧹 removed ${strayIds.length} swipe(s) left over from API runs`,
+    );
   }
 
   // --------------------------------------------------------------- matches
@@ -75,7 +82,9 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
     });
     const match =
       existing ??
-      (await prisma.match.create({ data: { ...p, status: MatchStatus.ACTIVE } }));
+      (await prisma.match.create({
+        data: { ...p, status: MatchStatus.ACTIVE },
+      }));
     if (existing && existing.status !== MatchStatus.ACTIVE) {
       await prisma.match.update({
         where: { id: match.id },
@@ -107,7 +116,9 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
     await prisma.match.deleteMany({
       where: { id: { in: strayMatches.map((m) => m.id) } },
     });
-    console.log(`  🧹 removed ${strayMatches.length} match(es) left over from API runs`);
+    console.log(
+      `  🧹 removed ${strayMatches.length} match(es) left over from API runs`,
+    );
   }
 
   // ------------------------------------------------------------------ chat
@@ -115,9 +126,21 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
     where: { conversationId: avaLiam.conversation.id },
   });
   const thread: [string, MessageType, string][] = [
-    [u.liam, MessageType.TEXT, 'Hey Ava! Your photography work looks amazing 📸'],
-    [u.ava, MessageType.TEXT, 'Thank you! I saw you play basketball — how long have you been at it?'],
-    [u.liam, MessageType.TEXT, 'Since university. Still terrible at free throws though.'],
+    [
+      u.liam,
+      MessageType.TEXT,
+      'Hey Ava! Your photography work looks amazing 📸',
+    ],
+    [
+      u.ava,
+      MessageType.TEXT,
+      'Thank you! I saw you play basketball — how long have you been at it?',
+    ],
+    [
+      u.liam,
+      MessageType.TEXT,
+      'Since university. Still terrible at free throws though.',
+    ],
     [u.ava, MessageType.TEXT, 'Ha! Coffee sometime and you can tell me more?'],
     [u.liam, MessageType.TEXT, 'I would love that. Sending an invite now.'],
     [u.liam, MessageType.DATE_INVITE, 'Date invitation: Cafe Mango, Gulshan'],
@@ -138,10 +161,14 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   // ----------------------------------------------------------------- games
   const game = await prisma.game.findFirst({
     where: { isActive: true },
-    include: { questions: { where: { isActive: true }, orderBy: { order: 'asc' } } },
+    include: {
+      questions: { where: { isActive: true }, orderBy: { order: 'asc' } },
+    },
   });
   if (game && game.questions.length) {
-    await prisma.gameSession.deleteMany({ where: { matchId: avaLiam.match.id } });
+    await prisma.gameSession.deleteMany({
+      where: { matchId: avaLiam.match.id },
+    });
     const session = await prisma.gameSession.create({
       data: {
         matchId: avaLiam.match.id,
@@ -169,7 +196,9 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
       }
     }
     // A second, still-open session on the other match.
-    await prisma.gameSession.deleteMany({ where: { matchId: avaNoah.match.id } });
+    await prisma.gameSession.deleteMany({
+      where: { matchId: avaNoah.match.id },
+    });
     await prisma.gameSession.create({
       data: {
         matchId: avaNoah.match.id,
@@ -192,22 +221,37 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
       receiverId: u.ava,
       venueName: 'Cafe Mango',
       venueAddress: '12 Gulshan Ave, Dhaka 1212',
-      latitude: 23.7925, longitude: 90.4078,
-      date: daysFromNow(-7), startTime: daysFromNow(-7), endTime: daysFromNow(-7),
+      latitude: 23.7925,
+      longitude: 90.4078,
+      date: daysFromNow(-7),
+      startTime: daysFromNow(-7),
+      endTime: daysFromNow(-7),
       status: DateStatus.COMPLETED,
     },
   });
   await prisma.dateRating.createMany({
     data: [
       {
-        datePlanId: completed.id, reviewerId: u.ava, reviewedUserId: u.liam,
-        behaviorScore: 5, punctualityScore: 5, safetyScore: 5, overallScore: 5,
-        comment: 'Lovely evening, great conversation and right on time.', isAnonymous: false,
+        datePlanId: completed.id,
+        reviewerId: u.ava,
+        reviewedUserId: u.liam,
+        behaviorScore: 5,
+        punctualityScore: 5,
+        safetyScore: 5,
+        overallScore: 5,
+        comment: 'Lovely evening, great conversation and right on time.',
+        isAnonymous: false,
       },
       {
-        datePlanId: completed.id, reviewerId: u.liam, reviewedUserId: u.ava,
-        behaviorScore: 5, punctualityScore: 4, safetyScore: 5, overallScore: 5,
-        comment: 'Really easy to talk to. Would happily meet again.', isAnonymous: false,
+        datePlanId: completed.id,
+        reviewerId: u.liam,
+        reviewedUserId: u.ava,
+        behaviorScore: 5,
+        punctualityScore: 4,
+        safetyScore: 5,
+        overallScore: 5,
+        comment: 'Really easy to talk to. Would happily meet again.',
+        isAnonymous: false,
       },
     ],
   });
@@ -215,10 +259,15 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   // Cancelled history on the same match (only one PENDING/ACCEPTED is allowed).
   await prisma.datePlan.create({
     data: {
-      matchId: avaLiam.match.id, proposerId: u.ava, receiverId: u.liam,
-      venueName: 'Rooftop 71', venueAddress: '71 Banani Rd, Dhaka',
-      latitude: 23.7936, longitude: 90.4066,
-      date: daysFromNow(-2), startTime: daysFromNow(-2),
+      matchId: avaLiam.match.id,
+      proposerId: u.ava,
+      receiverId: u.liam,
+      venueName: 'Rooftop 71',
+      venueAddress: '71 Banani Rd, Dhaka',
+      latitude: 23.7936,
+      longitude: 90.4066,
+      date: daysFromNow(-2),
+      startTime: daysFromNow(-2),
       status: DateStatus.CANCELLED,
     },
   });
@@ -226,11 +275,16 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   // PENDING invitation addressed TO ava, so DT-06 / DT-07 work as ava.
   await prisma.datePlan.create({
     data: {
-      matchId: avaNoah.match.id, proposerId: u.noah, receiverId: u.ava,
+      matchId: avaNoah.match.id,
+      proposerId: u.noah,
+      receiverId: u.ava,
       venueName: 'North End Coffee Roasters',
       venueAddress: '5 Dhanmondi 27, Dhaka',
-      latitude: 23.7465, longitude: 90.3760,
-      date: daysFromNow(3), startTime: daysFromNow(3), endTime: daysFromNow(3),
+      latitude: 23.7465,
+      longitude: 90.376,
+      date: daysFromNow(3),
+      startTime: daysFromNow(3),
+      endTime: daysFromNow(3),
       status: DateStatus.PENDING,
     },
   });
@@ -241,24 +295,62 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   });
   await prisma.trustScoreEvent.createMany({
     data: [
-      { userId: u.ava, type: TrustEventType.PROFILE_VERIFIED, points: 10, reason: 'Selfie verification passed' },
-      { userId: u.ava, type: TrustEventType.DATE_ATTENDED, points: 8, reason: 'Attended date at Cafe Mango' },
-      { userId: u.ava, type: TrustEventType.POSITIVE_FEEDBACK, points: 4, reason: '5-star rating received' },
-      { userId: u.liam, type: TrustEventType.PROFILE_VERIFIED, points: 10, reason: 'Selfie verification passed' },
-      { userId: u.liam, type: TrustEventType.DATE_ATTENDED, points: 8, reason: 'Attended date at Cafe Mango' },
-      { userId: u.zara, type: TrustEventType.NO_SHOW, points: -15, reason: 'Did not attend a confirmed date' },
-      { userId: u.zara, type: TrustEventType.ABUSIVE_BEHAVIOR, points: -10, reason: 'Reported for harassment' },
+      {
+        userId: u.ava,
+        type: TrustEventType.PROFILE_VERIFIED,
+        points: 10,
+        reason: 'Selfie verification passed',
+      },
+      {
+        userId: u.ava,
+        type: TrustEventType.DATE_ATTENDED,
+        points: 8,
+        reason: 'Attended date at Cafe Mango',
+      },
+      {
+        userId: u.ava,
+        type: TrustEventType.POSITIVE_FEEDBACK,
+        points: 4,
+        reason: '5-star rating received',
+      },
+      {
+        userId: u.liam,
+        type: TrustEventType.PROFILE_VERIFIED,
+        points: 10,
+        reason: 'Selfie verification passed',
+      },
+      {
+        userId: u.liam,
+        type: TrustEventType.DATE_ATTENDED,
+        points: 8,
+        reason: 'Attended date at Cafe Mango',
+      },
+      {
+        userId: u.zara,
+        type: TrustEventType.NO_SHOW,
+        points: -15,
+        reason: 'Did not attend a confirmed date',
+      },
+      {
+        userId: u.zara,
+        type: TrustEventType.ABUSIVE_BEHAVIOR,
+        points: -10,
+        reason: 'Reported for harassment',
+      },
     ],
   });
 
   // ---------------------------------------------------------------- safety
   await prisma.block.deleteMany({ where: { blockerId: u.ava } });
-  await prisma.block.create({ data: { blockerId: u.ava, blockedUserId: u.zara } });
+  await prisma.block.create({
+    data: { blockerId: u.ava, blockedUserId: u.zara },
+  });
 
   await prisma.report.deleteMany({ where: { reporterId: u.ava } });
   await prisma.report.create({
     data: {
-      reporterId: u.ava, reportedUserId: u.zara,
+      reporterId: u.ava,
+      reportedUserId: u.zara,
       reason: 'Inappropriate messages',
       description: 'Sent harassing messages after I declined a date.',
       status: ReportStatus.PENDING,
@@ -266,17 +358,28 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   });
 
   // --------------------------------------------------------- subscriptions
-  await prisma.subscription.deleteMany({ where: { userId: { in: [u.ava, u.kabir] } } });
+  await prisma.subscription.deleteMany({
+    where: { userId: { in: [u.ava, u.kabir] } },
+  });
   const sub = await prisma.subscription.create({
     data: {
-      userId: u.ava, plan: SubscriptionPlan.MONTHLY, provider: 'revenuecat',
-      productId: 'com.date48.monthly', priceUsd: '14.99',
+      userId: u.ava,
+      plan: SubscriptionPlan.MONTHLY,
+      provider: 'revenuecat',
+      productId: 'com.date48.monthly',
+      priceUsd: '14.99',
       status: SubscriptionStatus.ACTIVE,
-      startedAt: daysFromNow(-10), expiresAt: daysFromNow(20),
+      startedAt: daysFromNow(-10),
+      expiresAt: daysFromNow(20),
     },
   });
-  await prisma.user.update({ where: { id: u.ava }, data: { subscriptionId: sub.id } });
-  await prisma.subscriptionEvent.deleteMany({ where: { externalEventId: 'demo_evt_initial_purchase' } });
+  await prisma.user.update({
+    where: { id: u.ava },
+    data: { subscriptionId: sub.id },
+  });
+  await prisma.subscriptionEvent.deleteMany({
+    where: { externalEventId: 'demo_evt_initial_purchase' },
+  });
   await prisma.subscriptionEvent.create({
     data: {
       subscriptionId: sub.id,
@@ -289,10 +392,14 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   // An expired subscription, so the "not premium any more" branch has data too.
   await prisma.subscription.create({
     data: {
-      userId: u.kabir, plan: SubscriptionPlan.WEEKLY, provider: 'revenuecat',
-      productId: 'com.date48.weekly', priceUsd: '4.99',
+      userId: u.kabir,
+      plan: SubscriptionPlan.WEEKLY,
+      provider: 'revenuecat',
+      productId: 'com.date48.weekly',
+      priceUsd: '4.99',
       status: SubscriptionStatus.EXPIRED,
-      startedAt: daysFromNow(-30), expiresAt: daysFromNow(-23),
+      startedAt: daysFromNow(-30),
+      expiresAt: daysFromNow(-23),
     },
   });
 
@@ -302,7 +409,8 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   });
   const published = await prisma.successStory.create({
     data: {
-      authorId: u.liam, partnerId: u.mia,
+      authorId: u.liam,
+      partnerId: u.mia,
       title: 'Two coffees and a shared playlist later',
       story:
         'We matched on a Tuesday and planned a date within 48 hours, exactly the way the app intends. One year on we have moved in together and still argue about whose playlist gets to run the kitchen.',
@@ -318,14 +426,23 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   });
   await prisma.successStoryComment.createMany({
     data: [
-      { storyId: published.id, userId: u.ava, content: 'Congratulations to you both! 🎉' },
-      { storyId: published.id, userId: u.kabir, content: 'This is the sweetest thing I have read today.' },
+      {
+        storyId: published.id,
+        userId: u.ava,
+        content: 'Congratulations to you both! 🎉',
+      },
+      {
+        storyId: published.id,
+        userId: u.kabir,
+        content: 'This is the sweetest thing I have read today.',
+      },
     ],
   });
   // One still awaiting moderation, so the PENDING state is represented.
   await prisma.successStory.create({
     data: {
-      authorId: u.ava, partnerId: u.liam,
+      authorId: u.ava,
+      partnerId: u.liam,
       title: 'Our first 48 hours',
       story:
         'Still writing this one, but the short version is that a rainy first date at Cafe Mango turned into every weekend since.',
@@ -335,15 +452,39 @@ export async function seedSocial(prisma: PrismaClient, u: UserMap): Promise<void
   });
 
   // --------------------------------------------------------- notifications
-  await prisma.notification.deleteMany({ where: { userId: { in: Object.values(u) } } });
+  await prisma.notification.deleteMany({
+    where: { userId: { in: Object.values(u) } },
+  });
   await prisma.notification.createMany({
     data: [
-      { userId: u.ava, type: NotificationType.MATCH, title: "It's a match!", body: 'You and Liam Chen liked each other.' },
-      { userId: u.ava, type: NotificationType.MESSAGE, title: 'New message', body: 'Liam Chen sent you a message.' },
-      { userId: u.ava, type: NotificationType.DATE_INVITE, title: 'Date invitation', body: 'Noah Reed invited you to North End Coffee Roasters.' },
-      { userId: u.liam, type: NotificationType.MATCH, title: "It's a match!", body: 'You and Ava Stone liked each other.' },
+      {
+        userId: u.ava,
+        type: NotificationType.MATCH,
+        title: "It's a match!",
+        body: 'You and Liam Chen liked each other.',
+      },
+      {
+        userId: u.ava,
+        type: NotificationType.MESSAGE,
+        title: 'New message',
+        body: 'Liam Chen sent you a message.',
+      },
+      {
+        userId: u.ava,
+        type: NotificationType.DATE_INVITE,
+        title: 'Date invitation',
+        body: 'Noah Reed invited you to North End Coffee Roasters.',
+      },
+      {
+        userId: u.liam,
+        type: NotificationType.MATCH,
+        title: "It's a match!",
+        body: 'You and Ava Stone liked each other.',
+      },
     ],
   });
 
-  console.log('  🤝 2 matches, 6 messages, 2 game sessions, 3 date plans, 2 stories');
+  console.log(
+    '  🤝 2 matches, 6 messages, 2 game sessions, 3 date plans, 2 stories',
+  );
 }
