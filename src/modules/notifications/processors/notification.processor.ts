@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
 import { NotificationsService } from '../notifications.service.js';
+import { displayName } from '../../../common/utils/user-formatter.js';
 
 @Processor('notifications')
 export class NotificationProcessor extends WorkerHost {
@@ -50,7 +51,7 @@ export class NotificationProcessor extends WorkerHost {
     const [actor, targetUser] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: actorId },
-        select: { name: true },
+        select: { firstName: true, lastName: true },
       }),
       this.prisma.user.findUnique({
         where: { id: targetUserId },
@@ -65,7 +66,7 @@ export class NotificationProcessor extends WorkerHost {
       return;
     }
 
-    const actorName = actor.name || 'Someone';
+    const actorName = displayName(actor) || 'Someone';
     const title = 'New Super Like! ⭐';
     const body = `${actorName} super liked your profile!`;
 
@@ -102,7 +103,7 @@ export class NotificationProcessor extends WorkerHost {
         await this.notificationsService.sendEmail(
           targetUser.email,
           title,
-          `<p>Hi ${targetUser.name || 'there'},</p><p><strong>${actorName}</strong> just super liked your profile on 48Date!</p><p>Open the app to swipe back and start the chat.</p>`,
+          `<p>Hi ${displayName(targetUser) || 'there'},</p><p><strong>${actorName}</strong> just super liked your profile on 48Date!</p><p>Open the app to swipe back and start the chat.</p>`,
         );
       }
       if (targetUser.phone && targetUser.isPhoneVerified) {
@@ -135,8 +136,8 @@ export class NotificationProcessor extends WorkerHost {
       return;
     }
 
-    const nameA = userA.name || 'Someone';
-    const nameB = userB.name || 'Someone';
+    const nameA = displayName(userA) || 'Someone';
+    const nameB = displayName(userB) || 'Someone';
 
     // Notify User A
     const titleA = "It's a Match! ❤️";
@@ -207,7 +208,7 @@ export class NotificationProcessor extends WorkerHost {
     const [sender, receiver] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: senderId },
-        select: { name: true },
+        select: { firstName: true, lastName: true },
       }),
       this.prisma.user.findUnique({
         where: { id: receiverId },
@@ -222,7 +223,7 @@ export class NotificationProcessor extends WorkerHost {
       return;
     }
 
-    const senderName = sender.name || 'Someone';
+    const senderName = displayName(sender) || 'Someone';
     const title = `New message from ${senderName}`;
     // Truncate message preview if it's too long
     const preview =

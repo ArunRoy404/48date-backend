@@ -115,39 +115,23 @@ export class AuthService {
    *   the token pair and routes on `nextStep`.
    */
   async login(dto: LoginDto) {
-    const channel = dto.channel || (dto.phone ? 'phone' : 'email');
-    const identifier = channel === 'phone' ? dto.phone : dto.email;
-
-    if (!identifier) {
-      throw new BadRequestException(
-        dto.channel
-          ? `${channel} must be provided when channel is "${channel}"`
-          : 'Either phone or email must be provided',
-      );
-    }
-
-    let user = await this.findByChannel({ channel, ...dto });
+    let user = await this.prisma.user.findFirst({
+      where: { phone: dto.phone },
+    });
     let isNewAccount = false;
 
     if (!user) {
       isNewAccount = true;
       user = await this.prisma.user
         .create({
-          data:
-            channel === 'phone'
-              ? {
-                  phone: identifier,
-                  isPhoneVerified: false,
-                  isUserVerified: false,
-                }
-              : {
-                  email: identifier,
-                  isEmailVerified: false,
-                  isUserVerified: false,
-                },
+          data: {
+            phone: dto.phone,
+            isPhoneVerified: false,
+            isUserVerified: false,
+          },
         })
         .catch((error: unknown) => {
-          // Two first-time logins for the same identifier can race here.
+          // Two first-time logins for the same number can race here.
           const conflictMessage = this.uniqueConflictMessage(error);
           if (conflictMessage) {
             throw new ConflictException(conflictMessage);
@@ -156,22 +140,13 @@ export class AuthService {
         });
     }
 
-    const otpResult =
-      channel === 'phone'
-        ? await this.sendOtp(identifier)
-        : {
-            sent: true,
-            message: 'Development mode: dummy OTP active',
-            otp: DUMMY_OTP,
-          };
+    const otpResult = await this.sendOtp(dto.phone);
 
     return {
       requiresOtp: true,
       isNewAccount,
-      channel,
-      ...(channel === 'phone' ? { phone: user.phone } : { email: user.email }),
+      phone: user.phone,
       isPhoneVerified: user.isPhoneVerified,
-      isEmailVerified: user.isEmailVerified,
       isUserVerified: user.isUserVerified,
       message: otpResult.message,
       ...(otpResult.otp ? { otp: otpResult.otp } : {}),
@@ -180,36 +155,22 @@ export class AuthService {
 
   /** Verifies an OTP and flips the matching verification flag on the account. */
   async verifyOtp(dto: VerifyOtpDto) {
-    const channel = dto.channel || (dto.phone ? 'phone' : 'email');
-    const user = await this.findByChannel({
-      channel,
-      phone: dto.phone,
-      email: dto.email,
+    const user = await this.prisma.user.findFirst({
+      where: { phone: dto.phone },
     });
 
     if (!user) {
-      throw new NotFoundException(`No account found with this ${channel}`);
+      throw new NotFoundException('No account found with this phone number');
     }
 
-    let isValid = false;
-    if (channel === 'phone' && dto.phone) {
-      isValid = await this.verifyOtpCode(dto.phone, dto.otp);
-    } else if (channel === 'email') {
-      isValid = dto.otp === DUMMY_OTP;
-    }
-
+    const isValid = await this.verifyOtpCode(dto.phone, dto.otp);
     if (!isValid) {
       throw new UnauthorizedException('Invalid OTP');
     }
 
     const updated = await this.prisma.user.update({
       where: { id: user.id },
-      data: {
-        ...(channel === 'email'
-          ? { isEmailVerified: true }
-          : { isPhoneVerified: true }),
-        lastLoginAt: new Date(),
-      },
+      data: { isPhoneVerified: true, lastLoginAt: new Date() },
     });
 
     const tokens = await this.issueTokens(updated.id, updated.role);
@@ -217,7 +178,6 @@ export class AuthService {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       isPhoneVerified: updated.isPhoneVerified,
-      isEmailVerified: updated.isEmailVerified,
       isUserVerified: updated.isUserVerified,
       nextStep: updated.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
     };
@@ -235,11 +195,13 @@ export class AuthService {
    * Later edits go through `PATCH /users/profile-setup` (P-02).
    */
   async verifyUserInformation(userId: string, dto: VerifyUserInformationDto) {
-    // `name` is what the profile screens display; derive it when the client
-    // only sent the two name parts.
-    const name = dto.name?.trim() || `${dto.firstName} ${dto.lastName}`.trim();
-
-    const user = await this.usersService.setupProfile(userId, { ...dto, name });
+    // `selfieVerificationImageUrl` is the wire name for what the model stores
+    // as `selfieUrl`; everything else maps across unchanged.
+    const { selfieVerificationImageUrl, ...profile } = dto;
+    const user = await this.usersService.setupProfile(userId, {
+      ...profile,
+      selfieUrl: selfieVerificationImageUrl,
+    });
 
     // `formatUser` nests the verification flags under `auth`.
     if (!user.auth.isUserVerified) {
@@ -327,18 +289,6 @@ export class AuthService {
     return 'This account is already registered';
   }
 
-  /** Looks up an account by the identifier that matches the requested channel. */
-  private async findByChannel(dto: {
-    channel?: 'email' | 'phone';
-    phone?: string;
-    email?: string;
-  }) {
-    const channel = dto.channel || (dto.phone ? 'phone' : 'email');
-    return channel === 'email'
-      ? this.prisma.user.findFirst({ where: { email: dto.email! } })
-      : this.prisma.user.findFirst({ where: { phone: dto.phone! } });
-  }
-
   async googleLogin(dto: GoogleLoginDto) {
     let email: string;
     let name: string;
@@ -377,7 +327,10 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           email,
-          name,
+          // The model has no single `name` column; Google gives one string, so
+          // split on the first space and let the user correct it in A-03.
+          firstName: name.split(' ')[0] || null,
+          lastName: name.split(' ').slice(1).join(' ') || null,
           isEmailVerified: true,
           isPhoneVerified: false,
           isUserVerified: false,

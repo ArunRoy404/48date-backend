@@ -1,0 +1,13 @@
+/// Watch-list genres offered on the interests onboarding screen.
+enum MovieAndDramaInterest {
+  TV_SHOWS
+  ROMANCE
+  COMEDY
+  K_DRAMA
+  HORROR
+  THRILLER
+  SCI_FI
+  FANTASY
+  ANIME
+  ZOMBIE
+}

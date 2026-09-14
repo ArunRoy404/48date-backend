@@ -47,15 +47,14 @@ export class FaceVerificationService {
     }
 
     // Check if the user has completed required profile fields
-    const hasName = user.name || (user.firstName && user.lastName);
     const isProfileComplete = !!(
-      hasName &&
+      user.firstName &&
+      user.lastName &&
       user.username &&
       user.birthDate &&
       user.gender &&
       user.interestedIn &&
       user.lookingFor &&
-      user.locations.length > 0 &&
       user.images.length > 0
     );
 

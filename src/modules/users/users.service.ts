@@ -68,7 +68,6 @@ export class UsersService {
     // Construct the update data object dynamically (PATCH updates)
     const updateData: Prisma.UserUpdateInput = {};
 
-    if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
     if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
     if (dto.username !== undefined) updateData.username = dto.username;
@@ -84,7 +83,6 @@ export class UsersService {
     if (dto.wantsKids !== undefined) updateData.wantsKids = dto.wantsKids;
     if (dto.lookingFor !== undefined) updateData.lookingFor = dto.lookingFor;
 
-    if (dto.locations !== undefined) updateData.locations = dto.locations;
     if (dto.lastLocation !== undefined)
       updateData.lastLocation = dto.lastLocation;
     if (dto.latitude !== undefined) updateData.latitude = dto.latitude;
@@ -129,16 +127,14 @@ export class UsersService {
     });
 
     // Check if the profile is now complete to auto-verify
-    const hasName =
-      updatedUser.name || (updatedUser.firstName && updatedUser.lastName);
     const isProfileComplete = !!(
-      hasName &&
+      updatedUser.firstName &&
+      updatedUser.lastName &&
       updatedUser.username &&
       updatedUser.birthDate &&
       updatedUser.gender &&
       updatedUser.interestedIn &&
       updatedUser.lookingFor &&
-      updatedUser.locations.length > 0 &&
       updatedUser.images.length > 0
     );
 

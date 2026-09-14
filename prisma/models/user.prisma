@@ -9,7 +9,6 @@ model User {
   isUserVerified  Boolean  @default(false) // true when email OR phone is verified
 
   // --- Basic profile ---
-  name         String?
   firstName    String?
   lastName     String?
   username     String?   @unique
@@ -30,7 +29,6 @@ model User {
   // user refuses the permission prompt, so every distance feature has to
   // tolerate their absence. `locationUpdatedAt` is what makes a stale fix
   // distinguishable from a fresh one.
-  locations          String[]
   lastLocation       String?
   latitude           Float?
   longitude          Float?
@@ -42,9 +40,11 @@ model User {
   weightKg Int?
 
   // --- Interests ---
-  creativity      String[]
-  sports          String[]
-  moviesAndDramas String[]
+  // Real enums rather than free strings, so the database rejects a value the
+  // interests screen never offered — same guarantee as every other enum here.
+  creativity      CreativityInterest[]
+  sports          SportInterest[]
+  moviesAndDramas MovieAndDramaInterest[]
 
   // --- Verification / media ---
   images                Image[]

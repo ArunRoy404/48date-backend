@@ -21,6 +21,10 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
+      // One message per field. Without this a single missing value trips every
+      // validator on it — @IsString, @IsNotEmpty and @Matches all fire — and
+      // the client gets the same thing said three different ways.
+      stopAtFirstError: true,
     }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());

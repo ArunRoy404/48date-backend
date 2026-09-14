@@ -1,7 +1,12 @@
+/// The four options on the "What Are You Looking For?" screen, in screen order.
+///
+/// REAL_RELATIONSHIP    — "A real relationship" / Ready for something serious
+/// SOMETHING_MEANINGFUL — "Something meaningful" / Open, but taking it seriously
+/// SEE_WHERE_IT_GOES    — "See where it goes" / No pressure, real connection
+/// NEW_FRIENDS_FIRST    — "New friends first" / Building a genuine bond
 enum LookingFor {
-  LONG_TERM
-  SHORT_TERM
-  FRIENDSHIP
-  CASUAL
-  STILL_FIGURING_OUT
+  REAL_RELATIONSHIP
+  SOMETHING_MEANINGFUL
+  SEE_WHERE_IT_GOES
+  NEW_FRIENDS_FIRST
 }

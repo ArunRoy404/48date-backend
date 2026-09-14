@@ -2,200 +2,218 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
-  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
-  IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import {
-  CREATIVITY_INTERESTS,
-  MOVIES_AND_DRAMAS_INTERESTS,
-  SPORTS_INTERESTS,
-} from '../../../common/constants/interests.js';
 import { IsPublicUrl } from '../../../common/validators/is-public-url.validator.js';
 import {
+  CreativityInterest,
   Gender,
   HabitFrequency,
   KidsStatus,
   LocationPermission,
   LookingFor,
+  MovieAndDramaInterest,
+  SportInterest,
 } from '../../../generated/prisma/client.js';
 
+// One sentence per field, reused by every validator on it — see the note on
+// `stopAtFirstError` in main.ts.
+const USERNAME_MESSAGE =
+  'Choose a username: 3-30 characters, letters, numbers and underscores only.';
+const CREATIVITY_MESSAGE = `Pick at least one creative interest from: ${Object.values(CreativityInterest).join(', ')}.`;
+const SPORTS_MESSAGE = `Pick at least one sport from: ${Object.values(SportInterest).join(', ')}.`;
+const MOVIES_MESSAGE = `Pick at least one from: ${Object.values(MovieAndDramaInterest).join(', ')}.`;
+const IMAGES_MESSAGE =
+  'Add 1 to 6 photos, with exactly one marked as the main photo.';
+
+/** Permission values that mean the device actually handed over a position. */
+const GRANTED_PERMISSIONS: LocationPermission[] = [
+  LocationPermission.WHILE_IN_USE,
+  LocationPermission.ONE_TIME,
+  LocationPermission.ALWAYS,
+];
+
 export class VerifyUserInformationImageDto {
-  @IsPublicUrl({ message: 'images[].url must be a valid URL' })
+  @IsPublicUrl({ message: 'Each photo needs a valid image URL.' })
   url: string;
 
-  @IsBoolean({ message: 'images[].isMain must be a boolean' })
+  @IsBoolean({ message: 'Each photo needs isMain set to true or false.' })
   isMain: boolean;
 
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  sortOrder?: number;
+  @IsInt({ message: 'Photo order must be a whole number.' })
+  @Min(0, { message: 'Photo order cannot be negative.' })
+  sortOrder: number;
 }
 
 /**
- * Payload for `POST /auth/verify-user-information`.
+ * Payload for `POST /auth/verify-user-information` — the single onboarding
+ * submission sent once the user has logged in and `isUserVerified` is false.
  *
- * This is the single onboarding submission the app sends once a user has
- * logged in (A-01.1 / A-01.2) and verified their OTP (A-02) but still has
- * `isUserVerified: false`. Every field the completeness check looks at is
- * REQUIRED here, so a successful call always flips `isUserVerified` to true.
- * Everything else stays optional and can be edited later through
- * `PATCH /users/profile-setup`.
+ * **Every field is required.** The onboarding screens collect all of it, so a
+ * partial submission means a screen was skipped, and the API says which one
+ * rather than silently storing half a profile. Later edits go through
+ * `PATCH /users/profile-setup` (P-02), which accepts any subset.
+ *
+ * The one conditional is location: `latitude`, `longitude` and `lastLocation`
+ * are required only when `locationPermission` says the device granted access.
+ * A user who taps "Deny" must still be able to finish onboarding.
+ *
+ * Validation messages are written to be shown to the user as-is.
+ *
+ * Field order matches the onboarding screen order.
  */
 export class VerifyUserInformationDto {
-  // --- Identity (required) ---
-  @IsString()
-  @IsNotEmpty({ message: 'firstName is required' })
-  firstName: string;
+  // --- Location -------------------------------------------------------------
 
-  @IsString()
-  @IsNotEmpty({ message: 'lastName is required' })
-  lastName: string;
+  @ValidateIf((o: VerifyUserInformationDto) =>
+    GRANTED_PERMISSIONS.includes(o.locationPermission),
+  )
+  @IsString({ message: 'Tell us which city you are in.' })
+  @IsNotEmpty({ message: 'Tell us which city you are in.' })
+  lastLocation: string;
 
-  @IsString()
-  @IsNotEmpty({ message: 'username is required' })
+  @ValidateIf((o: VerifyUserInformationDto) =>
+    GRANTED_PERMISSIONS.includes(o.locationPermission),
+  )
+  @IsNumber({}, { message: 'Latitude must be a number.' })
+  @Min(-90, { message: 'Latitude must be between -90 and 90.' })
+  @Max(90, { message: 'Latitude must be between -90 and 90.' })
+  latitude: number;
+
+  @ValidateIf((o: VerifyUserInformationDto) =>
+    GRANTED_PERMISSIONS.includes(o.locationPermission),
+  )
+  @IsNumber({}, { message: 'Longitude must be a number.' })
+  @Min(-180, { message: 'Longitude must be between -180 and 180.' })
+  @Max(180, { message: 'Longitude must be between -180 and 180.' })
+  longitude: number;
+
+  @IsEnum(LocationPermission, {
+    message:
+      'Location permission must be one of: NOT_ASKED, WHILE_IN_USE, ONE_TIME, ALWAYS, DENIED, DENIED_FOREVER.',
+  })
+  locationPermission: LocationPermission;
+
+  // --- Identity -------------------------------------------------------------
+
+  @IsString({ message: USERNAME_MESSAGE })
+  @IsNotEmpty({ message: USERNAME_MESSAGE })
+  @Matches(/^[a-zA-Z0-9_]{3,30}$/, {
+    message: USERNAME_MESSAGE,
+  })
   username: string;
 
-  @IsDateString({}, { message: 'birthDate must be a valid ISO date' })
+  @IsString({ message: 'Enter your first name.' })
+  @IsNotEmpty({ message: 'Enter your first name.' })
+  firstName: string;
+
+  @IsString({ message: 'Enter your last name.' })
+  @IsNotEmpty({ message: 'Enter your last name.' })
+  lastName: string;
+
+  @IsDateString(
+    {},
+    { message: 'Enter your date of birth in YYYY-MM-DD format.' },
+  )
   birthDate: string;
 
+  @IsString({ message: 'Tell us what you do.' })
+  @IsNotEmpty({ message: 'Tell us what you do.' })
+  occupation: string;
+
+  // --- Lifestyle ------------------------------------------------------------
+
+  @IsEnum(HabitFrequency, {
+    message: 'Smoking must be one of: NEVER, SOMETIMES, DAILY.',
+  })
+  smoker: HabitFrequency;
+
+  @IsEnum(HabitFrequency, {
+    message: 'Drinking must be one of: NEVER, SOMETIMES, DAILY.',
+  })
+  alcohol: HabitFrequency;
+
   @IsEnum(Gender, {
-    message: 'gender must be one of: MALE, FEMALE, NON_BINARY, OTHER',
+    message: 'Gender must be one of: MALE, FEMALE, NON_BINARY, OTHER.',
   })
   gender: Gender;
 
+  @IsEnum(KidsStatus, {
+    message:
+      'Kids must be one of: HAS_KIDS, DOESNT_HAVE_KIDS, PREFER_NOT_TO_SAY.',
+  })
+  kids: KidsStatus;
+
+  @IsBoolean({ message: 'Tell us whether you want kids — true or false.' })
+  wantsKids: boolean;
+
+  // --- Interests ------------------------------------------------------------
+
   @IsEnum(Gender, {
     message:
-      'interestedIn ("who are you here to meet") must be one of: MALE, FEMALE, NON_BINARY, OTHER',
+      'Who you want to meet must be one of: MALE, FEMALE, NON_BINARY, OTHER.',
   })
   interestedIn: Gender;
 
+  @IsArray({ message: CREATIVITY_MESSAGE })
+  @ArrayNotEmpty({ message: CREATIVITY_MESSAGE })
+  @IsEnum(CreativityInterest, { each: true, message: CREATIVITY_MESSAGE })
+  creativity: CreativityInterest[];
+
+  @IsArray({ message: SPORTS_MESSAGE })
+  @ArrayNotEmpty({ message: SPORTS_MESSAGE })
+  @IsEnum(SportInterest, { each: true, message: SPORTS_MESSAGE })
+  sports: SportInterest[];
+
+  @IsArray({ message: MOVIES_MESSAGE })
+  @ArrayNotEmpty({ message: MOVIES_MESSAGE })
+  @IsEnum(MovieAndDramaInterest, { each: true, message: MOVIES_MESSAGE })
+  moviesAndDramas: MovieAndDramaInterest[];
+
+  // --- Body -----------------------------------------------------------------
+
+  @IsInt({ message: 'Height must be a whole number in centimetres.' })
+  @Min(50, { message: 'Height must be between 50 and 250 cm.' })
+  @Max(250, { message: 'Height must be between 50 and 250 cm.' })
+  heightCm: number;
+
+  @IsInt({ message: 'Weight must be a whole number in kilograms.' })
+  @Min(20, { message: 'Weight must be between 20 and 300 kg.' })
+  @Max(300, { message: 'Weight must be between 20 and 300 kg.' })
+  weightKg: number;
+
   @IsEnum(LookingFor, {
     message:
-      'lookingFor must be one of: LONG_TERM, SHORT_TERM, FRIENDSHIP, CASUAL, STILL_FIGURING_OUT',
+      'What you are looking for must be one of: REAL_RELATIONSHIP, SOMETHING_MEANINGFUL, SEE_WHERE_IT_GOES, NEW_FRIENDS_FIRST.',
   })
   lookingFor: LookingFor;
 
-  @IsArray()
-  @ArrayMinSize(1, { message: 'locations must contain at least 1 entry' })
-  @IsString({ each: true })
-  locations: string[];
+  // --- Media ----------------------------------------------------------------
 
-  @IsArray()
-  @ArrayMinSize(1, { message: 'images must contain at least 1 photo' })
-  @ArrayMaxSize(6, { message: 'images can contain at most 6 photos' })
+  @IsArray({ message: IMAGES_MESSAGE })
+  @ArrayMinSize(1, { message: IMAGES_MESSAGE })
+  @ArrayMaxSize(6, { message: IMAGES_MESSAGE })
   @ValidateNested({ each: true })
   @Type(() => VerifyUserInformationImageDto)
   images: VerifyUserInformationImageDto[];
 
-  // --- Display name (optional — derived from firstName + lastName when omitted) ---
-  @IsOptional()
-  @IsString()
-  name?: string;
+  @IsBoolean({ message: 'Notifications must be true or false.' })
+  notificationsEnabled: boolean;
 
-  // --- Lifestyle (optional) ---
-  @IsOptional()
-  @IsString()
-  occupation?: string;
-
-  @IsOptional()
-  @IsEnum(HabitFrequency, {
-    message: 'smoker must be one of: NEVER, SOMETIMES, OFTEN, DAILY',
-  })
-  smoker?: HabitFrequency;
-
-  @IsOptional()
-  @IsEnum(HabitFrequency, {
-    message: 'alcohol must be one of: NEVER, SOMETIMES, OFTEN, DAILY',
-  })
-  alcohol?: HabitFrequency;
-
-  @IsOptional()
-  @IsEnum(KidsStatus, {
-    message:
-      'kids must be one of: HAS_KIDS, DOESNT_HAVE_KIDS, PREFER_NOT_TO_SAY',
-  })
-  kids?: KidsStatus;
-
-  @IsOptional()
-  @IsBoolean()
-  wantsKids?: boolean;
-
-  // --- Location (optional) ---
-  @IsOptional()
-  @IsString()
-  lastLocation?: string;
-
-  @IsOptional()
-  @IsNumber()
-  latitude?: number;
-
-  @IsOptional()
-  @IsNumber()
-  longitude?: number;
-
-  @IsOptional()
-  @IsEnum(LocationPermission, {
-    message:
-      'locationPermission must be one of: NOT_ASKED, WHILE_IN_USE, ONE_TIME, ALWAYS, DENIED, DENIED_FOREVER',
-  })
-  locationPermission?: LocationPermission;
-
-  // --- Body (optional) ---
-  @IsOptional()
-  @IsInt()
-  @Min(50, { message: 'heightCm must be between 50 and 250' })
-  @Max(250, { message: 'heightCm must be between 50 and 250' })
-  heightCm?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(20, { message: 'weightKg must be between 20 and 300' })
-  @Max(300, { message: 'weightKg must be between 20 and 300' })
-  weightKg?: number;
-
-  // --- Interests (optional) ---
-  @IsOptional()
-  @IsArray()
-  @IsIn(CREATIVITY_INTERESTS, {
-    each: true,
-    message: `creativity can only contain: ${CREATIVITY_INTERESTS.join(', ')}`,
-  })
-  creativity?: string[];
-
-  @IsOptional()
-  @IsArray()
-  @IsIn(SPORTS_INTERESTS, {
-    each: true,
-    message: `sports can only contain: ${SPORTS_INTERESTS.join(', ')}`,
-  })
-  sports?: string[];
-
-  @IsOptional()
-  @IsArray()
-  @IsIn(MOVIES_AND_DRAMAS_INTERESTS, {
-    each: true,
-    message: `moviesAndDramas can only contain: ${MOVIES_AND_DRAMAS_INTERESTS.join(', ')}`,
-  })
-  moviesAndDramas?: string[];
-
-  // --- Media & prefs (optional) ---
-  @IsOptional()
-  @IsPublicUrl({ message: 'selfieUrl must be a valid URL' })
-  selfieUrl?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  notificationsEnabled?: boolean;
+  /** The selfie used for face verification. Stored on the user as `selfieUrl`. */
+  @IsPublicUrl({ message: 'Add a selfie for verification.' })
+  selfieVerificationImageUrl: string;
 }
