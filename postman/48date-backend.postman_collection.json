@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "48d47e00-0000-4000-8000-48date000001",
+    "_postman_id": "a4880fa8-436e-4f6a-aaca-425c24d0d078",
     "name": "48Date Backend API",
     "description": "# 48Date Backend API\n\nREST API for the **48Date** dating app — NestJS 11 (ESM) · PostgreSQL 16 + Prisma 7 · Redis 7 · JWT.\n\n---\n\n## How this collection is organised\n\nTwo root folders:\n\n| Folder | Contents |\n|---|---|\n| **USER** | All **54 implemented endpoints**, consumed by the Flutter app. Serialised `U-01` → `U-54`. |\n| **ADMIN** | **Empty placeholder.** No admin endpoints exist in the codebase yet — see that folder's description for the verified details. |\n\n### Reading the serials\n\nRequests are numbered in **integration order**, not alphabetically. `U-01` has no prerequisites; `U-54` assumes most of what came before. If you are wiring up a client, work down the list — anything numbered lower is a dependency of, or is independent from, what follows.\n\n---\n\n## Setup\n\n1. Start the API: `docker compose up -d postgres redis && npm run start:dev`\n2. Set the `baseUrl` variable if you are not on `http://localhost:3000`.\n3. Run **U-01 Register** → **U-02 Verify OTP** → you are authenticated.\n\n**Dev OTP is always `123456`.**\n\n### Variables are captured for you\n\nEvery request that returns an id writes it into a collection variable, so the folders are runnable top-to-bottom without hand-editing anything:\n\n`phone` · `email` · `username` · `accessToken` · `refreshToken` · `resetToken` · `userId` · `imageUrl` · `targetUserId` · `matchId` · `conversationId` · `gameId` · `questionId` · `sessionId` · `datePlanId` · `storyId` · `commentId`\n\nAuthentication is set **collection-wide** to `Bearer {{accessToken}}`; public endpoints individually override it to *No Auth*.\n\n> **Re-running U-01:** `phone`, `email` and `username` are generated once and then **persist** in the collection. Since all three are unique in the database, running **U-01 Register** a second time returns `409 Conflict`. To create another fresh account, clear those three variables (and `accessToken`) first — the pre-request script regenerates them.\n\n---\n\n## Response envelope\n\nEvery endpoint — success or failure — returns the same shape:\n\n```json\n{ \"success\": true, \"message\": \"Operation successful\", \"messages\": [], \"data\": { } }\n```\n\n```json\n{ \"success\": false, \"message\": \"Validation failed\", \"messages\": [\"phone must be ...\"], \"statusCode\": 400 }\n```\n\n`messages` carries the full list of validation errors; `message` is the first one, suitable for a toast.\n\n---\n\n## Chat is WebSocket-only for sending\n\nThe two REST endpoints in folder **05** only *read*. Sending happens over Socket.IO on the same origin as `baseUrl`, authenticated by passing the JWT in the handshake.\n\n| Direction | Event | Payload |\n|---|---|---|\n| → emit | `joinRoom` | `{ conversationId }` |\n| → emit | `sendMessage` | `{ conversationId, content, type? }` — type = TEXT \\| IMAGE \\| DATE_INVITE \\| SYSTEM |\n| → emit | `typing` | `{ conversationId, isTyping }` |\n| ← listen | `newMessage` | the saved message |\n| ← listen | `typing` | `{ userId, isTyping }` |\n\nPostman's WebSocket request type can drive these, but it is not part of this collection.\n\n---\n\n## Known gaps\n\nBehaviour verified against the running server — worth knowing before you integrate:\n\n- **No admin API at all.** See the ADMIN folder.\n- **`POST /auth/request-otp` and `GET /auth/me` do not exist** despite older docs listing them. Registration and login already return tokens and the user object, and `GET /users/profile` (**U-12**) replaces `/auth/me`.\n- **Google login does not verify the token signature** — it only base64-decodes the payload.\n- **Mapbox place search returns `[]`** unless `MAPBOX_ACCESS_TOKEN` is set.\n- **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.\n- Twilio / SMTP / FCM / R2 all **fall back to console logging or local disk** when their env vars are absent, so flows succeed locally without any third-party account.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -146,14 +146,17 @@
   ],
   "item": [
     {
+      "id": "ae96b83f-2dd1-4259-acfc-720685b53b55",
       "name": "USER",
       "description": "Everything the Flutter user app consumes — **all 54 implemented endpoints** live here.\n\nSerials run **U-01 → U-54 in integration order**: each folder assumes the ones above it already work. Follow them top to bottom and the collection is runnable end to end without editing variables by hand, because each request captures the ids the next one needs.\n\nHard dependencies worth knowing:\n- Everything after **U-03** needs an `accessToken`.\n- Folders **05, 06, 07** all need a `matchId` from **U-19** / **U-20**, which needs two users who liked each other.\n- **U-37** (rating) requires the date to be `COMPLETED` via **U-36**.\n\n---\n\n## Getting to a match (needed for folders 04–07)\n\nA match needs **two accounts that both liked each other**, so a single run of this collection cannot produce one. With one fresh account, 27 of the 54 requests pass; the rest correctly return 404/400 because the match-dependent ids do not exist yet.\n\nTo get a real `matchId`:\n\n1. Run **U-01 → U-02** once. Note the generated `phone` and the `userId` — call this **User A**.\n2. Clear the `phone`, `email`, `accessToken` and `userId` collection variables, then run **U-01 → U-02** again. This is **User B**.\n3. As User B, run **U-19 Swipe** with `targetUserId` set to User A's id and `action: LIKE`.\n4. Log back in as User A (**U-03** with A's phone), then run **U-19** with `targetUserId` = User B's id and `action: LIKE`.\n5. The second like returns `isMatch: true` and captures `matchId` automatically. Folders **04–07** are now runnable.\n\nThe id variables ship with the value `REPLACE_ME` so that an unset id fails loudly with a clear 404 rather than silently collapsing to a different route.",
       "item": [
         {
+          "id": "6e333484-d528-4079-87d6-f62ae6cc00e9",
           "name": "01 · Auth",
           "description": "Account creation, OTP verification, login, token lifecycle and password reset.\n\n**Start here.** U-01 → U-02 → U-03 gets you an `accessToken`, which every other folder depends on. Tokens are captured into collection variables automatically.\n\nOTP in development is always the dummy code `123456` (see `DUMMY_OTP` in `auth.service.ts`). Real Twilio Verify is used only when `TWILIO_*` env vars are set.",
           "item": [
             {
+              "id": "0abd79d1-b825-4c7b-9a7a-a124af99897d",
               "name": "U-01 Register",
               "request": {
                 "method": "POST",
@@ -213,6 +216,7 @@
               ]
             },
             {
+              "id": "0992b29b-22b2-4930-b848-a2555913dfe6",
               "name": "U-02 Verify OTP",
               "request": {
                 "method": "POST",
@@ -272,6 +276,7 @@
               ]
             },
             {
+              "id": "d0be6f06-9b67-4e3f-b224-c2f08e0fb751",
               "name": "U-03 Login",
               "request": {
                 "method": "POST",
@@ -331,6 +336,7 @@
               ]
             },
             {
+              "id": "b9018c13-6442-4f33-88d7-9da194824cd7",
               "name": "U-04 Google login",
               "request": {
                 "method": "POST",
@@ -388,6 +394,7 @@
               ]
             },
             {
+              "id": "945bcbd7-de6e-4c72-ad17-9b0a6b04af7f",
               "name": "U-05 Refresh tokens",
               "request": {
                 "method": "POST",
@@ -447,6 +454,7 @@
               ]
             },
             {
+              "id": "84fc28bc-6c0c-4bf0-b823-9f120511342e",
               "name": "U-06 Logout",
               "request": {
                 "method": "POST",
@@ -479,6 +487,7 @@
               ]
             },
             {
+              "id": "25a2cdd4-d529-4d05-ba70-165b63eb7f86",
               "name": "U-07 Forgot password",
               "request": {
                 "method": "POST",
@@ -528,6 +537,7 @@
               ]
             },
             {
+              "id": "43849286-b194-4ca7-a9c8-d158d14ab857",
               "name": "U-08 Verify reset OTP",
               "request": {
                 "method": "POST",
@@ -580,6 +590,7 @@
               ]
             },
             {
+              "id": "61b7de75-0a9c-4924-8699-1909f307427a",
               "name": "U-09 Reset password",
               "request": {
                 "method": "POST",
@@ -631,10 +642,12 @@
           ]
         },
         {
+          "id": "e8b14fa5-3c66-47d0-903b-41859453ba62",
           "name": "02 · Profile & Media",
           "description": "Photo upload, profile completion and selfie (face) verification.\n\nRun **U-10** first so you have real image URLs to pass into **U-11**. A profile must be reasonably complete before `isUserVerified` can flip in **U-13**.",
           "item": [
             {
+              "id": "dc745da2-b8b1-4719-9827-21f5689daa33",
               "name": "U-10 Upload images",
               "request": {
                 "method": "POST",
@@ -680,6 +693,7 @@
               ]
             },
             {
+              "id": "0076c4b1-0ebe-4aab-816c-68effe46fecd",
               "name": "U-11 Profile setup",
               "request": {
                 "method": "PATCH",
@@ -726,6 +740,7 @@
               ]
             },
             {
+              "id": "ca41e78d-7856-4a99-9700-3a9ec9db6eb0",
               "name": "U-12 Get my profile",
               "request": {
                 "method": "GET",
@@ -758,6 +773,7 @@
               ]
             },
             {
+              "id": "d67f8544-141d-44c0-83df-58d61db38f0b",
               "name": "U-13 Verify selfie",
               "request": {
                 "method": "POST",
@@ -808,6 +824,7 @@
               ]
             },
             {
+              "id": "df7df017-d9a1-4ebd-ab56-c54cc908d954",
               "name": "U-14 Verification status",
               "request": {
                 "method": "GET",
@@ -842,10 +859,12 @@
           ]
         },
         {
+          "id": "e1955ce4-fc67-41a2-8ceb-7123e29a1d1c",
           "name": "03 · Discovery",
           "description": "The swipe deck: filter preferences, candidate feed, profile detail and the swipe action.\n\nSet preferences (**U-16**) before fetching the feed (**U-17**) or the deck may come back empty. A `LIKE`/`SUPER_LIKE` that the other user has already sent creates a match — see folder **04**.",
           "item": [
             {
+              "id": "e0c9b8ab-976c-4071-a2ef-d212f71026f7",
               "name": "U-15 Get preferences",
               "request": {
                 "method": "GET",
@@ -878,6 +897,7 @@
               ]
             },
             {
+              "id": "09eb5cd5-a199-4ea2-8bf4-fd9336479b76",
               "name": "U-16 Update preferences",
               "request": {
                 "method": "PATCH",
@@ -924,6 +944,7 @@
               ]
             },
             {
+              "id": "170df88e-5a55-4cc5-a115-25a1f00a4a74",
               "name": "U-17 Get discovery feed",
               "request": {
                 "method": "GET",
@@ -960,6 +981,7 @@
               ]
             },
             {
+              "id": "1b3f7839-c822-4d86-8b94-3aea542d7682",
               "name": "U-18 Get profile detail",
               "request": {
                 "method": "GET",
@@ -992,6 +1014,7 @@
               ]
             },
             {
+              "id": "241571c1-d052-4eec-9c5b-fe49f5639200",
               "name": "U-19 Swipe",
               "request": {
                 "method": "POST",
@@ -1044,10 +1067,12 @@
           ]
         },
         {
+          "id": "80ee4118-a33d-4a34-8e4d-da9b6b6f8134",
           "name": "04 · Matches",
           "description": "List and remove mutual matches.\n\nA match is the prerequisite for chat (**05**), games (**06**) and date planning (**07**) — every one of those takes a `matchId`.",
           "item": [
             {
+              "id": "498c2f2d-6a81-412f-b0a0-2554b1530883",
               "name": "U-20 List matches",
               "request": {
                 "method": "GET",
@@ -1085,6 +1110,7 @@
               ]
             },
             {
+              "id": "a6bee78f-4260-472e-a6ef-2f7d3f30b9d9",
               "name": "U-21 Unmatch",
               "request": {
                 "method": "DELETE",
@@ -1119,10 +1145,12 @@
           ]
         },
         {
+          "id": "b9843267-b259-4f05-a2e5-9e9ad170ec28",
           "name": "05 · Chat (REST)",
           "description": "Conversation list and message history.\n\n**Sending** messages is WebSocket-only — Postman cannot exercise it. See the collection description for the Socket.IO events (`joinRoom`, `sendMessage`, `typing`) and their payloads.",
           "item": [
             {
+              "id": "e8747b7f-850c-4c0d-af52-72be8231e291",
               "name": "U-22 List conversations",
               "request": {
                 "method": "GET",
@@ -1157,6 +1185,7 @@
               ]
             },
             {
+              "id": "169983bc-9abf-48fd-9f5b-f6178ed8ef8c",
               "name": "U-23 Get messages",
               "request": {
                 "method": "GET",
@@ -1205,10 +1234,12 @@
           ]
         },
         {
+          "id": "aee3236f-cc90-4328-8469-e2034dcb2e38",
           "name": "06 · Games",
           "description": "Icebreaker mini-games played inside a match.\n\nFlow: **U-24** to pick a game → **U-25** to open a session for a match → **U-27** to answer each question → **U-26** to poll state. The database is seeded with 4 games / 18 questions by `npm run db:seed`.",
           "item": [
             {
+              "id": "b7e203e2-a4b9-4d6a-96d8-0ac088c22423",
               "name": "U-24 List games",
               "request": {
                 "method": "GET",
@@ -1251,6 +1282,7 @@
               ]
             },
             {
+              "id": "f2299cca-9ec0-4e9b-95c3-ba6728fba47f",
               "name": "U-25 Start session",
               "request": {
                 "method": "POST",
@@ -1299,6 +1331,7 @@
               ]
             },
             {
+              "id": "dc783b77-f242-4a38-9580-b1777b0423b7",
               "name": "U-26 Get session",
               "request": {
                 "method": "GET",
@@ -1332,6 +1365,7 @@
               ]
             },
             {
+              "id": "ffad6474-6970-49ae-933c-2a8071d230ce",
               "name": "U-27 Submit answer",
               "request": {
                 "method": "POST",
@@ -1382,10 +1416,12 @@
           ]
         },
         {
+          "id": "dfd5b1e7-76c9-49f6-8d58-f114c0b19012",
           "name": "07 · Dates",
           "description": "The 48-hour date planner: venue search, invitations, the accept/decline/cancel/complete lifecycle, and post-date ratings.\n\nStatus machine: `PENDING` → `ACCEPTED` → `COMPLETED`, with `DECLINED` / `CANCELLED` / `NO_SHOW` as terminal branches. Ratings (**U-37**) are only accepted once a date is `COMPLETED`, and they feed the trust score in folder **08**.",
           "item": [
             {
+              "id": "c196435f-008c-4859-a002-01f8cf22dc19",
               "name": "U-28 Search places",
               "request": {
                 "method": "GET",
@@ -1441,6 +1477,7 @@
               ]
             },
             {
+              "id": "efd0ec51-a6a0-4ca2-8a17-851f2d4f9b23",
               "name": "U-29 Create date plan",
               "request": {
                 "method": "POST",
@@ -1488,6 +1525,7 @@
               ]
             },
             {
+              "id": "74091b8d-07aa-43c9-b045-24defd1c3b94",
               "name": "U-30 List my dates",
               "request": {
                 "method": "GET",
@@ -1550,6 +1588,7 @@
               ]
             },
             {
+              "id": "58256071-a487-46b6-95b6-67dd9c998912",
               "name": "U-31 Get date plan",
               "request": {
                 "method": "GET",
@@ -1582,6 +1621,7 @@
               ]
             },
             {
+              "id": "9aae2e32-d88b-4ab2-9e16-9149a16aebb3",
               "name": "U-32 Update date plan",
               "request": {
                 "method": "PATCH",
@@ -1628,6 +1668,7 @@
               ]
             },
             {
+              "id": "48759fec-3ac6-431c-9d88-d389d4355752",
               "name": "U-33 Accept invitation",
               "request": {
                 "method": "POST",
@@ -1661,6 +1702,7 @@
               ]
             },
             {
+              "id": "f2875a0d-2beb-4edc-8e8f-f70a63bc79e5",
               "name": "U-34 Decline invitation",
               "request": {
                 "method": "POST",
@@ -1694,6 +1736,7 @@
               ]
             },
             {
+              "id": "c572cb20-cef2-490f-a661-6f8b97adb9df",
               "name": "U-35 Cancel date",
               "request": {
                 "method": "POST",
@@ -1741,6 +1784,7 @@
               ]
             },
             {
+              "id": "6513ab5f-1550-41ea-a8a6-d0f596cb0812",
               "name": "U-36 Complete date",
               "request": {
                 "method": "POST",
@@ -1774,6 +1818,7 @@
               ]
             },
             {
+              "id": "c823f708-2bc7-4b4d-9570-2cfc5d413456",
               "name": "U-37 Submit rating",
               "request": {
                 "method": "POST",
@@ -1821,6 +1866,7 @@
               ]
             },
             {
+              "id": "14adbac6-494b-4830-abf8-5cf3402eaf2e",
               "name": "U-38 Get date ratings",
               "request": {
                 "method": "GET",
@@ -1856,10 +1902,12 @@
           ]
         },
         {
+          "id": "191f280e-9183-4ca2-9e90-46409ddc452f",
           "name": "08 · Trust Score",
           "description": "The reputation score derived from date ratings, verification status and moderation events.\n\nRead-only for users — there is no endpoint to set a score directly. Values change as a side effect of folders **07** (ratings, cancellations) and **09** (reports).",
           "item": [
             {
+              "id": "9db35e2d-2f86-4a88-a961-513d0674f447",
               "name": "U-39 Get trust score",
               "request": {
                 "method": "GET",
@@ -1891,6 +1939,7 @@
               ]
             },
             {
+              "id": "6611e590-4a3f-4c66-8fc3-fd7a4ee4497f",
               "name": "U-40 Trust score history",
               "request": {
                 "method": "GET",
@@ -1937,10 +1986,12 @@
           ]
         },
         {
+          "id": "30eed8bf-5475-46ae-b2f3-072764253cb4",
           "name": "09 · Safety (Blocks & Reports)",
           "description": "User-initiated moderation: blocking and reporting.\n\nBlocking is immediate and symmetric in effect — blocked users disappear from each other's discovery feed (**U-17**). Reports are queued for admin review, but note that **no admin endpoints exist yet** to action them (see the Admin root folder).",
           "item": [
             {
+              "id": "bd5aa564-6d97-40fe-bc83-e0eda2208954",
               "name": "U-41 Block user",
               "request": {
                 "method": "POST",
@@ -1973,6 +2024,7 @@
               ]
             },
             {
+              "id": "e26d526d-0bf1-438b-9da3-72c80f215379",
               "name": "U-42 List blocked users",
               "request": {
                 "method": "GET",
@@ -2016,6 +2068,7 @@
               ]
             },
             {
+              "id": "d05ad9c0-7e75-4df9-a1fd-3b9c30aa15ca",
               "name": "U-43 Unblock user",
               "request": {
                 "method": "DELETE",
@@ -2048,6 +2101,7 @@
               ]
             },
             {
+              "id": "43f88a69-bb9a-4dbf-8e3c-cca21ecdd4d0",
               "name": "U-44 Report user",
               "request": {
                 "method": "POST",
@@ -2093,6 +2147,7 @@
               ]
             },
             {
+              "id": "1d549e2a-a94d-44a4-af4f-af82deebf47e",
               "name": "U-45 My reports",
               "request": {
                 "method": "GET",
@@ -2139,10 +2194,12 @@
           ]
         },
         {
+          "id": "bfc107c2-6f61-49e6-b4a5-dc936dfb0cad",
           "name": "10 · Subscriptions",
           "description": "Premium tiers and RevenueCat integration.\n\nPurchases happen **in the mobile app** through RevenueCat, not through this API — the backend learns about them via the webhook (**U-48**). `U-46` is public so the paywall can render before login.",
           "item": [
             {
+              "id": "60b50717-5b50-41a2-981e-8beb842cf359",
               "name": "U-46 List plans",
               "request": {
                 "method": "GET",
@@ -2178,6 +2235,7 @@
               ]
             },
             {
+              "id": "a75ae230-fa5a-49a9-8333-61a52212896e",
               "name": "U-47 My subscription",
               "request": {
                 "method": "GET",
@@ -2210,6 +2268,7 @@
               ]
             },
             {
+              "id": "3c456274-eb92-497e-9eff-66b2265e88bd",
               "name": "U-48 RevenueCat webhook",
               "request": {
                 "method": "POST",
@@ -2261,10 +2320,12 @@
           ]
         },
         {
+          "id": "bc8d5b7f-243a-4969-99a8-eca7747a573c",
           "name": "11 · Success Stories",
           "description": "Community stories from couples who met on the app, plus likes and comments.\n\nSubmissions land in `PENDING` and only appear in the public list once approved — **but there is no admin endpoint to approve them yet**, so a freshly submitted story will not show up in **U-50**. See the Admin root folder.",
           "item": [
             {
+              "id": "ed322674-d73d-47f8-9d6c-b388fe7255d8",
               "name": "U-49 Submit story",
               "request": {
                 "method": "POST",
@@ -2312,6 +2373,7 @@
               ]
             },
             {
+              "id": "d4a141ba-e6a8-4a23-bfe1-9b16de70cade",
               "name": "U-50 List stories",
               "request": {
                 "method": "GET",
@@ -2366,6 +2428,7 @@
               ]
             },
             {
+              "id": "f31b4c1f-a787-4081-8380-5da94948c8f1",
               "name": "U-51 Get story",
               "request": {
                 "method": "GET",
@@ -2403,6 +2466,7 @@
               ]
             },
             {
+              "id": "3302ae34-51d5-4605-b6a0-e92779e48020",
               "name": "U-52 Like / unlike story",
               "request": {
                 "method": "POST",
@@ -2436,6 +2500,7 @@
               ]
             },
             {
+              "id": "363b100b-c9ad-47a4-a536-160f6300c8cf",
               "name": "U-53 Add comment",
               "request": {
                 "method": "POST",
@@ -2485,6 +2550,7 @@
               ]
             },
             {
+              "id": "76cbe1d7-323c-44ae-bd78-bd48f2759c98",
               "name": "U-54 Delete comment",
               "request": {
                 "method": "DELETE",
@@ -2523,6 +2589,7 @@
       ]
     },
     {
+      "id": "bd4575f6-545d-47da-b324-3aa95eabb467",
       "name": "ADMIN",
       "description": "# ⚠️ No admin endpoints are implemented yet\n\nThis folder is an intentionally empty placeholder so the collection structure is ready when the admin API lands. **Nothing has been stubbed or invented here** — adding fake requests would be worse than an empty folder.\n\n## Verified state of the code (as of this collection)\n\n- `src/modules/admin/admin.module.ts` — the controller, service and providers are all **commented out**; the module exports an empty `@Module({})`.\n- `AdminModule` is **not imported** into `app.module.ts`, so Nest never registers it.\n- `src/modules/admin/types/admin.types.ts` contains only `export {}`.\n- The `@Roles()` decorator (`src/common/decorators/roles.decorator.ts`) and `RolesGuard` (`src/common/guards/roles.guard.ts`) both exist but are **applied to zero controllers** — every guarded route in this API uses the plain `JwtAuthGuard`.\n- The `Role` enum does contain `ADMIN`, and users carry a `role` field, so the data model is ready.\n\nAll 54 routes the server actually maps are user-facing and live under the **USER** folder.\n\n## What the React admin panel will need\n\nThese are the gaps implied by features that already exist on the user side — they are **not implemented**, listed only so the work is visible:\n\n- **Moderation queue** — `reports` rows are created by `U-44` with status PENDING and there is currently no way to review, resolve or dismiss them.\n- **Success-story approval** — `U-49` creates stories with status PENDING, and nothing can move them to PUBLISHED, so the public list `U-50` can never grow.\n- **User administration** — suspend/ban, trust-score override, manual verification.\n- **Analytics** — signups, matches, dates completed, subscription revenue.\n\nWhen those endpoints are built, number them **A-01, A-02, …** inside subfolders here, mirroring the USER convention.",
       "item": []
