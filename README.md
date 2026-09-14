@@ -37,7 +37,7 @@ cp .env.example .env          # then edit — see "Environment" below
 npx prisma migrate deploy
 npx prisma generate           # required in Prisma 7 (migrate doesn't auto-generate)
 
-# 5. Seed the games catalogue (4 games / 18 questions)
+# 5. Seed the games catalogue + demo accounts and relational data
 npm run db:seed
 
 # 6. Run the dev server (watch mode, port 3000)
@@ -58,6 +58,8 @@ Copy `.env.example` to `.env`. Only **four** variables are actually required to 
 | `JWT_REFRESH_SECRET` | Signing + verifying refresh tokens |
 
 `PORT` is optional and defaults to `3000`.
+
+`STRICT_URL_VALIDATION` controls how image URLs are validated. Keep it **`false`** locally: the local upload fallback returns `http://localhost:3000/uploads/…`, and `@IsUrl()`'s default rejects `localhost` because it has no TLD — which breaks `P-01 → P-02`. Set it to **`true`** in production, where every image URL comes from R2.
 
 ```env
 PORT=3000
@@ -86,6 +88,20 @@ Every third-party integration is wired up but falls back to a no-op when its var
 ### Declared but unused
 
 `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` and `REVENUECAT_API_KEY` appear in `env.config.ts` but are never read anywhere. `AiModule` is an empty stub and isn't imported into `app.module.ts`. Leave them blank.
+
+## Demo data
+
+`npm run db:seed` is idempotent and populates every endpoint with something real:
+
+| | |
+|---|---|
+| **7 accounts** | all verified, full profiles, images and preferences — password `Passw0rd123` for every one |
+| **2 matches** | `ava ↔ liam` (6 chat messages, a finished game, a completed date + ratings) and `ava ↔ noah` (a **PENDING** invitation addressed to ava, so `DT-06` accept works) |
+| **plus** | trust scores and events, a block, a report, an active and an expired subscription, a PUBLISHED success story with likes and comments, notifications |
+
+Sign in as **`+8801811000001` / `Passw0rd123`** (Ava Stone) — the Postman collection's defaults already point at this account. `ethan` and `kabir` are left unswiped so the discovery feed is never empty.
+
+Re-running the seed also **prunes** swipes and matches created by API runs, so a `db:seed` always restores the documented state.
 
 ## API
 
@@ -143,7 +159,7 @@ Profiles are returned categorized (`auth`, `basicProfile`, `lifestyle`, `locatio
 
 ### Chat
 
-REST endpoints **read only** — sending is WebSocket-only, see [Realtime chat](#realtime-chat).
+REST endpoints **read only** — sending is WebSocket-only, see [Realtime chat](#realtime-chat-socketio).
 
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
@@ -213,17 +229,22 @@ Status machine: `PENDING` → `ACCEPTED` → `COMPLETED`, with `DECLINED` / `CAN
 | SS-05 | POST | `/success-stories/:id/comments` | Bearer | Add a comment |
 | SS-06 | DELETE | `/success-stories/:id/comments/:commentId` | Bearer | Delete own comment |
 
-## Realtime chat
+## Realtime chat (Socket.IO)
 
-Socket.IO on the same origin as the REST API, with the JWT passed in the handshake (`ChatGateway`).
+Messages are **sent over Socket.IO and read over REST** — `C-01`/`C-02` are read-only and there is no REST send endpoint.
+
+Connect to `ws://localhost:3000` (default namespace, path `/socket.io`) and authenticate with **either** an `Authorization: Bearer <accessToken>` header **or** `?token=<accessToken>` in the URL. Both are verified working. An invalid token connects and is then immediately disconnected by the server.
 
 | Direction | Event | Payload |
 |---|---|---|
-| → emit | `joinRoom` | `{ conversationId }` |
-| → emit | `sendMessage` | `{ conversationId, content, type? }` — type = `TEXT` \| `IMAGE` \| `DATE_INVITE` \| `SYSTEM` |
-| → emit | `typing` | `{ conversationId, isTyping }` |
-| ← listen | `newMessage` | the saved message |
-| ← listen | `typing` | `{ userId, isTyping }` |
+| → send | `joinRoom` | `{ conversationId }` — required before sending or receiving |
+| → send | `sendMessage` | `{ conversationId, content, type? }` — `TEXT` \| `IMAGE` \| `DATE_INVITE` \| `SYSTEM` |
+| → send | `typing` | `{ conversationId, isTyping }` |
+| ← receive | `newMessage` | the persisted message |
+| ← receive | `typing` | `{ userId, isTyping }` |
+| ← receive | `gameStarted` / `partnerAnswered` / `roundResult` / `gameCompleted` | game session updates |
+
+Folder **12 · Realtime (Socket.IO)** in the Postman collection documents the full contract, including acks and every error string.
 
 ## Postman
 
@@ -234,18 +255,20 @@ Import `postman/48date-backend.postman_collection.json`. Two root folders:
 
 Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints overriding to *No Auth*.
 
-The collection defines **99 variables** and every request carries a test script that captures what it returns, so the folders run top-to-bottom without editing anything by hand. Notably:
+**Every request is documented.** Each carries a description with a parameter table — type, required, and the **exact case-sensitive** values every enum accepts — plus the constraints the DTOs enforce (`heightCm` 50–250, `story` 20–5000 chars, and so on). JSON bodies have a `//` comment above each field (Postman strips them before sending); multipart bodies use per-field descriptions.
 
-- `accessToken` / `refreshToken` / `userId` are captured on register, login and refresh
-- **`otp` is captured automatically** — the API returns the dev OTP in the response body whenever Twilio is unset, so `A-02` and `A-08` never need it typed in
-- list endpoints save the first row's id into the matching detail variable (`D-03` → `targetUserId`, `M-01` → `matchId` + `conversationId`, `G-01` → `gameId` + `questionId` + `selectedOption`, `DT-03` → `datePlanId`, `SS-02` → `storyId`, …)
-- request payloads are built from variables too (`{{userGender}}`, `{{placeName}}`, `{{ratingOverall}}`, …), so you change data in one place
+**120 response examples, all captured from the running API** — not hand-written. Every endpoint has a filled success example, and 53 of 54 also carry their real error responses (400 validation with the actual `messages[]`, 401, 404, and the 409s for duplicate registration and for a second active date on one match). `SB-01` is the exception: a static public catalogue with no failure mode.
 
-`userPhone` / `userEmail` have stable defaults, so re-running `A-01` returns 409 "already registered" — which `A-01` treats as expected and tells you to run `A-03` Login instead. To register a genuinely new account, clear those two variables and the collection's pre-request script generates unique ones.
+**27 variables**, deliberately limited to values that flow *between* requests — ids, tokens, and login identity. Everything else is literal text you can read and edit in place. Each variable's description says which request fills it and which consume it:
 
-Id variables default to `REPLACE_ME` so an unset id fails loudly with a clear 404, rather than silently collapsing to a different route (`/dates/` would otherwise hit the list endpoint).
+- `accessToken` / `refreshToken` / `resetToken` / `userId` — captured on register, login, refresh
+- **`otp` is captured automatically** — the API returns the dev OTP in the body while Twilio is unset, so `A-02` and `A-08` never need it typed in
+- list → detail: `D-03` → `targetUserId`, `M-01` → `matchId` + `conversationId`, `G-01` → `gameId` + `questionId` + `selectedOption`, `DT-01` → `placeName`/`placeAddress`/lat/lng, `DT-03` → `datePlanId`, `S-02` → `blockedUserId`, `SS-02` → `storyId`
+- `G-03` advances `questionId` to the first **unanswered** question, so `G-04` can be run repeatedly
 
-**Running the whole collection with one fresh account gives 27 passes and 27 expected failures** — the rest need a file picked for upload, a real Google token, or a second account to match with. The USER folder description contains a step-by-step recipe for producing a real `matchId`, which unlocks folders 04–07.
+`userPhone` / `userEmail` have stable defaults, so re-running `A-01` returns 409 "already registered" — which `A-01` treats as expected and points you to `A-03`. To register a fresh account, clear those two variables and the pre-request script generates unique ones.
+
+> A clean run against a seeded database passes **49/54**. The other 5 are expected: `A-01` returns 409 because the seeded account already exists (the script treats that as success and points you to `A-03`), `P-01` needs a file picked in the GUI, and `DT-07`/`DT-09`/`DT-10` conflict with the date state machine when the folder is run top-to-bottom — `DT-06` has already accepted the date and `DT-08` has cancelled it. Each of those three says so in its description.
 
 ## Common commands
 
@@ -301,6 +324,7 @@ Verified against the running server:
 - **`POST /auth/request-otp` and `GET /auth/me` do not exist** — earlier versions of this README documented them. Registration and login already return tokens plus the user object, and `GET /users/profile` (P-03) replaces `/auth/me`.
 - **Google login does not verify the ID token signature** — it only base64-decodes the payload to read `email`.
 - **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.
+- **Fixed:** every `env.*` value sourced from `.env` used to be `undefined` at runtime. `env.config.ts` reads `process.env` when it is imported, which happens while resolving `AppModule` — before Nest's `ConfigModule` loads `.env`. Socket.IO auth failed outright (`secret or public key must be provided`), and Twilio, R2, SMTP, Mapbox, the RevenueCat secret and `REDIS_URL` all silently fell back to their no-op paths even when configured. `main.ts` now imports `dotenv/config` first.
 - **Success stories can never be published** — `SS-01` creates them as `PENDING` and no endpoint can approve them.
 - **Reports can never be actioned** — `S-04` creates them as `PENDING` with no review endpoint.
 - Several DTO validation messages in `register.dto.ts` still name removed enum values (`PREFER_NOT_TO_SAY`, `REGULAR`/`OCCASIONALLY`/`NONE`, `HAVE`/`DONT_HAVE`). The messages are stale; the enums enforced are the ones listed in `setup-profile.dto.ts`.
