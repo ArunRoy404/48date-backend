@@ -119,6 +119,11 @@
       "type": "string"
     },
     {
+      "key": "selectedOption",
+      "value": "REPLACE_ME",
+      "type": "string"
+    },
+    {
       "key": "sessionId",
       "value": "REPLACE_ME",
       "type": "string"
@@ -1233,7 +1238,12 @@
                       "if (list.length) {",
                       "  if (list[0].id) pm.collectionVariables.set('gameId', list[0].id);",
                       "  const qs = list[0].questions || [];",
-                      "  if (qs.length && qs[0].id) pm.collectionVariables.set('questionId', qs[0].id);",
+                      "  if (qs.length && qs[0].id) {",
+                      "    pm.collectionVariables.set('questionId', qs[0].id);",
+                      "    // Capture this question's real optionA: submitAnswer rejects anything",
+                      "    // that isn't an exact match for optionA/optionB.",
+                      "    if (qs[0].optionA) pm.collectionVariables.set('selectedOption', qs[0].optionA);",
+                      "  }",
                       "}"
                     ]
                   }
@@ -1343,10 +1353,10 @@
                     "answers"
                   ]
                 },
-                "description": "**Answers one question in the session.**\n\nAuth: Bearer.\n\n`questionId` must be a UUID belonging to the session's game; `selectedOption` must match one of that question's options. The session flips to COMPLETED once both players have answered everything.",
+                "description": "**Answers one question in the session.**\n\nAuth: Bearer.\n\n`questionId` must be a UUID belonging to the session's game; `selectedOption` must be an **exact, case-sensitive** match for that question's `optionA` or `optionB` — anything else returns 400 with both valid options in the message. `{{selectedOption}}` is captured from **U-24** so this works out of the box. The session flips to COMPLETED once both players have answered everything.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"selectedOption\": \"Coffee\"\n}",
+                  "raw": "{\n  \"questionId\": \"{{questionId}}\",\n  \"selectedOption\": \"{{selectedOption}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
