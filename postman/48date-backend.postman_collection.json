@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "b8d74969-2199-4bfa-9702-62c522bd826e",
+    "_postman_id": "ba8c209d-cabf-45a8-889c-1c442fc46dd0",
     "name": "48Date Backend API",
     "description": "# 48Date Backend API\n\nREST API for the **48Date** dating app — NestJS 11 (ESM) · PostgreSQL 16 + Prisma 7 · Redis 7 · JWT.\n\n---\n\n## How this collection is organised\n\nTwo root folders:\n\n| Folder | Contents |\n|---|---|\n| **USER** | All **54 implemented endpoints**, consumed by the Flutter app. Serialised `A-01` → `SS-06`. |\n| **ADMIN** | **Empty placeholder.** No admin endpoints exist in the codebase yet — see that folder's description for the verified details. |\n\n### Reading the serials\n\nEach folder has its own letter prefix, and requests are numbered **01..n within that folder** in integration order:\n\n| Folder | Prefix | Count |\n|---|---|---|\n| 01 · Auth | `A` | 9 |\n| 02 · Profile & Media | `P` | 5 |\n| 03 · Discovery | `D` | 5 |\n| 04 · Matches | `M` | 2 |\n| 05 · Chat (REST) | `C` | 2 |\n| 06 · Games | `G` | 4 |\n| 07 · Dates | `DT` | 11 |\n| 08 · Trust Score | `T` | 2 |\n| 09 · Safety | `S` | 5 |\n| 10 · Subscriptions | `SB` | 3 |\n| 11 · Success Stories | `SS` | 6 |\n\nThe **folders themselves** are numbered `01` → `11` in the order you should integrate them: finish Auth before Profile, Profile before Discovery, and so on. Within a folder, a lower number is either a dependency of, or independent from, what follows — so `A-01` has no prerequisites at all, while `SS-06` assumes most of the collection already works.\n\nCross-references in request descriptions use these serials, so \"run after **A-03**\" always points at exactly one request.\n\n---\n\n## Setup\n\n1. Start the API: `docker compose up -d postgres redis && npm run start:dev`\n2. Set the `baseUrl` variable if you are not on `http://localhost:3000`.\n3. Run **A-01 Register** → **A-02 Verify OTP** → you are authenticated.\n\n**Dev OTP is always `123456`.**\n\n### Variables are captured for you\n\nEvery request that returns an id writes it into a collection variable, so the folders are runnable top-to-bottom without hand-editing anything:\n\n`phone` · `email` · `username` · `accessToken` · `refreshToken` · `resetToken` · `userId` · `imageUrl` · `targetUserId` · `matchId` · `conversationId` · `gameId` · `questionId` · `sessionId` · `datePlanId` · `storyId` · `commentId`\n\nAuthentication is set **collection-wide** to `Bearer {{accessToken}}`; public endpoints individually override it to *No Auth*.\n\n> **Re-running A-01:** `phone`, `email` and `username` are generated once and then **persist** in the collection. Since all three are unique in the database, running **A-01 Register** a second time returns `409 Conflict`. To create another fresh account, clear those three variables (and `accessToken`) first — the pre-request script regenerates them.\n\n---\n\n## Response envelope\n\nEvery endpoint — success or failure — returns the same shape:\n\n```json\n{ \"success\": true, \"message\": \"Operation successful\", \"messages\": [], \"data\": { } }\n```\n\n```json\n{ \"success\": false, \"message\": \"Validation failed\", \"messages\": [\"phone must be ...\"], \"statusCode\": 400 }\n```\n\n`messages` carries the full list of validation errors; `message` is the first one, suitable for a toast.\n\n---\n\n## Chat is WebSocket-only for sending\n\nThe two REST endpoints in folder **05** only *read*. Sending happens over Socket.IO on the same origin as `baseUrl`, authenticated by passing the JWT in the handshake.\n\n| Direction | Event | Payload |\n|---|---|---|\n| → emit | `joinRoom` | `{ conversationId }` |\n| → emit | `sendMessage` | `{ conversationId, content, type? }` — type = TEXT \\| IMAGE \\| DATE_INVITE \\| SYSTEM |\n| → emit | `typing` | `{ conversationId, isTyping }` |\n| ← listen | `newMessage` | the saved message |\n| ← listen | `typing` | `{ userId, isTyping }` |\n\nPostman's WebSocket request type can drive these, but it is not part of this collection.\n\n---\n\n## Known gaps\n\nBehaviour verified against the running server — worth knowing before you integrate:\n\n- **No admin API at all.** See the ADMIN folder.\n- **`POST /auth/request-otp` and `GET /auth/me` do not exist** despite older docs listing them. Registration and login already return tokens and the user object, and `GET /users/profile` (**P-03**) replaces `/auth/me`.\n- **Google login does not verify the token signature** — it only base64-decodes the payload.\n- **Mapbox place search returns `[]`** unless `MAPBOX_ACCESS_TOKEN` is set.\n- **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.\n- Twilio / SMTP / FCM / R2 all **fall back to console logging or local disk** when their env vars are absent, so flows succeed locally without any third-party account.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -637,8 +637,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000003-0000-4000-8000-7ae11ab508e3"
+              ]
             },
             {
               "name": "A-02 Verify OTP",
@@ -714,8 +713,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000004-0000-4000-8000-cde2bce41293"
+              ]
             },
             {
               "name": "A-03 Login",
@@ -795,8 +793,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000005-0000-4000-8000-8e1f8929efe4"
+              ]
             },
             {
               "name": "A-04 Google login",
@@ -872,8 +869,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000006-0000-4000-8000-d4c69e818de6"
+              ]
             },
             {
               "name": "A-05 Refresh tokens",
@@ -940,8 +936,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000007-0000-4000-8000-03415f0a25b1"
+              ]
             },
             {
               "name": "A-06 Logout",
@@ -990,8 +985,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000008-0000-4000-8000-7d5fbca11237"
+              ]
             },
             {
               "name": "A-07 Forgot password",
@@ -1060,8 +1054,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000009-0000-4000-8000-331500a707d6"
+              ]
             },
             {
               "name": "A-08 Verify reset OTP",
@@ -1127,8 +1120,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000000a-0000-4000-8000-5eae5d45c318"
+              ]
             },
             {
               "name": "A-09 Reset password",
@@ -1194,11 +1186,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000000b-0000-4000-8000-ce79acdbf499"
+              ]
             }
-          ],
-          "id": "00000002-0000-4000-8000-eab43964f047"
+          ]
         },
         {
           "name": "02 · Profile & Media",
@@ -1266,8 +1256,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000000d-0000-4000-8000-bf643489e187"
+              ]
             },
             {
               "name": "P-02 Profile setup",
@@ -1334,8 +1323,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000000e-0000-4000-8000-eeba40186e6f"
+              ]
             },
             {
               "name": "P-03 Get my profile",
@@ -1391,8 +1379,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000000f-0000-4000-8000-c625dd1478a8"
+              ]
             },
             {
               "name": "P-04 Verify selfie",
@@ -1459,8 +1446,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000010-0000-4000-8000-6a7aa90aacc8"
+              ]
             },
             {
               "name": "P-05 Verification status",
@@ -1509,11 +1495,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000011-0000-4000-8000-44bd8762fa31"
+              ]
             }
-          ],
-          "id": "0000000c-0000-4000-8000-a92850afb91a"
+          ]
         },
         {
           "name": "03 · Discovery",
@@ -1567,8 +1551,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000013-0000-4000-8000-3b53737e3477"
+              ]
             },
             {
               "name": "D-02 Update preferences",
@@ -1632,8 +1615,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000014-0000-4000-8000-ab7bcc49b526"
+              ]
             },
             {
               "name": "D-03 Get discovery feed",
@@ -1690,8 +1672,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000015-0000-4000-8000-1d02cf535e19"
+              ]
             },
             {
               "name": "D-04 Get profile detail",
@@ -1740,8 +1721,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000016-0000-4000-8000-717854854d79"
+              ]
             },
             {
               "name": "D-05 Swipe",
@@ -1807,11 +1787,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000017-0000-4000-8000-c5b811acf4ca"
+              ]
             }
-          ],
-          "id": "00000012-0000-4000-8000-1dae3a4b2979"
+          ]
         },
         {
           "name": "04 · Matches",
@@ -1872,8 +1850,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000019-0000-4000-8000-f38287c80c2d"
+              ]
             },
             {
               "name": "M-02 Unmatch",
@@ -1922,11 +1899,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000001a-0000-4000-8000-488383586993"
+              ]
             }
-          ],
-          "id": "00000018-0000-4000-8000-e7c9607acf89"
+          ]
         },
         {
           "name": "05 · Chat (REST)",
@@ -1985,8 +1960,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000001c-0000-4000-8000-2cf8b712f456"
+              ]
             },
             {
               "name": "C-02 Get messages",
@@ -2051,11 +2025,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000001d-0000-4000-8000-6a099c810047"
+              ]
             }
-          ],
-          "id": "0000001b-0000-4000-8000-5dc9b4581cb3"
+          ]
         },
         {
           "name": "06 · Games",
@@ -2118,8 +2090,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000001f-0000-4000-8000-5865e0069208"
+              ]
             },
             {
               "name": "G-02 Start session",
@@ -2190,8 +2161,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000020-0000-4000-8000-76d8b764e9c5"
+              ]
             },
             {
               "name": "G-03 Get session",
@@ -2249,8 +2219,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000021-0000-4000-8000-73ea9fbe42c5"
+              ]
             },
             {
               "name": "G-04 Submit answer",
@@ -2316,11 +2285,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000022-0000-4000-8000-e34d6d394b4a"
+              ]
             }
-          ],
-          "id": "0000001e-0000-4000-8000-3f6648c5e612"
+          ]
         },
         {
           "name": "07 · Dates",
@@ -2402,8 +2369,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000024-0000-4000-8000-cdc4f7a6725f"
+              ]
             },
             {
               "name": "DT-02 Create date plan",
@@ -2465,8 +2431,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000025-0000-4000-8000-51d55a452cd4"
+              ]
             },
             {
               "name": "DT-03 List my dates",
@@ -2545,8 +2510,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000026-0000-4000-8000-d483411f5881"
+              ]
             },
             {
               "name": "DT-04 Get date plan",
@@ -2595,8 +2559,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000027-0000-4000-8000-2fa3abbcea40"
+              ]
             },
             {
               "name": "DT-05 Update date plan",
@@ -2659,8 +2622,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000028-0000-4000-8000-8a4d5c89616c"
+              ]
             },
             {
               "name": "DT-06 Accept invitation",
@@ -2710,8 +2672,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000029-0000-4000-8000-064c3012babe"
+              ]
             },
             {
               "name": "DT-07 Decline invitation",
@@ -2761,8 +2722,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000002a-0000-4000-8000-4012dcd1ea94"
+              ]
             },
             {
               "name": "DT-08 Cancel date",
@@ -2826,8 +2786,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000002b-0000-4000-8000-ddce8727a8fa"
+              ]
             },
             {
               "name": "DT-09 Complete date",
@@ -2877,8 +2836,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000002c-0000-4000-8000-752ddc9fc737"
+              ]
             },
             {
               "name": "DT-10 Submit rating",
@@ -2942,8 +2900,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000002d-0000-4000-8000-8a7e8004b1cf"
+              ]
             },
             {
               "name": "DT-11 Get date ratings",
@@ -2994,11 +2951,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000002e-0000-4000-8000-dce342b6a90d"
+              ]
             }
-          ],
-          "id": "00000023-0000-4000-8000-28c624bad44e"
+          ]
         },
         {
           "name": "08 · Trust Score",
@@ -3050,8 +3005,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000030-0000-4000-8000-a14df7db71b1"
+              ]
             },
             {
               "name": "T-02 Trust score history",
@@ -3112,11 +3066,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000031-0000-4000-8000-9ba0fc2fa8f1"
+              ]
             }
-          ],
-          "id": "0000002f-0000-4000-8000-06fb4702991d"
+          ]
         },
         {
           "name": "09 · Safety (Blocks & Reports)",
@@ -3169,8 +3121,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000033-0000-4000-8000-ae92052e0890"
+              ]
             },
             {
               "name": "S-02 List blocked users",
@@ -3232,8 +3183,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000034-0000-4000-8000-f87b0c597f51"
+              ]
             },
             {
               "name": "S-03 Unblock user",
@@ -3282,8 +3232,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000035-0000-4000-8000-53b04e813aa6"
+              ]
             },
             {
               "name": "S-04 Report user",
@@ -3345,8 +3294,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000036-0000-4000-8000-b84ae1041f89"
+              ]
             },
             {
               "name": "S-05 My reports",
@@ -3408,11 +3356,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000037-0000-4000-8000-2739c210a9a8"
+              ]
             }
-          ],
-          "id": "00000032-0000-4000-8000-6b60b0057099"
+          ]
         },
         {
           "name": "10 · Subscriptions",
@@ -3469,8 +3415,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000039-0000-4000-8000-879f9154fa9c"
+              ]
             },
             {
               "name": "SB-02 My subscription",
@@ -3520,8 +3465,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000003a-0000-4000-8000-75eefb7f8162"
+              ]
             },
             {
               "name": "SB-03 RevenueCat webhook",
@@ -3587,11 +3531,9 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000003b-0000-4000-8000-e4e24ea896e5"
+              ]
             }
-          ],
-          "id": "00000038-0000-4000-8000-e2d1b8111953"
+          ]
         },
         {
           "name": "11 · Success Stories",
@@ -3657,8 +3599,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000003d-0000-4000-8000-b6e41f75bcf1"
+              ]
             },
             {
               "name": "SS-02 List stories",
@@ -3729,8 +3670,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000003e-0000-4000-8000-5b4add2cfd47"
+              ]
             },
             {
               "name": "SS-03 Get story",
@@ -3784,8 +3724,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "0000003f-0000-4000-8000-38ebeaee7128"
+              ]
             },
             {
               "name": "SS-04 Like / unlike story",
@@ -3835,8 +3774,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000040-0000-4000-8000-125a19f2e02e"
+              ]
             },
             {
               "name": "SS-05 Add comment",
@@ -3900,8 +3838,7 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000041-0000-4000-8000-1b66e4415b0d"
+              ]
             },
             {
               "name": "SS-06 Delete comment",
@@ -3952,20 +3889,16 @@
                     ]
                   }
                 }
-              ],
-              "id": "00000042-0000-4000-8000-a3f18043fb4d"
+              ]
             }
-          ],
-          "id": "0000003c-0000-4000-8000-12d38cf1ae31"
+          ]
         }
-      ],
-      "id": "00000001-0000-4000-8000-84f6c77af3ee"
+      ]
     },
     {
       "name": "ADMIN",
       "description": "# ⚠️ No admin endpoints are implemented yet\n\nThis folder is an intentionally empty placeholder so the collection structure is ready when the admin API lands. **Nothing has been stubbed or invented here** — adding fake requests would be worse than an empty folder.\n\n## Verified state of the code (as of this collection)\n\n- `src/modules/admin/admin.module.ts` — the controller, service and providers are all **commented out**; the module exports an empty `@Module({})`.\n- `AdminModule` is **not imported** into `app.module.ts`, so Nest never registers it.\n- `src/modules/admin/types/admin.types.ts` contains only `export {}`.\n- The `@Roles()` decorator (`src/common/decorators/roles.decorator.ts`) and `RolesGuard` (`src/common/guards/roles.guard.ts`) both exist but are **applied to zero controllers** — every guarded route in this API uses the plain `JwtAuthGuard`.\n- The `Role` enum does contain `ADMIN`, and users carry a `role` field, so the data model is ready.\n\nAll 54 routes the server actually maps are user-facing and live under the **USER** folder.\n\n## What the React admin panel will need\n\nThese are the gaps implied by features that already exist on the user side — they are **not implemented**, listed only so the work is visible:\n\n- **Moderation queue** — `reports` rows are created by `S-04` with status PENDING and there is currently no way to review, resolve or dismiss them.\n- **Success-story approval** — `SS-01` creates stories with status PENDING, and nothing can move them to PUBLISHED, so the public list `SS-02` can never grow.\n- **User administration** — suspend/ban, trust-score override, manual verification.\n- **Analytics** — signups, matches, dates completed, subscription revenue.\n\nWhen those endpoints are built, number them **A-01, A-02, …** inside subfolders here, mirroring the USER convention.",
-      "item": [],
-      "id": "00000043-0000-4000-8000-fd5de75482e3"
+      "item": []
     }
   ]
 }
