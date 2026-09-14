@@ -1,15 +1,10 @@
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { OtpChannelDto } from './otp-channel.dto.js';
 
-export class LoginDto {
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @IsOptional()
-  @IsEmail({}, { message: 'email must be a valid email address' })
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  password?: string;
-}
+/**
+ * Login payload — phone OR email, nothing else.
+ *
+ * There is no registration endpoint: an unknown identifier creates the
+ * account on the spot. Login never returns tokens; it always dispatches an
+ * OTP and the client continues with `POST /auth/verify-otp` (A-02).
+ */
+export class LoginDto extends OtpChannelDto {}

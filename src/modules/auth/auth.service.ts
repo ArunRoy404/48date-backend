@@ -8,22 +8,17 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 import twilio from 'twilio';
 import { env } from '../../config/env.config.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { formatUser } from '../../common/utils/user-formatter.js';
-import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { UsersService } from '../users/users.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
-import { RegisterDto } from './dto/register.dto.js';
-import { ResetPasswordDto } from './dto/reset-password.dto.js';
-import { VerifyForgotPasswordDto } from './dto/verify-forgot-password.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
+import { VerifyUserInformationDto } from './dto/verify-user-information.dto.js';
 import { GoogleLoginDto } from './dto/google-login.dto.js';
 
 const DUMMY_OTP = '123456';
-const RESET_TOKEN_PURPOSE = 'password-reset';
 
 @Injectable()
 export class AuthService {
@@ -33,96 +28,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
   ) {}
-
-  async register(dto: RegisterDto) {
-    if (!dto.phone && !dto.email) {
-      throw new BadRequestException('Either phone or email must be provided');
-    }
-
-    if (dto.images && dto.images.length > 0) {
-      const mainImages = dto.images.filter((image) => image.isMain);
-      if (mainImages.length !== 1) {
-        throw new BadRequestException(
-          'Exactly one image must be marked as main',
-        );
-      }
-    }
-
-    let birthDate: Date | undefined = undefined;
-    if (dto.birthDate) {
-      birthDate = new Date(dto.birthDate);
-      if (
-        Number.isNaN(birthDate.getTime()) ||
-        birthDate.getTime() > Date.now()
-      ) {
-        throw new BadRequestException(
-          'birthDate must be a valid date in the past',
-        );
-      }
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-
-    const user = await this.prisma.user
-      .create({
-        data: {
-          // Auth / identity
-          phone: dto.phone ?? null,
-          email: dto.email ?? null,
-          passwordHash,
-          // Basic profile
-          name: dto.name ?? null,
-          firstName: dto.firstName ?? null,
-          lastName: dto.lastName ?? null,
-          username: dto.username ?? null,
-          birthDate,
-          occupation: dto.occupation ?? null,
-          gender: dto.gender ?? null,
-          interestedIn: dto.interestedIn ?? null,
-          // Lifestyle
-          smoker: dto.smoker ?? null,
-          alcohol: dto.alcohol ?? null,
-          kids: dto.kids ?? null,
-          wantsKids: dto.wantsKids ?? null,
-          lookingFor: dto.lookingFor ?? null,
-          // Location
-          locations: dto.locations ?? [],
-          lastLocation: dto.lastLocation ?? null,
-          // Body
-          heightCm: dto.heightCm ?? null,
-          weightKg: dto.weightKg ?? null,
-          // Interests
-          creativity: dto.creativity ?? [],
-          sports: dto.sports ?? [],
-          moviesAndDramas: dto.moviesAndDramas ?? [],
-          // Media
-          selfieUrl: dto.selfieUrl ?? null,
-          notificationsEnabled: dto.notificationsEnabled ?? true,
-          images:
-            dto.images && dto.images.length > 0
-              ? {
-                  create: dto.images.map((image, index) => ({
-                    r2Key: image.url,
-                    isPrimary: image.isMain,
-                    sortOrder: image.sortOrder ?? index,
-                  })),
-                }
-              : undefined,
-        },
-        include: { images: { orderBy: { sortOrder: 'asc' } } },
-      })
-      .catch((error: unknown) => {
-        const conflictMessage = this.uniqueConflictMessage(error);
-        if (conflictMessage) {
-          throw new ConflictException(conflictMessage);
-        }
-        throw error;
-      });
-
-    const tokens = await this.issueTokens(user.id, user.role);
-    return { user: formatUser(user), ...tokens };
-  }
 
   /**
    * Dispatches an OTP via Twilio Verify if configured in production,
@@ -197,96 +104,77 @@ export class AuthService {
   }
 
   /**
-   * Unified login & sign-in handler:
-   * - If phone is supplied without password, automatically finds or creates the user.
-   *   If phone is unverified, sends OTP. If verified, returns tokens and routing step.
-   * - If password is supplied (e.g. email or admin login), verifies credentials with bcrypt.
+   * Unified login / sign-up handler — there is no separate register endpoint.
+   *
+   * - Accepts a phone OR an email. An identifier we have never seen creates
+   *   the account on the spot.
+   * - ALWAYS dispatches an OTP and returns `requiresOtp: true`. No tokens are
+   *   issued here, and an already-verified account is no exception: every
+   *   login is re-confirmed with an OTP.
+   * - The client continues with `POST /auth/verify-otp` (A-02), which issues
+   *   the token pair and routes on `nextStep`.
    */
   async login(dto: LoginDto) {
-    if (!dto.phone && !dto.email) {
-      throw new BadRequestException('Either phone or email must be provided');
+    const channel = dto.channel || (dto.phone ? 'phone' : 'email');
+    const identifier = channel === 'phone' ? dto.phone : dto.email;
+
+    if (!identifier) {
+      throw new BadRequestException(
+        dto.channel
+          ? `${channel} must be provided when channel is "${channel}"`
+          : 'Either phone or email must be provided',
+      );
     }
 
-    // --- Phone-based passwordless login & auto-create flow ---
-    if (dto.phone && !dto.password) {
-      let user = await this.prisma.user.findFirst({
-        where: { phone: dto.phone },
-      });
+    let user = await this.findByChannel({ channel, ...dto });
+    let isNewAccount = false;
 
-      if (!user) {
-        user = await this.prisma.user.create({
-          data: {
-            phone: dto.phone,
-            isPhoneVerified: false,
-            isUserVerified: false,
-          },
+    if (!user) {
+      isNewAccount = true;
+      user = await this.prisma.user
+        .create({
+          data:
+            channel === 'phone'
+              ? {
+                  phone: identifier,
+                  isPhoneVerified: false,
+                  isUserVerified: false,
+                }
+              : {
+                  email: identifier,
+                  isEmailVerified: false,
+                  isUserVerified: false,
+                },
+        })
+        .catch((error: unknown) => {
+          // Two first-time logins for the same identifier can race here.
+          const conflictMessage = this.uniqueConflictMessage(error);
+          if (conflictMessage) {
+            throw new ConflictException(conflictMessage);
+          }
+          throw error;
         });
-      }
-
-      if (!user.isPhoneVerified) {
-        const otpResult = await this.sendOtp(dto.phone);
-        return {
-          requiresOtp: true,
-          phone: user.phone,
-          isPhoneVerified: false,
-          isUserVerified: false,
-          message: otpResult.message,
-          ...(otpResult.otp ? { otp: otpResult.otp } : {}),
-        };
-      }
-
-      // Phone is verified -> issue tokens and direct to main app or profile setup
-      const tokens = await this.issueTokens(user.id, user.role);
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      });
-
-      return {
-        requiresOtp: false,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        isPhoneVerified: true,
-        isEmailVerified: user.isEmailVerified,
-        isUserVerified: user.isUserVerified,
-        nextStep: user.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
-      };
     }
 
-    // --- Password-based login (e.g. email or admin account) ---
-    if (!dto.password) {
-      throw new BadRequestException('Password is required for email login');
-    }
+    const otpResult =
+      channel === 'phone'
+        ? await this.sendOtp(identifier)
+        : {
+            sent: true,
+            message: 'Development mode: dummy OTP active',
+            otp: DUMMY_OTP,
+          };
 
-    const user = await this.prisma.user.findFirst({
-      where: dto.phone ? { phone: dto.phone } : { email: dto.email },
-    });
-    if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const passwordMatches = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
-    if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    const tokens = await this.issueTokens(user.id, user.role);
     return {
-      requiresOtp: false,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      requiresOtp: true,
+      isNewAccount,
+      channel,
+      ...(channel === 'phone' ? { phone: user.phone } : { email: user.email }),
       isPhoneVerified: user.isPhoneVerified,
       isEmailVerified: user.isEmailVerified,
       isUserVerified: user.isUserVerified,
-      nextStep: user.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
+      message: otpResult.message,
+      ...(otpResult.otp ? { otp: otpResult.otp } : {}),
     };
   }
 
@@ -336,67 +224,35 @@ export class AuthService {
   }
 
   /**
-   * Dummy OTP for password reset — same fixed code, no account enumeration.
-   * TODO: replace with Twilio Verify (phone) + transactional email (email).
+   * A-03 — the single onboarding submission.
+   *
+   * Called once the client holds a token pair (from A-02 verify-otp, or from
+   * A-01.2 Google login) and the account still reports
+   * `isUserVerified: false`. It writes the whole profile in one shot; the
+   * DTO requires every field the completeness check looks at, so a 200 here
+   * always means the account is now verified and routed to MAIN_APP.
+   *
+   * Later edits go through `PATCH /users/profile-setup` (P-02).
    */
-  forgotPassword(dto: ForgotPasswordDto) {
+  async verifyUserInformation(userId: string, dto: VerifyUserInformationDto) {
+    // `name` is what the profile screens display; derive it when the client
+    // only sent the two name parts.
+    const name = dto.name?.trim() || `${dto.firstName} ${dto.lastName}`.trim();
+
+    const user = await this.usersService.setupProfile(userId, { ...dto, name });
+
+    // `formatUser` nests the verification flags under `auth`.
+    if (!user.auth.isUserVerified) {
+      throw new BadRequestException(
+        'Profile is still incomplete — the account could not be verified.',
+      );
+    }
+
     return {
-      channel: dto.channel,
-      otp: DUMMY_OTP,
-      message: 'Dummy OTP — development only, no message was sent',
+      user,
+      isUserVerified: user.auth.isUserVerified,
+      nextStep: 'MAIN_APP',
     };
-  }
-
-  /** Verifies the reset OTP and issues a short-lived password-reset token. */
-  async verifyForgotPassword(dto: VerifyForgotPasswordDto) {
-    const channel = dto.channel || (dto.phone ? 'phone' : 'email');
-    const user = await this.findByChannel(dto);
-    if (!user) {
-      throw new NotFoundException(`No account found with this ${channel}`);
-    }
-    if (dto.otp !== DUMMY_OTP) {
-      throw new UnauthorizedException('Invalid OTP');
-    }
-
-    const resetToken = await this.jwtService.signAsync(
-      { sub: user.id, purpose: RESET_TOKEN_PURPOSE },
-      {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-        expiresIn: '15m',
-      },
-    );
-
-    return { resetToken, expiresIn: '15m' };
-  }
-
-  /** Sets a new password using a valid reset token. */
-  async resetPassword(dto: ResetPasswordDto) {
-    let payload: { sub: string; purpose?: string };
-    try {
-      payload = await this.jwtService.verifyAsync(dto.resetToken, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid or expired reset token');
-    }
-    if (payload.purpose !== RESET_TOKEN_PURPOSE) {
-      throw new UnauthorizedException('Invalid or expired reset token');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
-    if (!user) {
-      throw new NotFoundException('User no longer exists');
-    }
-
-    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash },
-    });
-
-    return { message: 'Password updated successfully' };
   }
 
   /** Refreshes the token pair using a valid refresh token. */
