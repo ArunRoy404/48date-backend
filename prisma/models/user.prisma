@@ -6,7 +6,22 @@ model User {
   role            Role     @default(USER)
   isEmailVerified Boolean  @default(false)
   isPhoneVerified Boolean  @default(false)
-  isUserVerified  Boolean  @default(false) // true when email OR phone is verified
+  // Set by A-03 once the onboarding submission lands. Drives `nextStep` and
+  // whether the account appears in Discovery.
+  isProfileComplete Boolean @default(false)
+
+  // Admin-controlled trust badge. Nothing in the user-facing API sets it —
+  // completing a profile is not the same as being vouched for.
+  isUserVerified  Boolean  @default(false)
+
+  // When an OTP was last dispatched to this account. Drives the resend
+  // cooldown shared by `POST /auth/login` and `POST /auth/resend-otp`.
+  lastOtpSentAt   DateTime?
+
+  // Separate timer for the profile contact-verification flow. Sharing one
+  // column would mean logging in blocks you from verifying an email you added
+  // seconds later — a different purpose, so a different cooldown.
+  lastContactOtpSentAt DateTime?
 
   // --- Basic profile ---
   firstName    String?
