@@ -7,10 +7,29 @@ export class SendMessageDto {
   conversationId: string;
 
   @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  content?: string;
 
   @IsEnum(MessageType)
   @IsOptional()
   type?: MessageType;
+
+  @IsString()
+  @IsOptional()
+  mediaUrl?: string;
 }
+
+export class CreateMessageDto {
+  @IsString()
+  @IsOptional()
+  content?: string;
+
+  @IsEnum(MessageType)
+  @IsOptional()
+  type?: MessageType;
+
+  @IsString()
+  @IsOptional()
+  mediaUrl?: string;
+}
+
