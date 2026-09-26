@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "147dd52e-291c-4d13-b240-de62bd778e31",
     "name": "48Date Backend API",
-    "description": "# 48Date Backend API\n\nREST API for the **48Date** dating app — NestJS 11 (ESM) · PostgreSQL 16 + Prisma 7 · Redis 7 · JWT.\n\n---\n\n## How this collection is organised\n\nTwo root folders:\n\n| Folder | Contents |\n|---|---|\n| **USER** | All **51 implemented endpoints**, consumed by the Flutter app. Serialised `A-01.1` → `SS-06`. |\n| **ADMIN** | **Empty placeholder.** No admin endpoints exist in the codebase yet — see that folder's description for the verified details. |\n\n### Reading the serials\n\nEach folder has its own letter prefix, and requests are numbered **01..n within that folder** in integration order:\n\n| Folder | Prefix | Count |\n|---|---|---|\n| 01 · Auth | `A` | 7 |\n| 02 · Profile & Media | `P` | 5 |\n| 03 · Discovery | `D` | 5 |\n| 04 · Matches | `M` | 2 |\n| 05 · Chat (REST) | `C` | 2 |\n| 06 · Games | `G` | 4 |\n| 07 · Dates | `DT` | 11 |\n| 08 · Trust Score | `T` | 2 |\n| 09 · Safety | `S` | 5 |\n| 10 · Subscriptions | `SB` | 3 |\n| 11 · Success Stories | `SS` | 6 |\n\nThe **folders themselves** are numbered `01` → `11` in the order you should integrate them: finish Auth before Profile, Profile before Discovery, and so on. Within a folder, a lower number is either a dependency of, or independent from, what follows — so `A-01.1` has no prerequisites at all, while `SS-06` assumes most of the collection already works.\n\nCross-references in request descriptions use these serials, so \"run after **A-02**\" always points at exactly one request.\n\nAuth is the one folder with a split serial: **A-01.1 Login** and **A-01.2 Google login** are two alternative ways to start the same flow, so they share step 1.\n\n---\n\n## Setup\n\n1. Start the API: `docker compose up -d postgres redis && npm run start:dev`\n2. Set the `baseUrl` variable if you are not on `http://localhost:3000`.\n3. Run **A-01.1 Login or sign-up** → **A-02 Verify OTP** → you are authenticated.\n4. If the response says `nextStep: \"PROFILE_SETUP\"`, run **A-03 Verify user information** to finish onboarding.\n\n**Dev OTP is always `123456`.**\n\n### Variables are captured for you\n\nEvery request that returns an id writes it into a collection variable, so the folders are runnable top-to-bottom without hand-editing anything:\n\n`userPhone` · `userEmail` · `accessToken` · `refreshToken` · `userId` · `imageUrl` · `targetUserId` · `matchId` · `conversationId` · `gameId` · `questionId` · `sessionId` · `datePlanId` · `storyId` · `commentId`\n\nAuthentication is set **collection-wide** to `Bearer {{accessToken}}`; public endpoints individually override it to *No Auth*.\n\n> **There is no register endpoint and no passwords.** `POST /auth/login` finds *or creates* the account for whatever phone/email you send, and an OTP is required on **every** login — not only the first one. Re-running **A-01.1** as many times as you like is therefore always safe; it never returns a conflict.\n\n> **Trying the first-time onboarding path:** set `{{userPhone}}` to `{{onboardingPhone}}` (`+8801811000008`). That account is seeded with a completely blank profile, so A-02 comes back with `isUserVerified: false` and **A-03** has real work to do. `npm run db:seed` resets it to blank again.\n\n---\n\n## Response envelope\n\nEvery endpoint — success or failure — returns the same shape:\n\n```json\n{ \"success\": true, \"message\": \"Operation successful\", \"messages\": [], \"data\": { } }\n```\n\n```json\n{ \"success\": false, \"message\": \"Validation failed\", \"messages\": [\"phone must be ...\"], \"statusCode\": 400 }\n```\n\n`messages` carries the full list of validation errors; `message` is the first one, suitable for a toast.\n\n---\n\n## Chat is WebSocket-only for sending\n\nThe two REST endpoints in folder **05** only *read*. Sending happens over Socket.IO on the same origin as `baseUrl`, authenticated by passing the JWT in the handshake.\n\n| Direction | Event | Payload |\n|---|---|---|\n| → emit | `joinRoom` | `{ conversationId }` |\n| → emit | `sendMessage` | `{ conversationId, content, type? }` — type = TEXT \\| IMAGE \\| DATE_INVITE \\| SYSTEM |\n| → emit | `typing` | `{ conversationId, isTyping }` |\n| ← listen | `newMessage` | the saved message |\n| ← listen | `typing` | `{ userId, isTyping }` |\n\nPostman's WebSocket request type can drive these, but it is not part of this collection.\n\n---\n\n## Known gaps\n\nBehaviour verified against the running server — worth knowing before you integrate:\n\n- **No admin API at all.** See the ADMIN folder.\n- **`POST /auth/request-otp` and `GET /auth/me` do not exist** despite older docs listing them. Registration and login already return tokens and the user object, and `GET /users/profile` (**P-03**) replaces `/auth/me`.\n- **Google login does not verify the token signature** — it only base64-decodes the payload.\n- **Mapbox place search returns `[]`** unless `MAPBOX_ACCESS_TOKEN` is set.\n- **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.\n- Twilio / SMTP / FCM / R2 all **fall back to console logging or local disk** when their env vars are absent, so flows succeed locally without any third-party account.",
+    "description": "# 48Date Backend API\n\nREST API for the **48Date** dating app — NestJS 11 (ESM) · PostgreSQL 16 + Prisma 7 · Redis 7 · JWT.\n\n---\n\n## How this collection is organised\n\nTwo root folders:\n\n| Folder | Contents |\n|---|---|\n| **USER** | All **57 implemented endpoints**, consumed by the Flutter app. Serialised `A-01.1` → `SS-06`. |\n| **ADMIN** | **80 admin-panel requests across 16 modules — a forward-looking contract for the React admin panel, not implemented code.** Every ADMIN request returns 404 until the admin API is built. |\n\n### Reading the serials\n\nEach folder has its own letter prefix, and requests are numbered **01..n within that folder** in integration order:\n\n| Folder | Prefix | Count |\n|---|---|---|\n| 01 · Auth | `A` | 7 |\n| 02 · Profile & Media | `P` | 9 |\n| 03 · Discovery | `D` | 5 |\n| 04 · Matches | `M` | 2 |\n| 05 · Chat (REST) | `C` | 3 |\n| 06 · Games | `G` | 4 |\n| 07 · Dates | `DT` | 11 |\n| 08 · Trust Score | `T` | 2 |\n| 09 · Safety | `S` | 5 |\n| 10 · Subscriptions | `SB` | 3 |\n| 11 · Success Stories | `SS` | 6 |\n\nThe **folders themselves** are numbered `01` → `11` in the order you should integrate them: finish Auth before Profile, Profile before Discovery, and so on. Within a folder, a lower number is either a dependency of, or independent from, what follows — so `A-01.1` has no prerequisites at all, while `SS-06` assumes most of the collection already works.\n\nCross-references in request descriptions use these serials, so \"run after **A-02**\" always points at exactly one request.\n\nAuth is the one folder with a split serial: **A-01.1 Login** and **A-01.2 Google login** are two alternative ways to start the same flow, so they share step 1.\n\n---\n\n## Setup\n\n1. Start the API: `docker compose up -d postgres redis && npm run start:dev`\n2. Set the `baseUrl` variable if you are not on `http://localhost:3000`.\n3. Run **A-01.1 Login or sign-up** → **A-02 Verify OTP** → you are authenticated.\n4. If the response says `nextStep: \"PROFILE_SETUP\"`, run **A-03 Verify user information** to finish onboarding.\n\n**Dev OTP is always `123456`.**\n\n### Variables are captured for you\n\nEvery request that returns an id writes it into a collection variable, so the folders are runnable top-to-bottom without hand-editing anything:\n\n`userPhone` · `userEmail` · `accessToken` · `refreshToken` · `userId` · `imageUrl` · `targetUserId` · `matchId` · `conversationId` · `gameId` · `questionId` · `sessionId` · `datePlanId` · `storyId` · `commentId` — plus the ADMIN folder's `admin*` variables (placeholders until that API exists).\n\nAuthentication is set **collection-wide** to `Bearer {{accessToken}}`; public endpoints individually override it to *No Auth*.\n\n> **There is no register endpoint and no passwords.** `POST /auth/login` finds *or creates* the account for whatever phone/email you send, and an OTP is required on **every** login — not only the first one. Re-running **A-01.1** as many times as you like is therefore always safe; it never returns a conflict.\n\n> **Trying the first-time onboarding path:** set `{{userPhone}}` to `{{onboardingPhone}}` (`+8801811000008`). That account is seeded with a completely blank profile, so A-02 comes back with `isUserVerified: false` and **A-03** has real work to do. `npm run db:seed` resets it to blank again.\n\n---\n\n## Response envelope\n\nEvery endpoint — success or failure — returns the same shape:\n\n```json\n{ \"success\": true, \"message\": \"Operation successful\", \"messages\": [], \"data\": { } }\n```\n\n```json\n{ \"success\": false, \"message\": \"Validation failed\", \"messages\": [\"phone must be ...\"], \"statusCode\": 400 }\n```\n\n`messages` carries the full list of validation errors; `message` is the first one, suitable for a toast.\n\n---\n\n## Chat: history over REST, real-time on the socket\n\nThe read endpoints in folder **05** are REST-only; **C-03** also sends over REST and broadcasts to the room. Live delivery flows over Socket.IO on the same origin as `baseUrl`, authenticated by passing the JWT in the handshake.\n\n| Direction | Event | Payload |\n|---|---|---|\n| → emit | `joinRoom` | `{ conversationId }` |\n| → emit | `sendMessage` | `{ conversationId, content, type? }` — type = TEXT \\| IMAGE \\| DATE_INVITE \\| SYSTEM |\n| → emit | `typing` | `{ conversationId, isTyping }` |\n| ← listen | `newMessage` | the saved message |\n| ← listen | `typing` | `{ userId, isTyping }` |\n\nPostman's WebSocket request type can drive these, but it is not part of this collection.\n\n---\n\n## Known gaps\n\nBehaviour verified against the running server — worth knowing before you integrate:\n\n- **No admin API is implemented.** The ADMIN folder carries the planned 80-request contract; all of it returns 404 until built.\n- **`POST /auth/request-otp` and `GET /auth/me` do not exist** despite older docs listing them. Registration and login already return tokens and the user object, and `GET /users/profile` (**P-03**) replaces `/auth/me`.\n- **Google login does not verify the token signature** — it only base64-decodes the payload.\n- **Mapbox place search returns `[]`** unless `MAPBOX_ACCESS_TOKEN` is set.\n- **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.\n- Twilio / SMTP / FCM / R2 all **fall back to console logging or local disk** when their env vars are absent, so flows succeed locally without any third-party account.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -219,12 +219,97 @@
       "value": "",
       "description": "Captured by A-01.2. Kept separate from userId for the same reason.",
       "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@48date.app",
+      "description": "Admin login identity (A-01). No admin account exists until RS-07 or seeding provisions one."
+    },
+    {
+      "key": "adminPassword",
+      "value": "ChangeMe!123",
+      "description": "Admin password (A-01, SE-03). Placeholder — the user model has no password column yet."
+    },
+    {
+      "key": "adminAccessToken",
+      "value": "",
+      "description": "Captured by AD A-01. Folder-wide Bearer for ADMIN requests once implemented."
+    },
+    {
+      "key": "adminRefreshToken",
+      "value": "",
+      "description": "Captured by AD A-01. Used by AD A-02."
+    },
+    {
+      "key": "adminResetToken",
+      "value": "",
+      "description": "Captured by AD A-04. Used by AD A-05."
+    },
+    {
+      "key": "adminUserId",
+      "value": "",
+      "description": "Captured by AD A-01 — the logged-in admin's own id (used by audit-log filters)."
+    },
+    {
+      "key": "adminTargetUserId",
+      "value": "",
+      "description": "Any platform user id for U-02…U-09. Tip: the USER folder already captures one as {{userId}}."
+    },
+    {
+      "key": "adminMatchId",
+      "value": "",
+      "description": "Captured by AD MA-01/MA-02. Used by MA-03. {{matchId}} from the USER folder works too."
+    },
+    {
+      "key": "adminModerationItemId",
+      "value": "",
+      "description": "Captured by AD MO-01. Used by MO-02/MO-03/MO-04."
+    },
+    {
+      "key": "adminSubscriptionId",
+      "value": "",
+      "description": "Captured by AD SB-02. Used by SB-03/SB-04/SB-06."
+    },
+    {
+      "key": "adminNotificationId",
+      "value": "",
+      "description": "Captured by AD N-01. Used by N-03/N-04."
+    },
+    {
+      "key": "adminPlanId",
+      "value": "",
+      "description": "Captured by AD SB-07. Used by SB-08."
+    },
+    {
+      "key": "adminRoleId",
+      "value": "",
+      "description": "Captured by AD RS-01/RS-03. Used by RS-02/RS-04/RS-05."
+    },
+    {
+      "key": "adminStaffUserId",
+      "value": "",
+      "description": "Captured by AD RS-06/RS-07. Used by RS-06 status filters."
+    },
+    {
+      "key": "adminAuditLogId",
+      "value": "",
+      "description": "Captured by AD AL-01. Used by AL-02."
+    },
+    {
+      "key": "adminDateId",
+      "value": "",
+      "description": "Captured by AD DT-01. Used by DT-02/DT-03. {{datePlanId}} from the USER folder works too."
+    },
+    {
+      "key": "adminGameQuestionId",
+      "value": "",
+      "description": "Captured by AD G-01/G-02. Used by G-03/G-04."
     }
   ],
   "item": [
     {
       "name": "USER",
-      "description": "Everything the Flutter user app consumes — **all 51 implemented endpoints** live here.\n\nSerials run **A-01.1 → SS-06 in integration order**: each folder assumes the ones above it already work. Follow them top to bottom and the collection is runnable end to end without editing variables by hand, because each request captures the ids the next one needs.\n\nHard dependencies worth knowing:\n- Everything after **A-02** needs an `accessToken` — that is the request which issues one.\n- **A-03** is only needed while `isUserVerified` is `false`; A-02 tells you via `nextStep`.\n- Folders **05, 06, 07** all need a `matchId` from **D-05** / **M-01**, which needs two users who liked each other.\n- **DT-10** (rating) requires the date to be `COMPLETED` via **DT-09**.\n\n---\n\n## Getting to a match (needed for folders 04–07)\n\nA match needs **two accounts that both liked each other**, so a single run of this collection cannot produce one. The seeded database already ships with two matches for the default account, which is why folders 04–07 work out of the box — run `npm run db:seed` and they are there.\n\nTo build one by hand from empty accounts instead:\n\n1. Clear `userPhone`, `userEmail`, `accessToken` and `userId`, then run **A-01.1 → A-02 → A-03**. The pre-request script invents a fresh phone and login creates the account. Note the `userId` — call this **User A**.\n2. Clear those four variables again and repeat **A-01.1 → A-02 → A-03**. This is **User B**.\n3. As User B, run **D-05 Swipe** with `targetUserId` set to User A's id and `action: LIKE`.\n4. Log back in as User A (**A-01.1 → A-02** with A's phone), then run **D-05** with `targetUserId` = User B's id and `action: LIKE`.\n5. The second like returns `isMatch: true` and captures `matchId` automatically. Folders **04–07** are now runnable.\n\nBoth accounts need **A-03** completed — discovery only returns candidates whose `isUserVerified` is `true`.\n\nThe id variables ship with the value `REPLACE_ME` so that an unset id fails loudly with a clear 404 rather than silently collapsing to a different route.",
+      "description": "Everything the Flutter user app consumes — **all 57 implemented endpoints** live here.\n\nSerials run **A-01.1 → SS-06 in integration order**: each folder assumes the ones above it already work. Follow them top to bottom and the collection is runnable end to end without editing variables by hand, because each request captures the ids the next one needs.\n\nHard dependencies worth knowing:\n- Everything after **A-02** needs an `accessToken` — that is the request which issues one.\n- **A-03** is only needed while `isUserVerified` is `false`; A-02 tells you via `nextStep`.\n- Folders **05, 06, 07** all need a `matchId` from **D-05** / **M-01**, which needs two users who liked each other.\n- **DT-10** (rating) requires the date to be `COMPLETED` via **DT-09**.\n\n---\n\n## Getting to a match (needed for folders 04–07)\n\nA match needs **two accounts that both liked each other**, so a single run of this collection cannot produce one. The seeded database already ships with two matches for the default account, which is why folders 04–07 work out of the box — run `npm run db:seed` and they are there.\n\nTo build one by hand from empty accounts instead:\n\n1. Clear `userPhone`, `userEmail`, `accessToken` and `userId`, then run **A-01.1 → A-02 → A-03**. The pre-request script invents a fresh phone and login creates the account. Note the `userId` — call this **User A**.\n2. Clear those four variables again and repeat **A-01.1 → A-02 → A-03**. This is **User B**.\n3. As User B, run **D-05 Swipe** with `targetUserId` set to User A's id and `action: LIKE`.\n4. Log back in as User A (**A-01.1 → A-02** with A's phone), then run **D-05** with `targetUserId` = User B's id and `action: LIKE`.\n5. The second like returns `isMatch: true` and captures `matchId` automatically. Folders **04–07** are now runnable.\n\nBoth accounts need **A-03** completed — discovery only returns candidates whose `isUserVerified` is `true`.\n\nThe id variables ship with the value `REPLACE_ME` so that an unset id fails loudly with a clear 404 rather than silently collapsing to a different route.",
       "item": [
         {
           "name": "01 · Auth",
@@ -9763,7 +9848,7 @@
         },
         {
           "name": "12 · Realtime (Socket.IO)",
-          "description": "Chat is **send-over-socket, read-over-REST**. `C-01` and `C-02` only read history — there is no REST endpoint that sends a message. Everything below was verified against a running server.\n\n## Connecting\n\nPostman: **New → WebSocket**, switch the protocol dropdown to **Socket.IO**, and connect to:\n\n```\nws://localhost:3000\n```\n\nDefault namespace `/`, default Socket.IO path `/socket.io`. Nothing else to configure.\n\n### Auth — pick either, both work\n\n| Method | Where | Value |\n|---|---|---|\n| Header | Headers tab | `Authorization` = `Bearer <accessToken>` |\n| Query param | URL | `ws://localhost:3000?token=<accessToken>` |\n\nUse the `{{accessToken}}` captured by **A-02**. The handshake verifies the JWT; an invalid or missing token **connects and is then immediately disconnected by the server**, so a socket that drops the instant it opens means the token was rejected.\n\n## Events you send\n\nAdd these under the **Events** tab of the Socket.IO request (event name + JSON argument).\n\n### `joinRoom`\n```json\n{ \"conversationId\": \"<uuid>\" }\n```\nAck: `{ \"success\": true }` — or `{ \"error\": \"You are not a participant in this conversation\" }`.\n**You must join before sending**, and you only receive broadcasts for rooms you joined. Use `{{conversationId}}` from **M-01** / **C-01**.\n\n### `sendMessage`\n```json\n{ \"conversationId\": \"<uuid>\", \"content\": \"Hello!\", \"type\": \"TEXT\" }\n```\n`type` is optional, defaults to `TEXT`. Valid: `TEXT` · `IMAGE` · `DATE_INVITE` · `SYSTEM` (case-sensitive).\n\nAck: `{ \"success\": true, \"messageId\": \"<uuid>\" }`\n\nErrors: `{ \"error\": \"Invalid message request\" }` (missing `conversationId` or `content`), `{ \"error\": \"Conversation not found\" }`, `{ \"error\": \"Unauthorized to send message to this conversation\" }`.\n\nThe message is persisted, so **C-02** returns it afterwards.\n\n### `typing`\n```json\n{ \"conversationId\": \"<uuid>\", \"isTyping\": true }\n```\nNo ack. Broadcast to the *other* participants only — never echoed back to you.\n\n## Events you receive\n\n| Event | Payload | When |\n|---|---|---|\n| `newMessage` | the full message: `{ id, conversationId, senderId, type, content, mediaUrl, createdAt }` | someone sends a message to a room you joined |\n| `typing` | `{ userId, isTyping }` | the other participant starts/stops typing |\n| `gameStarted` | the game session incl. `game.questions[]` | **G-02** opens a session |\n| `partnerAnswered` | `{ questionId, userId }` | the partner answered, but **their choice is withheld** until you answer too |\n| `roundResult` | `{ questionId, isMatch, answers: [{ userId, selectedOption }] }` | both players answered a question |\n| `gameCompleted` | `{ sessionId, compatibility, totalQuestions, matchingAnswers }` | the final question is answered |\n\nGame events are pushed to the match's conversation room, so **join the room first** or you will not see them while using the Games folder.\n\n## Verified transcript\n\nTwo clients (Ava and Liam) in one conversation:\n\n```\nava   joinRoom  -> { \"success\": true }\nliam  joinRoom  -> { \"success\": true }\nava   typing    -> liam receives { \"userId\": \"d6cb56b3-…\", \"isTyping\": true }\nava   sendMessage -> ack { \"success\": true, \"messageId\": \"a2552cb6-…\" }\n                     liam receives newMessage { id, senderId, type: \"TEXT\", content }\n```\n\n> ⚠️ **This was broken until recently.** The gateway read `JWT_ACCESS_SECRET` at import time, before `.env` was loaded, so *every* socket connection failed with `secret or public key must be provided`. Fixed by loading `dotenv` first in `main.ts` — if sockets reject a valid token, make sure you are on that build.",
+          "description": "Chat reads over REST (**C-01**/**C-02**, plus the REST send **C-03**) and streams live over the socket. **C-03** also sends a message over REST and broadcasts it to the room. Everything below was verified against a running server.\n\n## Connecting\n\nPostman: **New → WebSocket**, switch the protocol dropdown to **Socket.IO**, and connect to:\n\n```\nws://localhost:3000\n```\n\nDefault namespace `/`, default Socket.IO path `/socket.io`. Nothing else to configure.\n\n### Auth — pick either, both work\n\n| Method | Where | Value |\n|---|---|---|\n| Header | Headers tab | `Authorization` = `Bearer <accessToken>` |\n| Query param | URL | `ws://localhost:3000?token=<accessToken>` |\n\nUse the `{{accessToken}}` captured by **A-02**. The handshake verifies the JWT; an invalid or missing token **connects and is then immediately disconnected by the server**, so a socket that drops the instant it opens means the token was rejected.\n\n## Events you send\n\nAdd these under the **Events** tab of the Socket.IO request (event name + JSON argument).\n\n### `joinRoom`\n```json\n{ \"conversationId\": \"<uuid>\" }\n```\nAck: `{ \"success\": true }` — or `{ \"error\": \"You are not a participant in this conversation\" }`.\n**You must join before sending**, and you only receive broadcasts for rooms you joined. Use `{{conversationId}}` from **M-01** / **C-01**.\n\n### `sendMessage`\n```json\n{ \"conversationId\": \"<uuid>\", \"content\": \"Hello!\", \"type\": \"TEXT\" }\n```\n`type` is optional, defaults to `TEXT`. Valid: `TEXT` · `IMAGE` · `DATE_INVITE` · `SYSTEM` (case-sensitive).\n\nAck: `{ \"success\": true, \"messageId\": \"<uuid>\" }`\n\nErrors: `{ \"error\": \"Invalid message request\" }` (missing `conversationId` or `content`), `{ \"error\": \"Conversation not found\" }`, `{ \"error\": \"Unauthorized to send message to this conversation\" }`.\n\nThe message is persisted, so **C-02** returns it afterwards.\n\n### `typing`\n```json\n{ \"conversationId\": \"<uuid>\", \"isTyping\": true }\n```\nNo ack. Broadcast to the *other* participants only — never echoed back to you.\n\n## Events you receive\n\n| Event | Payload | When |\n|---|---|---|\n| `newMessage` | the full message: `{ id, conversationId, senderId, type, content, mediaUrl, createdAt }` | someone sends a message to a room you joined |\n| `typing` | `{ userId, isTyping }` | the other participant starts/stops typing |\n| `gameStarted` | the game session incl. `game.questions[]` | **G-02** opens a session |\n| `partnerAnswered` | `{ questionId, userId }` | the partner answered, but **their choice is withheld** until you answer too |\n| `roundResult` | `{ questionId, isMatch, answers: [{ userId, selectedOption }] }` | both players answered a question |\n| `gameCompleted` | `{ sessionId, compatibility, totalQuestions, matchingAnswers }` | the final question is answered |\n\nGame events are pushed to the match's conversation room, so **join the room first** or you will not see them while using the Games folder.\n\n## Verified transcript\n\nTwo clients (Ava and Liam) in one conversation:\n\n```\nava   joinRoom  -> { \"success\": true }\nliam  joinRoom  -> { \"success\": true }\nava   typing    -> liam receives { \"userId\": \"d6cb56b3-…\", \"isTyping\": true }\nava   sendMessage -> ack { \"success\": true, \"messageId\": \"a2552cb6-…\" }\n                     liam receives newMessage { id, senderId, type: \"TEXT\", content }\n```\n\n> ⚠️ **This was broken until recently.** The gateway read `JWT_ACCESS_SECRET` at import time, before `.env` was loaded, so *every* socket connection failed with `secret or public key must be provided`. Fixed by loading `dotenv` first in `main.ts` — if sockets reject a valid token, make sure you are on that build.",
           "item": [],
           "id": "00000045-0000-4000-8000-000000000069"
         }
@@ -9772,8 +9857,2404 @@
     },
     {
       "name": "ADMIN",
-      "description": "# ⚠️ No admin endpoints are implemented yet\n\nThis folder is an intentionally empty placeholder so the collection structure is ready when the admin API lands. **Nothing has been stubbed or invented here** — adding fake requests would be worse than an empty folder.\n\n## Verified state of the code (as of this collection)\n\n- `src/modules/admin/admin.module.ts` — the controller, service and providers are all **commented out**; the module exports an empty `@Module({})`.\n- `AdminModule` is **not imported** into `app.module.ts`, so Nest never registers it.\n- `src/modules/admin/types/admin.types.ts` contains only `export {}`.\n- The `@Roles()` decorator (`src/common/decorators/roles.decorator.ts`) and `RolesGuard` (`src/common/guards/roles.guard.ts`) both exist but are **applied to zero controllers** — every guarded route in this API uses the plain `JwtAuthGuard`.\n- The `Role` enum does contain `ADMIN`, and users carry a `role` field, so the data model is ready.\n\nAll 54 routes the server actually maps are user-facing and live under the **USER** folder.\n\n## What the React admin panel will need\n\nThese are the gaps implied by features that already exist on the user side — they are **not implemented**, listed only so the work is visible:\n\n- **Moderation queue** — `reports` rows are created by `S-04` with status PENDING and there is currently no way to review, resolve or dismiss them.\n- **Success-story approval** — `SS-01` creates stories with status PENDING, and nothing can move them to PUBLISHED, so the public list `SS-02` can never grow.\n- **User administration** — suspend/ban, trust-score override, manual verification.\n- **Analytics** — signups, matches, dates completed, subscription revenue.\n\nWhen those endpoints are built, number them **A-01, A-02, …** inside subfolders here, mirroring the USER convention.",
-      "item": [],
+      "description": "# ADMIN — Super-Admin API contract for the React admin panel\n\n⚠️ **None of these endpoints are implemented yet.** This folder documents the agreed admin contract (16 modules) so the backend and the React panel build against the same interface. **Every request here currently returns 404** — importing this folder does not mean the routes exist.\n\nImplementation status is tracked in `docs/BACKEND-STATUS.md`; the gap analysis against the source spec is in `docs/DEVELOPER-DOC-DISCREPANCIES.md`.\n\n## Status of the code (verified against this repo)\n\n- `src/modules/admin/` is an empty, commented-out stub that is **not registered** in `app.module.ts`.\n- `@Roles()` / `RolesGuard` exist in `src/common/` but guard **zero** controllers.\n- The `Role` enum is `USER | ADMIN` only — `SUPER_ADMIN`, `MODERATOR`, `SUPPORT` need a migration.\n- Trust tiers compute as EXCELLENT / GOOD / AVERAGE / NEEDS_ATTENTION (not BRONZE / SILVER / GOLD).\n- Plans are `WEEKLY | MONTHLY | YEARLY` (not PREMIUM / VIP). Story status is `PUBLISHED` (not APPROVED). Match has **no 48h expiry field**.\n- Reports and success stories can currently never leave `PENDING` — fixing that is this API’s first job.\n\n## Conventions (same as the user API)\n\n- Response envelope `{ success, message, messages, data }` on success and `{ success, message, messages, statusCode }` on error.\n- Auth: Bearer JWT. **A-01, A-02, A-04, A-05** are marked *No Auth*; everything else inherits the collection’s `Bearer {{accessToken}}` — switch it to `{{adminAccessToken}}` (folder-level auth override) once an admin login exists.\n- List endpoints use `page` / `limit` / `search` / `sortBy` / `sortOrder` and return `data.pagination`.\n- Serials here (`A`, `D`, `U`, `MO`, `V`, `MA`, `R`, `ST`, `N`, `SB`, `AN`, `SE`, `RS`, `AL`, `DT`, `G`) are independent of the USER serials.\n- No example responses are attached — nothing has been captured from a running implementation.\n\n## Counting note\n\nThe source spec’s own totals disagree — its summary says **68 endpoints**, its module TOC counts **77**, and its route lists actually describe **80**. This folder documents **all 80 routes the module lists** so nothing is lost between documents.",
+      "item": [
+        {
+          "name": "01 · Auth & Access",
+          "description": "Admin authentication is email + password — a different flow from the user-side phone OTP. Public (No Auth): A-01, A-02, A-04, A-05. The serial prefix `A` here is independent of the USER folder serial `A`.\n\n**Status: not implemented — returns 404 today.** `src/modules/admin/` is an empty stub not registered in `app.module.ts`.",
+          "item": [
+            {
+              "name": "A-01 Admin login",
+              "id": "00000048-0000-4000-8000-0000000000100",
+              "request": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Authenticates an admin with email + password and verifies the account carries an admin role.\n\n**Auth:** none.\n\nReturns `admin` (id, email, name, role, permissions, avatarUrl) plus the `accessToken` / `refreshToken` pair. The test script saves the tokens into `{{adminAccessToken}}` / `{{adminRefreshToken}}`.\n\n**Status: not implemented — returns 404 today.** A 404 today means the admin API has not been built yet. Admin accounts also need a way to be provisioned (the spec uses **RS-07 Create staff member**) and the user model currently has **no password field** — passwords were removed in migration `20260914091849_remove_user_password`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "pm.test('2xx once implemented, or 404 while it is not', () =>",
+                      "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 404]));",
+                      "if (pm.response.code < 300 && res.data) {",
+                      "  pm.collectionVariables.set('adminAccessToken', res.data.accessToken || '');",
+                      "  pm.collectionVariables.set('adminRefreshToken', res.data.refreshToken || '');",
+                      "  if (res.data.admin) pm.collectionVariables.set('adminUserId', res.data.admin.id || '');",
+                      "  console.log('✔ admin tokens saved');",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "A-02 Refresh admin token",
+              "id": "00000048-0000-4000-8000-0000000000101",
+              "request": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/auth/refresh",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "auth",
+                    "refresh"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"{{adminRefreshToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Issues a new admin token pair from an unexpired refresh token.\n\n**Auth:** none.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "A-03 Admin logout",
+              "id": "00000048-0000-4000-8000-0000000000102",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/auth/logout",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "auth",
+                    "logout"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Invalidates the current admin session and revokes the active token.\n\n**Auth:** Bearer admin JWT.\n\n**Status: not implemented — returns 404 today.** Note the user-side `POST /auth/logout` is stateless (it revokes nothing server-side) — the admin variant is expected to do better."
+              }
+            },
+            {
+              "name": "A-04 Forgot password",
+              "id": "00000048-0000-4000-8000-0000000000103",
+              "request": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/auth/forgot-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "auth",
+                    "forgot-password"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Emails a secure password-reset token to the admin's address.\n\n**Auth:** none.\n\n**Status: not implemented — returns 404 today.** Depends on SMTP being configured (`SMTP_*` env vars) — the mail pipeline itself exists for notifications."
+              }
+            },
+            {
+              "name": "A-05 Reset password",
+              "id": "00000048-0000-4000-8000-0000000000104",
+              "request": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/admin/auth/reset-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "auth",
+                    "reset-password"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"resetToken\": \"{{adminResetToken}}\",\n  \"newPassword\": \"NewPassword!123\",\n  \"confirmPassword\": \"NewPassword!123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Sets a new password using the reset token from **A-04**.\n\n**Auth:** none.\n\n**Status: not implemented — returns 404 today.** Requires a password column to be reintroduced for admins (removed from users by migration)."
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f0"
+        },
+        {
+          "name": "02 · Dashboard",
+          "description": "Aggregated KPI counters for the admin landing page. All read-only.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "D-01 Dashboard overview",
+              "id": "00000048-0000-4000-8000-0000000000105",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dashboard/overview",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "overview"
+                  ]
+                },
+                "description": "Top-level counters: totalUsers, activeUsers, newUsersToday, verifiedUsers, pendingVerifications, totalMatches, activeCountdownMatches, totalReports, pendingReports, activeSubscriptions, totalRevenueUsd.\n\n**Status: not implemented — returns 404 today.** The counters themselves are all derivable from existing tables (users, matches, reports, subscriptions) — this is aggregation work, not new data."
+              }
+            },
+            {
+              "name": "D-02 User growth statistics",
+              "id": "00000048-0000-4000-8000-0000000000106",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dashboard/user-growth",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "user-growth"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "30d",
+                      "description": "7d | 30d | 90d | 1y (default 30d)"
+                    }
+                  ]
+                },
+                "description": "Time-series onboarding / registration / verification numbers grouped by day.\n\nQuery `period`: `7d` | `30d` | `90d` | `1y` (default `30d`).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "D-03 Match & dating statistics",
+              "id": "00000048-0000-4000-8000-0000000000107",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dashboard/matches",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "matches"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "30d",
+                      "description": "7d | 30d | 90d | 1y (default 30d)"
+                    }
+                  ]
+                },
+                "description": "Matching and offline-date counters: totalMatches, newMatchesInPeriod, activeMatchesInCountdown, expiredMatchesWithoutDate, datesPlanned, successfulDatesCompleted, averagePostDateRating.\n\n**Status: not implemented — returns 404 today.** `activeMatchesInCountdown` and `expiredMatchesWithoutDate` depend on the 48-hour countdown feature, which does not exist in the schema."
+              }
+            },
+            {
+              "name": "D-04 Subscription financial statistics",
+              "id": "00000048-0000-4000-8000-0000000000108",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dashboard/subscriptions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "subscriptions"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "30d",
+                      "description": "7d | 30d | 90d | 1y (default 30d)"
+                    }
+                  ]
+                },
+                "description": "Financial summary: activeSubscriptions, newSubscriptions, cancelledSubscriptions, trialConversions, totalRevenueUsd, mrr.\n\n**Status: not implemented — returns 404 today.** Revenue data only becomes real once RevenueCat purchase events flow through the webhook (USER **SB-03**)."
+              }
+            },
+            {
+              "name": "D-05 Recent system activity stream",
+              "id": "00000048-0000-4000-8000-0000000000109",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dashboard/recent-activity",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "recent-activity"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "15",
+                      "description": "Number of activities (default 15)"
+                    }
+                  ]
+                },
+                "description": "Live feed of critical events (reports filed, new VIP subscriptions, verifications submitted, dates completed).\n\n**Status: not implemented — returns 404 today.** Best served from the existing `Notification` / `SubscriptionEvent` / `TrustScoreEvent` / `Report` tables ordered by `createdAt`."
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f1"
+        },
+        {
+          "name": "03 · Users",
+          "description": "User administration: search, inspect, edit, suspend, delete, and manually adjust trust scores.\n\nSet `{{adminTargetUserId}}` to any user id — the USER folder captures one as `{{userId}}` during A-02/A-03, and the seed provides 8 accounts.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "U-01 List users",
+              "id": "00000048-0000-4000-8000-000000000010a",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Items per page (default 20)"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Name, phone, email or username"
+                    },
+                    {
+                      "key": "gender",
+                      "value": "",
+                      "description": "MALE | FEMALE | NON_BINARY | OTHER"
+                    },
+                    {
+                      "key": "verificationStatus",
+                      "value": "",
+                      "description": "VERIFIED | UNVERIFIED | PENDING"
+                    },
+                    {
+                      "key": "accountStatus",
+                      "value": "",
+                      "description": "ACTIVE | SUSPENDED | INCOMPLETE"
+                    },
+                    {
+                      "key": "subscriptionStatus",
+                      "value": "",
+                      "description": "FREE | PREMIUM | VIP"
+                    }
+                  ]
+                },
+                "description": "Paginated, filtered, searchable user list.\n\nFilters: `search` (name/phone/email/username), `gender`, `verificationStatus`, `accountStatus`, `subscriptionStatus`, `createdFrom`, `createdTo`, `sortBy`, `sortOrder`.\n\n⚠️ Enum reality check against the current schema: `gender` is `MALE | FEMALE | NON_BINARY | OTHER` (the spec omits NON_BINARY). `subscriptionStatus` `FREE | PREMIUM | VIP` does not map to `SubscriptionPlan` `WEEKLY | MONTHLY | YEARLY` — decide the mapping (or a derived flag) before building. `accountStatus` `SUSPENDED` does not exist on the User model at all yet.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "U-02 Get user full details",
+              "id": "00000048-0000-4000-8000-000000000010b",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/:userId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    ":userId"
+                  ],
+                  "query": []
+                },
+                "description": "360° inspection of one account: auth flags, profile sections, media, verification, trust score, subscription, and behavioural stats (matches / dates / reports counts).\n\nThe profile-section shape mirrors the user-side `GET /users/profile` formatter, so the response can reuse it.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "U-03 Update user profile (admin edit)",
+              "id": "00000048-0000-4000-8000-000000000010c",
+              "request": {
+                "method": "PATCH",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/:userId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    ":userId"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Ava\",\n  \"lastName\": \"Stone\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Admin correction of profile fields: firstName, lastName, username, occupation, gender, interestedIn, location.\n\n⚠️ `gender` / `interestedIn` accept `MALE | FEMALE | NON_BINARY | OTHER` in the current schema.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "U-04 Suspend user",
+              "id": "00000048-0000-4000-8000-000000000010d",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/:userId/suspend",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    ":userId",
+                    "suspend"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Community guidelines violation\",\n  \"durationDays\": 7\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Immediately suspends the account, revokes active sessions and hides it from discovery.\n\nBody: `reason` (required), `durationDays` (optional — omit for indefinite).\n\n**Status: not implemented — returns 404 today.** Requires an account-status field on the User model (none exists) plus session revocation."
+              }
+            },
+            {
+              "name": "U-05 Unsuspend user",
+              "id": "00000048-0000-4000-8000-000000000010e",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/:userId/unsuspend",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    ":userId",
+                    "unsuspend"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Restores access for a suspended account.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "U-06 Delete user account",
+              "id": "00000048-0000-4000-8000-000000000010f",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/:userId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    ":userId"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Permanently removes the account, its photos from R2 and related relational records.\n\n⚠️ Irreversible — most relations cascade in the schema (`onDelete: Cascade`).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "U-07 Get user activity history",
+              "id": "00000048-0000-4000-8000-0000000000110",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/:userId/activity",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    ":userId",
+                    "activity"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "50",
+                      "description": "Max events (default 50)"
+                    }
+                  ]
+                },
+                "description": "Chronological timeline of the user's events: logins, swipes, matches, messages, date plans, reports, subscription events.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "U-08 Get user verification status",
+              "id": "00000048-0000-4000-8000-0000000000111",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/:userId/verification",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    ":userId",
+                    "verification"
+                  ],
+                  "query": []
+                },
+                "description": "Granular verification flags: phoneVerified, emailVerified, userVerified, selfieVerified, and a derived `verificationStatus`.\n\n**Status: not implemented — returns 404 today.** Note: `isUserVerified` (the badge) currently has **no setter anywhere** — the approve flow in module 05 is what must grant it."
+              }
+            },
+            {
+              "name": "U-09 Adjust trust score (manual override)",
+              "id": "00000048-0000-4000-8000-0000000000112",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/:userId/trust-score-adjust",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    ":userId",
+                    "trust-score-adjust"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"deltaScore\": 10,\n  \"reason\": \"Goodwill bonus — false report dismissed\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Manually awards or deducts trust points with a mandatory audit reason.\n\nBody: `deltaScore` (e.g. +10 / -20), `reason` (required).\n\nThe service-side primitive already exists — `TrustScoreService.addEvent()` is transactional and capped 0–100 — so this endpoint is a thin admin wrapper. Tiers compute as EXCELLENT / GOOD / AVERAGE / NEEDS_ATTENTION (the spec’s BRONZE / SILVER / GOLD do not exist).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f2"
+        },
+        {
+          "name": "04 · Moderation",
+          "description": "A generic flagged-content queue (profiles, photos, messages, behaviour).\n\n⚠️ There is **no moderation table in the schema** — building this module requires a new model (`ModerationItem`), not just routes.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "MO-01 List moderation queue",
+              "id": "00000048-0000-4000-8000-0000000000113",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/moderation",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "moderation"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "PENDING",
+                      "description": "PENDING | REVIEWED | RESOLVED"
+                    }
+                  ]
+                },
+                "description": "Queue of flagged items pending review.\n\nFilters: `type` PROFILE | PHOTO | MESSAGE | BEHAVIOR, `status` PENDING | REVIEWED | RESOLVED (default PENDING), `priority` HIGH | MEDIUM | LOW.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "MO-02 Get moderation item detail",
+              "id": "00000048-0000-4000-8000-0000000000114",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/moderation/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "moderation",
+                    ":id"
+                  ],
+                  "query": []
+                },
+                "description": "Full inspection of a flagged item with surrounding context (chat snippet, photo evidence, reporter history).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "MO-03 Take moderation action",
+              "id": "00000048-0000-4000-8000-0000000000115",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/moderation/:id/action",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "moderation",
+                    ":id",
+                    "action"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"WARN\",\n  \"reason\": \"Offensive bio text\",\n  \"deductTrustScore\": 5\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Executes enforcement: `action` WARN | SUSPEND | BAN | DISMISS | REMOVE_CONTENT, `reason` (required), optional `deductTrustScore`.\n\nShould reuse U-04 suspend and U-09 trust-adjust primitives.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "MO-04 Get moderation history",
+              "id": "00000048-0000-4000-8000-0000000000116",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/moderation/:id/history",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "moderation",
+                    ":id",
+                    "history"
+                  ],
+                  "query": []
+                },
+                "description": "Audit trail of previous actions taken on this entity or user.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f3"
+        },
+        {
+          "name": "05 · Verifications",
+          "description": "Human-in-the-loop selfie review — the workflow that should eventually grant the `isUserVerified` badge.\n\n⚠️ `similarityConfidence` cannot exist until real server-side face comparison is implemented. Today `POST /face-verification/verify` (USER **P-04**) only stores the selfie and sets `selfieVerified: true` — there is no face detection, comparison or score. See docs/DEVELOPER-DOC-DISCREPANCIES.md.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "V-01 List pending verifications",
+              "id": "00000048-0000-4000-8000-0000000000117",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/verifications",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "verifications"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "PENDING",
+                      "description": "PENDING | APPROVED | REJECTED"
+                    }
+                  ]
+                },
+                "description": "Queue of submitted selfie verifications.\n\nFilters: `status` PENDING | APPROVED | REJECTED (default PENDING), `dateFrom`, `dateTo`, paging.\n\n**Status: not implemented — returns 404 today.** There is no verification-request entity today — selfie submission writes directly onto the user row, so a queue requires a new table."
+              }
+            },
+            {
+              "name": "V-02 Get verification detail",
+              "id": "00000048-0000-4000-8000-0000000000118",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/verifications/:userId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "verifications",
+                    ":userId"
+                  ],
+                  "query": []
+                },
+                "description": "Side-by-side view: the live selfie vs. all profile photos, plus status and confidence.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "V-03 Approve verification",
+              "id": "00000048-0000-4000-8000-0000000000119",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/verifications/:userId/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "verifications",
+                    ":userId",
+                    "approve"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"notes\": \"Photos match — approved\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Grants the verified badge: sets `selfieVerified = true` **and** `isUserVerified = true`, optionally awards a trust-score bonus.\n\nThis is the endpoint the whole verification story is waiting on — `isUserVerified` currently has no setter anywhere in the codebase.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "V-04 Reject verification",
+              "id": "00000048-0000-4000-8000-000000000011a",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/verifications/:userId/reject",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "verifications",
+                    ":userId",
+                    "reject"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Face does not match profile image\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Rejects the attempt and notifies the user to resubmit.\n\nBody: `reason` (required).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "V-05 Verification statistics",
+              "id": "00000048-0000-4000-8000-000000000011b",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/verifications/statistics",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "verifications",
+                    "statistics"
+                  ],
+                  "query": []
+                },
+                "description": "Operational metrics: pendingCount, approvedCount, rejectedCount, totalProcessed, averageApprovalTimeMinutes.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f4"
+        },
+        {
+          "name": "06 · Matches",
+          "description": "Match oversight.\n\n⚠️ The spec’s `EXPIRED` / `UNLINKED` / `DATE_PLANNED` statuses and the 48h `expiresAt` / `remainingMinutes` fields **do not exist** — `MatchStatus` is `ACTIVE | UNMATCHED` and the model has no expiry column. The 48-hour countdown is a product-level feature that must be designed and built first (it appears nowhere in the code despite being the brand concept). See docs/DEVELOPER-DOC-DISCREPANCIES.md.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "MA-01 List matches",
+              "id": "00000048-0000-4000-8000-000000000011c",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/matches",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "matches"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "ACTIVE | UNMATCHED (EXPIRED / UNLINKED / DATE_PLANNED need the 48h feature)"
+                    }
+                  ]
+                },
+                "description": "Paginated list of all matches with participants, status and (planned) countdown state.\n\nReal statuses today: `ACTIVE | UNMATCHED`. Search by either user’s name; date filters; paging.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "MA-02 Get match details",
+              "id": "00000048-0000-4000-8000-000000000011d",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/matches/:matchId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "matches",
+                    ":matchId"
+                  ],
+                  "query": []
+                },
+                "description": "Both participants, the linked conversation, and any scheduled date plan.\n\nThe USER folder captures a seeded match id as `{{matchId}}`.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "MA-03 Terminate match",
+              "id": "00000048-0000-4000-8000-000000000011e",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/matches/:matchId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "matches",
+                    ":matchId"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Harassment reported by both parties\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Forcefully unlinks a match and closes the chat room.\n\nThe user-side unmatch primitive exists (`DELETE /matches/:id`) — this adds admin override with a reason.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f5"
+        },
+        {
+          "name": "07 · Reports",
+          "description": "The resolution workflow for user-filed safety reports. **Highest-priority admin module:** reports created by USER **S-04** are stuck in `PENDING` today because no review endpoint exists anywhere.\n\nSchema reality: `ReportStatus` is `PENDING | REVIEWING | RESOLVED | DISMISSED`; `reason` is free text today (no enum); `priority` does not exist on the model; `reviewedBy`, `reviewedAt` and `resolution` columns already exist and are waiting to be filled.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "R-01 List safety reports",
+              "id": "00000048-0000-4000-8000-000000000011f",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/reports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "reports"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "PENDING",
+                      "description": "PENDING | REVIEWING | RESOLVED | DISMISSED"
+                    }
+                  ]
+                },
+                "description": "Filtered list of filed reports with reporter / reported user info.\n\nFilters: `status` (default PENDING), `reason`, `priority`, `dateFrom`, `dateTo`, paging.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "R-02 Get report details",
+              "id": "00000048-0000-4000-8000-0000000000120",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/reports/:reportId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "reports",
+                    ":reportId"
+                  ],
+                  "query": []
+                },
+                "description": "Full dossier: both parties’ profiles and trust scores, the reported user’s prior incidents and suspension state.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "R-03 Resolve safety report",
+              "id": "00000048-0000-4000-8000-0000000000121",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/reports/:reportId/resolve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "reports",
+                    ":reportId",
+                    "resolve"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"DEDUCT_POINTS\",\n  \"reason\": \"Confirmed harassment\",\n  \"deductTrustScore\": 15\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Resolves the report with a disciplinary action: `action` WARN | SUSPEND | BAN | DEDUCT_POINTS, `reason` (required), optional `deductTrustScore`.\n\nImplementation should write the existing `reviewedBy` / `reviewedAt` / `resolution` columns and can route penalties through `TrustScoreService.addEvent()`.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "R-04 Dismiss safety report",
+              "id": "00000048-0000-4000-8000-0000000000122",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/reports/:reportId/dismiss",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "reports",
+                    ":reportId",
+                    "dismiss"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"dismissalReason\": \"Retaliatory report — no evidence\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Dismisses an unfounded or retaliatory report.\n\nBody: `dismissalReason` (optional).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "R-05 Safety & reports statistics",
+              "id": "00000048-0000-4000-8000-0000000000123",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/reports/statistics",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "reports",
+                    "statistics"
+                  ],
+                  "query": []
+                },
+                "description": "Totals per status and breakdown by violation category.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f6"
+        },
+        {
+          "name": "08 · Stories",
+          "description": "Editorial approval for success stories. ⚠️ Stories created by USER **SS-01** are stuck in `PENDING` — no publish path exists, so the public feed (**SS-02**) can never grow.\n\nSchema reality: `StoryStatus` is `PENDING | PUBLISHED | REJECTED` — the spec’s `APPROVED` must map to `PUBLISHED`. There is no `publishedAt` column today.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "ST-01 List community stories",
+              "id": "00000048-0000-4000-8000-0000000000124",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/stories",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stories"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "PENDING | PUBLISHED | REJECTED (spec says APPROVED — use PUBLISHED)"
+                    }
+                  ]
+                },
+                "description": "Paginated list of submitted stories with author, partner, status, like/comment counts.\n\nThe seed ships one PUBLISHED story, so the public user-side feed is not empty by default.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "ST-02 Get story details",
+              "id": "00000048-0000-4000-8000-0000000000125",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/stories/:storyId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stories",
+                    ":storyId"
+                  ],
+                  "query": []
+                },
+                "description": "Full text, images, author/partner profiles and the comment thread.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "ST-03 Approve story",
+              "id": "00000048-0000-4000-8000-0000000000126",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/stories/:storyId/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stories",
+                    ":storyId",
+                    "approve"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Publishes the story to the public app feed (sets status `PUBLISHED`).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "ST-04 Reject story",
+              "id": "00000048-0000-4000-8000-0000000000127",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/stories/:storyId/reject",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stories",
+                    ":storyId",
+                    "reject"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Low resolution photo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Rejects the submission with an explanation for the author.\n\nBody: `reason` (required).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "ST-05 Delete story",
+              "id": "00000048-0000-4000-8000-0000000000128",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/stories/:storyId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stories",
+                    ":storyId"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Permanently removes a story and its comments/likes (cascading in the schema).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f7"
+        },
+        {
+          "name": "09 · Notifications",
+          "description": "Broadcast push campaigns via BullMQ + FCM.\n\n⚠️ Depends on infrastructure that does not exist yet: **no endpoint registers device tokens** (the `Device` table is never written to by any API, so FCM pushes have no production path), and there is no broadcast queue job. The per-event notification pipeline itself (match / message / super-like → FCM) is fully built.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "N-01 Notification dispatch history",
+              "id": "00000048-0000-4000-8000-0000000000129",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/notifications",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "notifications"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Items per page"
+                    }
+                  ]
+                },
+                "description": "History of campaigns sent from the admin panel with recipient counts and status.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "N-02 Send / broadcast push notification",
+              "id": "00000048-0000-4000-8000-000000000012a",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/notifications",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "notifications"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Special weekend dating event!\",\n  \"body\": \"Plan a date this weekend and earn bonus trust points.\",\n  \"target\": \"ALL_USERS\",\n  \"deepLink\": \"/discovery\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Queues a push campaign.\n\nBody: `title`, `body` (both required), `target` ALL_USERS | VERIFIED_USERS | PREMIUM_USERS | SPECIFIC_USERS, `specificUserIds` (required for SPECIFIC_USERS), optional `deepLink`.\n\n⚠️ `PREMIUM_USERS` does not map to `SubscriptionPlan` (WEEKLY / MONTHLY / YEARLY) — define the segment before building.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "N-03 Get notification details",
+              "id": "00000048-0000-4000-8000-000000000012b",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/notifications/:notificationId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "notifications",
+                    ":notificationId"
+                  ],
+                  "query": []
+                },
+                "description": "Delivery statistics for one campaign: recipients, delivered, failed.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "N-04 Delete notification record",
+              "id": "00000048-0000-4000-8000-000000000012c",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/notifications/:notificationId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "notifications",
+                    ":notificationId"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Removes a campaign history record.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f8"
+        },
+        {
+          "name": "10 · Subscriptions",
+          "description": "Revenue administration.\n\nSchema reality: `SubscriptionPlan` is `WEEKLY | MONTHLY | YEARLY` (the spec’s `PREMIUM` / `VIP` don’t exist) and `SubscriptionStatus` is `ACTIVE | EXPIRED | CANCELLED` (no `PAST_DUE`). `provider` is `apple | google | revenuecat` — matches the webhook code.\n\nThe RevenueCat webhook (USER **SB-03**) already stores `SubscriptionEvent` rows with idempotency, so **SB-04** has real data to read once purchases flow. Plan management (**SB-07** / **SB-08**) needs a new `Plan` model — today’s catalog is a static array in `subscriptions.service.ts`.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "SB-01 Subscription overview & top metrics",
+              "id": "00000048-0000-4000-8000-000000000012d",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/subscriptions/overview",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "subscriptions",
+                    "overview"
+                  ],
+                  "query": []
+                },
+                "description": "KPI row for the subscriptions page: active / expired / cancelled counts, monthly and yearly revenue, renewal rate, MRR.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SB-02 List subscribers",
+              "id": "00000048-0000-4000-8000-000000000012e",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/subscriptions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "subscriptions"
+                  ],
+                  "query": [
+                    {
+                      "key": "plan",
+                      "value": "",
+                      "description": "WEEKLY | MONTHLY | YEARLY"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "ACTIVE | EXPIRED | CANCELLED"
+                    },
+                    {
+                      "key": "provider",
+                      "value": "",
+                      "description": "apple | google | revenuecat"
+                    }
+                  ]
+                },
+                "description": "Paginated subscriber table.\n\nFilters: `search`, `plan` WEEKLY | MONTHLY | YEARLY, `status` ACTIVE | EXPIRED | CANCELLED, `provider` apple | google | revenuecat, date range, paging.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SB-03 Get subscription details",
+              "id": "00000048-0000-4000-8000-000000000012f",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/subscriptions/:subscriptionId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "subscriptions",
+                    ":subscriptionId"
+                  ],
+                  "query": []
+                },
+                "description": "One subscription with the subscriber’s profile and entitlement summary.\n\nNote: the backend never calls RevenueCat’s API — entitlements come solely from webhook events.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SB-04 Get subscription billing events",
+              "id": "00000048-0000-4000-8000-0000000000130",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/subscriptions/:subscriptionId/events",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "subscriptions",
+                    ":subscriptionId",
+                    "events"
+                  ],
+                  "query": []
+                },
+                "description": "Raw webhook / purchase transaction log for audit.\n\nBacked by the existing `SubscriptionEvent` table (deduplicated on `externalEventId`).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SB-05 Subscription statistics & breakdown",
+              "id": "00000048-0000-4000-8000-0000000000131",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/subscriptions/statistics",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "subscriptions",
+                    "statistics"
+                  ],
+                  "query": []
+                },
+                "description": "Revenue by provider (apple / google), by plan, and churn rate.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SB-06 Cancel / revoke subscription (admin override)",
+              "id": "00000048-0000-4000-8000-0000000000132",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/subscriptions/:subscriptionId/cancel",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "subscriptions",
+                    ":subscriptionId",
+                    "cancel"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Chargeback filed with the store\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Force-cancels an entitlement (e.g. chargeback).\n\nBody: `reason` (required).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SB-07 Create subscription plan",
+              "id": "00000048-0000-4000-8000-0000000000133",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/plans",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "plans"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"48Date VIP\",\n  \"planCode\": \"VIP_MONTHLY\",\n  \"priceUsd\": 19.99,\n  \"billingPeriod\": \"MONTHLY\",\n  \"features\": [\n    \"VIP golden badge\",\n    \"Top visibility in discovery\"\n  ],\n  \"isActive\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Defines a purchasable plan: name, planCode, priceUsd, billingPeriod MONTHLY | YEARLY, features[], appleProductId, googleProductId, isActive.\n\n⚠️ Requires a new `Plan` model — today’s catalog is hard-coded in `subscriptions.service.ts` (WEEKLY $4.99 / MONTHLY $14.99 / YEARLY $99.99).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SB-08 Update subscription plan",
+              "id": "00000048-0000-4000-8000-0000000000134",
+              "request": {
+                "method": "PATCH",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/plans/:planId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "plans",
+                    ":planId"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"priceUsd\": 17.99,\n  \"isActive\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Edits pricing, features or active state of a plan.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000f9"
+        },
+        {
+          "name": "11 · Analytics",
+          "description": "Chart feeds for the analytics screens. Pure aggregation over existing tables — none of it is implemented.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "AN-01 User analytics",
+              "id": "00000048-0000-4000-8000-0000000000135",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/analytics/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "analytics",
+                    "users"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "30d",
+                      "description": "7d | 30d | 90d | 12m"
+                    }
+                  ]
+                },
+                "description": "Gender distribution, age demographics, signup / verification timeline.\n\n`period`: 7d | 30d | 90d | 12m.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "AN-02 Engagement analytics",
+              "id": "00000048-0000-4000-8000-0000000000136",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/analytics/engagement",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "analytics",
+                    "engagement"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "30d",
+                      "description": "7d | 30d | 90d | 12m"
+                    }
+                  ]
+                },
+                "description": "DAU / WAU / MAU, average session duration, DAU-to-MAU ratio.\n\n⚠️ Session tracking does not exist — there is no session or event table; `lastLoginAt` is the only engagement signal stored today.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "AN-03 Match & dating funnel analytics",
+              "id": "00000048-0000-4000-8000-0000000000137",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/analytics/matches",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "analytics",
+                    "matches"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "30d",
+                      "description": "7d | 30d | 90d | 12m"
+                    }
+                  ]
+                },
+                "description": "Conversion funnel: swipes → likes → matches → chat messages → date invites → completed dates, plus no-show rate.\n\nAll inputs exist (`DiscoveryAction`, `Match`, `Message`, `DatePlan`, `DateRating`) — this is query work.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "AN-04 Revenue analytics",
+              "id": "00000048-0000-4000-8000-0000000000138",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/analytics/revenue",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "analytics",
+                    "revenue"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "30d",
+                      "description": "7d | 30d | 90d | 12m"
+                    }
+                  ]
+                },
+                "description": "Gross volume and order timeline.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "AN-05 Retention & churn analytics",
+              "id": "00000048-0000-4000-8000-0000000000139",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/analytics/retention",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "analytics",
+                    "retention"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "90d",
+                      "description": "7d | 30d | 90d | 12m"
+                    }
+                  ]
+                },
+                "description": "Day 1 / 7 / 30 retention cohorts and monthly churn.\n\n⚠️ Requires engagement events (logins by day) — only `lastLoginAt` exists today.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000fa"
+        },
+        {
+          "name": "12 · Settings",
+          "description": "Admin profile management and global platform parameters.\n\n⚠️ The `SystemSetting` table does not exist. The spec’s defaults (48h countdown, 50 km discovery radius, daily swipe limits, trust bonuses) are aspirational — none are enforced anywhere in the code today. Note the discovery radius default (50 km) currently lives in the discovery service and the trust bonuses live in the dates/reports services.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "SE-01 Get admin profile",
+              "id": "00000048-0000-4000-8000-000000000013a",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/settings/profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "settings",
+                    "profile"
+                  ],
+                  "query": []
+                },
+                "description": "The logged-in administrator’s own profile.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SE-02 Update admin profile",
+              "id": "00000048-0000-4000-8000-000000000013b",
+              "request": {
+                "method": "PATCH",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/settings/profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "settings",
+                    "profile"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Admin\",\n  \"lastName\": \"One\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Updates the admin’s name, phone and avatar.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SE-03 Change admin password",
+              "id": "00000048-0000-4000-8000-000000000013c",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/settings/change-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "settings",
+                    "change-password"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{adminPassword}}\",\n  \"newPassword\": \"NewPassword!123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Changes the admin password after verifying the current one.\n\n⚠️ Requires reintroducing a password credential for admins — users have none (passwordless OTP).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SE-04 Get system settings",
+              "id": "00000048-0000-4000-8000-000000000013d",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "settings"
+                  ],
+                  "query": []
+                },
+                "description": "Global parameters: matchCountdownHours, defaultDiscoveryRadiusKm, freeSwipeDailyLimit, minAgeRequirement, trustScoreBonusVerification, trustScorePenaltyNoShow, maintenanceMode.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "SE-05 Update system settings",
+              "id": "00000048-0000-4000-8000-000000000013e",
+              "request": {
+                "method": "PATCH",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "settings"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"matchCountdownHours\": 48,\n  \"defaultDiscoveryRadiusKm\": 50,\n  \"maintenanceMode\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Modifies platform parameters. Super-admin only in the spec.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000fb"
+        },
+        {
+          "name": "13 · Roles & Staff",
+          "description": "Role definitions, granular permissions and staff administration.\n\n⚠️ The `Role` enum is `USER | ADMIN` only — `SUPER_ADMIN`, `MODERATOR`, `SUPPORT` and per-admin permission keys require an enum migration plus new tables (`StaffPermission`, and arguably `RoleDefinition`). The existing `@Roles()` decorator + `RolesGuard` in `src/common/` are ready to enforce whatever the enum becomes.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "RS-01 List predefined roles",
+              "id": "00000048-0000-4000-8000-000000000013f",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/roles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "roles"
+                  ],
+                  "query": []
+                },
+                "description": "Roles with their permissions and member counts.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "RS-02 Get role details",
+              "id": "00000048-0000-4000-8000-0000000000140",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/roles/:roleId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "roles",
+                    ":roleId"
+                  ],
+                  "query": []
+                },
+                "description": "One role with its permission list.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "RS-03 Create role",
+              "id": "00000048-0000-4000-8000-0000000000141",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/roles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "roles"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"SAFETY_SPECIALIST\",\n  \"description\": \"Reports and moderation only\",\n  \"permissions\": [\n    \"REPORTS_READ\",\n    \"REPORTS_RESOLVE\",\n    \"USERS_SUSPEND\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Defines a custom role: `name`, `description`, `permissions[]` (e.g. REPORTS_READ, USERS_SUSPEND).\n\nSuper-admin only.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "RS-04 Update role & permissions",
+              "id": "00000048-0000-4000-8000-0000000000142",
+              "request": {
+                "method": "PATCH",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/roles/:roleId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "roles",
+                    ":roleId"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"permissions\": [\n    \"REPORTS_READ\",\n    \"REPORTS_RESOLVE\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Modifies a role’s description / permissions.\n\nSuper-admin only.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "RS-05 Delete role",
+              "id": "00000048-0000-4000-8000-0000000000143",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/roles/:roleId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "roles",
+                    ":roleId"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Deletes a custom role. Built-in roles cannot be deleted.\n\nSuper-admin only.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "RS-06 List staff members",
+              "id": "00000048-0000-4000-8000-0000000000144",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/staff",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "staff"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "ACTIVE | SUSPENDED"
+                    }
+                  ]
+                },
+                "description": "Admin users with role, permissions, status and last login.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "RS-07 Create staff member",
+              "id": "00000048-0000-4000-8000-0000000000145",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/staff",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "staff"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Mod\",\n  \"lastName\": \"One\",\n  \"email\": \"mod1@48date.app\",\n  \"password\": \"StaffPass!123\",\n  \"role\": \"MODERATOR\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Provisions an admin account: firstName, lastName, email, password, role (ADMIN | MODERATOR | SUPPORT), optional permission overrides.\n\n⚠️ This is also the missing provisioning path for **A-01 Admin login** — without it no admin can sign in.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000fc"
+        },
+        {
+          "name": "14 · Audit Logs",
+          "description": "Compliance trail of administrative actions. Requires the new `AdminAuditLog` table from the spec’s appendix.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "AL-01 List audit logs",
+              "id": "00000048-0000-4000-8000-0000000000146",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/audit-logs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "audit-logs"
+                  ],
+                  "query": [
+                    {
+                      "key": "action",
+                      "value": "",
+                      "description": "e.g. USER_SUSPEND | REPORT_RESOLVE | SETTINGS_UPDATE"
+                    }
+                  ]
+                },
+                "description": "Paginated trail with filters: `adminId`, `action`, `resource`, date range, paging.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "AL-02 Get audit log details",
+              "id": "00000048-0000-4000-8000-0000000000147",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/audit-logs/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "audit-logs",
+                    ":id"
+                  ],
+                  "query": []
+                },
+                "description": "Before/after diff of the data changed by one admin action.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "AL-03 Audit statistics",
+              "id": "00000048-0000-4000-8000-0000000000148",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/audit-logs/statistics",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "audit-logs",
+                    "statistics"
+                  ],
+                  "query": []
+                },
+                "description": "Action volume by type and most active admins.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000fd"
+        },
+        {
+          "name": "15 · Dates",
+          "description": "Read-only oversight of date plans and their post-date ratings.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "DT-01 List date plans",
+              "id": "00000048-0000-4000-8000-0000000000149",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dates"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "PENDING | ACCEPTED | DECLINED | CANCELLED | COMPLETED"
+                    }
+                  ]
+                },
+                "description": "All dates across the platform with participants, venue, schedule and status.\n\nStatuses match the user side: PENDING | ACCEPTED | DECLINED | CANCELLED | COMPLETED (plus NO_SHOW where used).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "DT-02 Get date plan details",
+              "id": "00000048-0000-4000-8000-000000000014a",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dates/:dateId",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dates",
+                    ":dateId"
+                  ],
+                  "query": []
+                },
+                "description": "Full plan: venue, GPS coordinates, notes, both participants with trust scores.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "DT-03 Get date ratings & no-show confirmation",
+              "id": "00000048-0000-4000-8000-000000000014b",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/dates/:dateId/ratings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dates",
+                    ":dateId",
+                    "ratings"
+                  ],
+                  "query": []
+                },
+                "description": "Post-date feedback submitted by both participants (1–5 scores and show-up confirmation). The USER folder captures a completed seeded date as `{{datePlanId}}`.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000fe"
+        },
+        {
+          "name": "16 · Games",
+          "description": "Content management for icebreaker question decks.\n\n⚠️ `GameType` is `THIS_OR_THAT | ICEBREAKER` — the spec’s `TRUTH_OR_DARE` / `COMPATIBILITY` do not exist. Questions are validated server-side to exactly `optionA` / `optionB`, so `options` must contain exactly two values.\n\n**Status: not implemented — returns 404 today.** ",
+          "item": [
+            {
+              "name": "G-01 List game questions",
+              "id": "00000048-0000-4000-8000-000000000014c",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/games/questions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "games",
+                    "questions"
+                  ],
+                  "query": [
+                    {
+                      "key": "gameType",
+                      "value": "",
+                      "description": "THIS_OR_THAT | ICEBREAKER"
+                    }
+                  ]
+                },
+                "description": "All question cards, optionally filtered by `gameType`.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "G-02 Create game question",
+              "id": "00000048-0000-4000-8000-000000000014d",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/games/questions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "games",
+                    "questions"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"gameType\": \"THIS_OR_THAT\",\n  \"question\": \"Coffee or tea on a first date?\",\n  \"options\": [\n    \"Coffee\",\n    \"Tea\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Adds a question card: `gameType`, `question`, `options` (exactly two — the engine compares answers verbatim against optionA / optionB).\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "G-03 Update game question",
+              "id": "00000048-0000-4000-8000-000000000014e",
+              "request": {
+                "method": "PATCH",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/games/questions/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "games",
+                    "questions",
+                    ":id"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"isActive\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Edits the prompt, options, or toggles `isActive`.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            },
+            {
+              "name": "G-04 Delete game question",
+              "id": "00000048-0000-4000-8000-000000000014f",
+              "request": {
+                "method": "DELETE",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/games/questions/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "games",
+                    "questions",
+                    ":id"
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Removes a question card.\n\n**Status: not implemented — returns 404 today.** "
+              }
+            }
+          ],
+          "id": "00000047-0000-4000-8000-0000000000ff"
+        }
+      ],
       "id": "00000046-0000-4000-8000-000000000070"
     }
   ]
