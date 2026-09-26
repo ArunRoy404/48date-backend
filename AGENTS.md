@@ -8,7 +8,7 @@ Instructions for AI agents (and humans) working in this repository.
 
 The canonical requirements document is `docs/48Date-Backend-Tech-Stack.docx` — read it before making architecture-level decisions. This file summarizes it.
 
-**Current repo state:** fresh NestJS 11 scaffold (default `AppController`/`AppService`). `docker-compose.yml` added for local Postgres + Redis. No domain modules, Prisma schema, or services are implemented yet. Follow this guide when adding them.
+**Current repo state:** well past scaffold. 15 modules are registered in `app.module.ts` (auth, users, images, face-verification, discovery, matches, notifications, chat, games, dates, trust-score, blocks, reports, subscriptions, success-stories) serving **57 REST endpoints** + a Socket.IO chat gateway and a BullMQ notification worker. Prisma 7 runs a multi-file schema (`prisma/models/` + `prisma/enums/`) with migrations. The **admin API is not implemented** (`src/modules/admin/` is an unregistered stub) — its agreed 80-request contract lives in the Postman collection's ADMIN folder. A full audit lives in `docs/BACKEND-STATUS.md` — read it before assuming any feature exists.
 
 ## Requirements
 
@@ -27,12 +27,13 @@ The canonical requirements document is `docs/48Date-Backend-Tech-Stack.docx` —
 npm install          # install dependencies
 npm run start:dev    # dev server with watch mode (default port 3000)
 npm run build        # compile (nest build)
-npm run start:prod   # run compiled dist/main.js
+npm run start:prod   # run compiled dist/src/main.js
 npm run lint         # eslint with --fix
 npm run format       # prettier on src/ and test/
 npm run test         # jest unit tests
 npm run test:e2e     # jest e2e tests (test/jest-e2e.json)
 npm run test:cov     # coverage
+npm run db:seed      # idempotent seed: games, demo accounts, relational data
 ```
 
 Rules: always run `npm run lint` + `npm run build` (and relevant tests) before finishing changes. TypeScript config is strict-null-checked (`strictNullChecks: true`) — verify this in `tsconfig.json` if unsure.
@@ -41,36 +42,16 @@ Rules: always run `npm run lint` + `npm run build` (and relevant tests) before f
 
 The app depends on Postgres and Redis, run locally via Docker Compose (`docker-compose.yml` in repo root):
 
-```yaml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: date48
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+The compose file defines **three** services — `postgres:16-alpine` (health-checked), `redis:7-alpine` (health-checked), and an optional production-style `app` container. For local dev run only the first two:
 
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
-
-volumes:
-  pgdata:
-```
-
-**Before running `npm run start:dev`, start the containers:**
 ```bash
-docker compose up -d
-docker ps   # confirm both postgres:16 and redis:7 show "Up"
+docker compose up -d postgres redis
+docker compose ps   # both should show "Up (healthy)"
 ```
 
-Once Prisma is wired up, `DATABASE_URL` in `.env` should point at this local Postgres instance (`postgresql://postgres:postgres@localhost:5432/date48?schema=public`) for local dev — production uses the Hostinger VPS's own Postgres instance instead.
+⚠️ **Postgres is mapped to host port `5433`, not 5432** (`"5433:5432"`, to avoid clashing with a local install). `DATABASE_URL` in `.env` must therefore be `postgresql://postgres:postgres@localhost:5433/date48?schema=public` for local dev — production uses the Hostinger VPS's own Postgres instance instead.
+
+After `npx prisma migrate deploy` + `npx prisma generate`, run `npm run db:seed` for the games catalogue, 8 demo accounts and relational data (see `prisma/seeds/` — `games.seed.ts`, `users.seed.ts`, `social.seed.ts`). Seeded login: `+8801811000001`, dev OTP `123456`.
 
 If `npm run start:dev` fails with a database or Redis connection error, the containers are very likely not running — check `docker ps` first before debugging application code.
 
@@ -113,26 +94,33 @@ Two client surfaces:
 - **Flutter user app** — full user-facing API.
 - **React admin panel** — admin-scoped API, protected by **role-based guards** on top of JWT.
 
-## Suggested Module Layout
+## Module Layout (as actually built)
 
-Organize as NestJS feature modules, e.g.:
+Feature modules live under `src/modules/` — `app.module.ts` imports them all:
+
 src/
 ├── main.ts
 ├── app.module.ts
-├── auth/ # JWT access/refresh, passport strategies, guards, roles
-├── users/ # profiles, registration (incl. Twilio Verify OTP)
-├── images/ # upload -> optimize/dedupe (BullMQ) -> R2, hash + metadata to Postgres
-├── face-verification/ # server-side detection/comparison; feeds trust score
-├── matches/
-├── chat/ # Socket.io gateway, presence (Redis), message persistence
-├── dates/ # date planner, Mapbox place suggestions
-├── subscriptions/ # RevenueCat webhooks/entitlements
-├── reports/ # moderation
-├── notifications/ # FCM + BullMQ fan-out
-├── trust-score/ # background score updates
-├── admin/ # admin-panel endpoints, role-guarded
-├── ai/ # OpenAI/Anthropic suggestions
-└── common/ # prisma, redis, queue modules, shared DTOs/decorators
+├── config/ # env.config.ts (central env access), database.config.ts
+├── common/ # prisma, otp, response envelope, guards, filters, utils/validators
+└── modules/
+    ├── auth/ # phone-only OTP login (find-or-create), Google login, JWT
+    ├── users/ # profile setup, location, contact verification
+    ├── images/ # upload → R2 (or local fallback) — no dedup pipeline yet
+    ├── face-verification/ # ⚠️ selfie upload + flag only, no real matching yet
+    ├── discovery/ # preferences, feed, swipe
+    ├── matches/
+    ├── chat/ # REST read/send + Socket.IO gateway (Redis presence)
+    ├── games/
+    ├── dates/ # Mapbox places, state machine, ratings
+    ├── trust-score/
+    ├── blocks/
+    ├── reports/
+    ├── subscriptions/ # RevenueCat webhook
+    ├── success-stories/
+    ├── notifications/ # BullMQ worker: FCM push + SMS/email fallback
+    ├── admin/ # ⚠️ empty stub, NOT registered — contract in Postman ADMIN folder
+    └── ai/ # ⚠️ empty stub, NOT registered
 
 
 ## Conventions
@@ -155,7 +143,8 @@ REDIS_URL
 JWT_ACCESS_SECRET / JWT_REFRESH_SECRET
 R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET
 TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_VERIFY_SERVICE_SID
-FCM_SERVICE_ACCOUNT_*
+TWILIO_PHONE_NUMBER # read by notifications.service.ts but MISSING from .env.example
+FCM_SERVICE_ACCOUNT_JSON
 MAPBOX_ACCESS_TOKEN
 OPENAI_API_KEY # or ANTHROPIC_API_KEY
 REVENUECAT_API_KEY / REVENUECAT_WEBHOOK_SECRET
@@ -172,4 +161,7 @@ This project is budget-sensitive (MVP ~$15–65/mo flat + ~$0.05/verified user).
 ## Useful Sources
 
 - `docs/48Date-Backend-Tech-Stack.docx` — canonical requirements, tech stack, pricing.
-- `README.md` — standard NestJS scaffold README (outdated vs. this project; treat this file as authoritative for project specifics).
+- `docs/BACKEND-STATUS.md` — verified status audit: done / partial / missing, module by module, with corrections to the handoff documents.
+- `docs/DEVELOPER-DOC-DISCREPANCIES.md` — fact-check of the developer's handoff docs against the code.
+- `docs/project-guide.md` — deep dive for developers new to NestJS/Postgres/Prisma.
+- `README.md` — quick start, full endpoint list, Postman guide (current; kept in sync with the code).
