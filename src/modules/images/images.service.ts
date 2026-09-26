@@ -14,15 +14,18 @@ export class ImagesService {
   private readonly logger = new Logger(ImagesService.name);
   private readonly s3Client?: S3Client;
   private readonly bucketName?: string;
+  private readonly publicUrl?: string;
 
   constructor() {
     const accountId = env.R2_ACCOUNT_ID;
     const accessKeyId = env.R2_ACCESS_KEY_ID;
     const secretAccessKey = env.R2_SECRET_ACCESS_KEY;
     const bucket = env.R2_BUCKET;
+    const publicUrl = env.R2_PUBLIC_URL;
 
-    if (accountId && accessKeyId && secretAccessKey && bucket) {
+    if (accountId && accessKeyId && secretAccessKey && bucket && publicUrl) {
       this.bucketName = bucket;
+      this.publicUrl = publicUrl.replace(/\/+$/, '');
       this.s3Client = new S3Client({
         endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
         credentials: {
@@ -94,7 +97,7 @@ export class ImagesService {
     const fileExt = file.originalname.split('.').pop() || 'png';
     const filename = `${crypto.randomUUID()}-${Date.now()}.${fileExt}`;
 
-    if (this.s3Client && this.bucketName) {
+    if (this.s3Client && this.bucketName && this.publicUrl) {
       const key = `users/${userId}/images/${filename}`;
       try {
         const command = new PutObjectCommand({
@@ -106,7 +109,7 @@ export class ImagesService {
 
         await this.s3Client.send(command);
 
-        const url = `https://${this.bucketName}.${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
+        const url = `${this.publicUrl}/${key}`;
         return { url, key };
       } catch (error) {
         this.logger.error(
