@@ -159,62 +159,77 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
+   * Event: leaveRoom
+   * Client requests to leave a conversation room.
+   */
+  @SubscribeMessage('leaveRoom')
+  async handleLeaveRoom(client: Socket, payload: { conversationId: string }) {
+    const { conversationId } = payload;
+    const userId = client.data.userId;
+
+    if (!userId || !conversationId) {
+      return { error: 'Invalid leaveRoom request' };
+    }
+
+    await client.leave(conversationId);
+    this.logger.log(`User ${userId} left room ${conversationId}`);
+    return { success: true };
+  }
+
+  /**
    * Event: sendMessage
-   * Client sends a message to the room.
+   * Client sends a message (text and/or image) to the room.
    */
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     client: Socket,
-    payload: { conversationId: string; content: string; type?: MessageType },
+    payload: {
+      conversationId: string;
+      content?: string;
+      type?: MessageType;
+      mediaUrl?: string;
+    },
   ) {
-    const { conversationId, content, type } = payload;
+    const { conversationId, content, type, mediaUrl } = payload;
     const userId = client.data.userId;
 
-    if (!userId || !conversationId || !content) {
-      return { error: 'Invalid message request' };
+    if (!userId || !conversationId || (!content?.trim() && !mediaUrl?.trim())) {
+      return {
+        error: 'Invalid message request: content or mediaUrl is required',
+      };
     }
 
-    // Verify membership
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id: conversationId },
-      include: { match: true },
-    });
+    try {
+      const { message: savedMessage, partnerId } =
+        await this.chatService.sendMessage(
+          userId,
+          conversationId,
+          content,
+          type,
+          mediaUrl,
+        );
 
-    if (!conversation) {
-      return { error: 'Conversation not found' };
+      // Broadcast to room (both users receive it)
+      this.server.to(conversationId).emit('newMessage', savedMessage);
+
+      // Alert recipient if not currently online/connected to gateway
+      const isPartnerOnline = this.activeSockets.has(partnerId);
+      if (!isPartnerOnline) {
+        await this.notificationsService.queueMessageNotification(
+          userId,
+          partnerId,
+          content || 'Sent an image',
+        );
+      }
+
+      return {
+        success: true,
+        messageId: savedMessage.id,
+        message: savedMessage,
+      };
+    } catch (err: any) {
+      return { error: err.message || 'Failed to send message' };
     }
-
-    const { match } = conversation;
-    if (match.userLowId !== userId && match.userHighId !== userId) {
-      return { error: 'Unauthorized to send message to this conversation' };
-    }
-
-    // Save message
-    const msgType = type || MessageType.TEXT;
-    const savedMessage = await this.chatService.saveMessage(
-      conversationId,
-      userId,
-      content,
-      msgType,
-    );
-
-    // Broadcast to room (both users receive it)
-    this.server.to(conversationId).emit('newMessage', savedMessage);
-
-    // Alert recipient if not currently online/connected to gateway
-    const partnerId =
-      match.userLowId === userId ? match.userHighId : match.userLowId;
-    const isPartnerOnline = this.activeSockets.has(partnerId);
-
-    if (!isPartnerOnline) {
-      await this.notificationsService.queueMessageNotification(
-        userId,
-        partnerId,
-        content,
-      );
-    }
-
-    return { success: true, messageId: savedMessage.id };
   }
 
   /**
@@ -252,4 +267,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
     }
   }
+
+  /**
+   * Helper to broadcast a newly created message to a conversation room and notify offline recipients.
+   * Can be used by REST controllers or other services.
+   */
+  async broadcastMessage(
+    conversationId: string,
+    message: any,
+    partnerId: string,
+    senderId: string,
+  ) {
+    this.server.to(conversationId).emit('newMessage', message);
+    const isPartnerOnline = this.activeSockets.has(partnerId);
+    if (!isPartnerOnline) {
+      await this.notificationsService.queueMessageNotification(
+        senderId,
+        partnerId,
+        message.content || 'Sent an image',
+      );
+    }
+  }
 }
+

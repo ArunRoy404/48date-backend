@@ -4731,7 +4731,7 @@
         },
         {
           "name": "05 · Chat (REST)",
-          "description": "Conversation list and message history.\n\n**Sending** messages is WebSocket-only — Postman cannot exercise it. See the collection description for the Socket.IO events (`joinRoom`, `sendMessage`, `typing`) and their payloads.",
+          "description": "Conversation list, message history, and message sending.\n\nMessages can be sent over REST (see **C-03**) or via Socket.IO (`sendMessage`). See the collection description for the Socket.IO events (`joinRoom`, `sendMessage`, `leaveRoom`, `typing`) and their payloads.",
           "item": [
             {
               "name": "C-01 List conversations",
@@ -5003,6 +5003,282 @@
                 }
               ],
               "id": "0000001f-0000-4000-8000-000000000031"
+            },
+            {
+              "name": "C-03 Send message",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content\": \"Hey! How are you doing?\",\n  \"type\": \"TEXT\",\n  \"mediaUrl\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "chat",
+                    "conversations",
+                    "{{conversationId}}",
+                    "messages"
+                  ]
+                },
+                "description": "Sends a message (text and/or image) to the conversation.\n\n**Auth:** Bearer.\n\n| Param | In | Req | Rules |\n|---|---|---|---|\n| `id` | path | yes | Conversation UUID. Auto-filled from **M-01** / **C-01** |\n| `content` | body | no | Message text. Required if `mediaUrl` is empty. |\n| `type` | body | no | `TEXT` · `IMAGE` · `DATE_INVITE` · `SYSTEM`. Defaults to `TEXT` (or `IMAGE` if `mediaUrl` is provided). |\n| `mediaUrl` | body | no | URL of the uploaded image/media (e.g. from `POST /images/upload`). Required if `content` is empty. |\n\n> In addition to saving to the database, this endpoint automatically broadcasts the message over Socket.IO to the conversation room in real time and sends a push notification if the partner is offline."
+              },
+              "response": [
+                {
+                  "name": "201 Created — Message sent (Text)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"content\": \"Hey! How are you doing?\",\n  \"type\": \"TEXT\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "chat",
+                        "conversations",
+                        "{{conversationId}}",
+                        "messages"
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Message sent successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"98a12c45-1234-4b5a-90ab-123456789abc\",\n    \"conversationId\": \"cd2cb19b-994c-46b0-98ea-9cba49f6d3f5\",\n    \"senderId\": \"819d9c8d-9155-44f6-817a-478b5d87621f\",\n    \"type\": \"TEXT\",\n    \"content\": \"Hey! How are you doing?\",\n    \"mediaUrl\": null,\n    \"createdAt\": \"2026-09-18T12:00:00.000Z\",\n    \"editedAt\": null,\n    \"deletedAt\": null\n  }\n}"
+                },
+                {
+                  "name": "201 Created — Message sent (Image)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"content\": \"Check out this photo!\",\n  \"type\": \"IMAGE\",\n  \"mediaUrl\": \"http://localhost:3000/uploads/example-photo.png\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "chat",
+                        "conversations",
+                        "{{conversationId}}",
+                        "messages"
+                      ]
+                    }
+                  },
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"message\": \"Message sent successfully\",\n  \"messages\": [],\n  \"data\": {\n    \"id\": \"ab123c45-5678-4b5a-90ab-abcdef123456\",\n    \"conversationId\": \"cd2cb19b-994c-46b0-98ea-9cba49f6d3f5\",\n    \"senderId\": \"819d9c8d-9155-44f6-817a-478b5d87621f\",\n    \"type\": \"IMAGE\",\n    \"content\": \"Check out this photo!\",\n    \"mediaUrl\": \"http://localhost:3000/uploads/example-photo.png\",\n    \"createdAt\": \"2026-09-18T12:01:00.000Z\",\n    \"editedAt\": null,\n    \"deletedAt\": null\n  }\n}"
+                },
+                {
+                  "name": "400 Bad Request — Missing content and mediaUrl",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"content\": \"\",\n  \"mediaUrl\": \"\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "chat",
+                        "conversations",
+                        "{{conversationId}}",
+                        "messages"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"message\": \"Message content or mediaUrl must be provided\",\n  \"messages\": [\n    \"Message content or mediaUrl must be provided\"\n  ],\n  \"statusCode\": 400\n}"
+                },
+                {
+                  "name": "403 Forbidden — Not participant",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"content\": \"Hello\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "chat",
+                        "conversations",
+                        "{{conversationId}}",
+                        "messages"
+                      ]
+                    }
+                  },
+                  "status": "Forbidden",
+                  "code": 403,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"message\": \"You are not authorized to send messages in this conversation\",\n  \"messages\": [\n    \"You are not authorized to send messages in this conversation\"\n  ],\n  \"statusCode\": 403\n}"
+                },
+                {
+                  "name": "404 Not Found — Conversation not found",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"content\": \"Hello\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/chat/conversations/00000000-0000-0000-0000-000000000000/messages",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "chat",
+                        "conversations",
+                        "00000000-0000-0000-0000-000000000000",
+                        "messages"
+                      ]
+                    }
+                  },
+                  "status": "Not Found",
+                  "code": 404,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"message\": \"Conversation not found\",\n  \"messages\": [\n    \"Conversation not found\"\n  ],\n  \"statusCode\": 404\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                      "pm.test('envelope success:true', () => pm.expect(res.success).to.eql(true));",
+                      "",
+                      "const d = res.data || {};",
+                      "if (d.id) {",
+                      "  pm.collectionVariables.set('lastMessageId', String(d.id));",
+                      "  console.log('✔ lastMessageId = ' + d.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "id": "0000001f-0000-4000-8000-000000000032"
             }
           ],
           "id": "0000001d-0000-4000-8000-000000000029"
