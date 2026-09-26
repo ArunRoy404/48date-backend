@@ -2,7 +2,7 @@
 
 Backend API for the **48Date** dating app — NestJS (TypeScript, ESM), PostgreSQL + Prisma, Redis, JWT auth. A Flutter user app and a React admin panel consume this API.
 
-> **Status:** 13 modules and **54 endpoints** are implemented and serving — auth, profile, images, face verification, discovery, matches, chat (REST + WebSocket), games, dates, trust score, blocks, reports, subscriptions and success stories.
+> **Status:** 15 modules and **57 endpoints** are implemented and serving — auth, profile, images, face verification, discovery, matches, chat (REST + WebSocket), games, dates, trust score, blocks, reports, subscriptions, success stories and a notifications worker (BullMQ + FCM).
 >
 > **Not implemented:** the **admin API**. `AdminModule` is a commented-out stub that is not imported into `app.module.ts`, and `@Roles()` / `RolesGuard` are applied to zero controllers. Every endpoint below is user-facing.
 
@@ -107,7 +107,7 @@ Re-running the seed also **prunes** swipes, matches, and the half-finished accou
 
 ## API
 
-All 56 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
+All 57 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
 
 Every response — success or error — uses the same envelope:
 
@@ -297,12 +297,13 @@ Other users' raw coordinates are never returned — only `distanceKm`, rounded t
 
 ### Chat
 
-REST endpoints **read only** — sending is WebSocket-only, see [Realtime chat](#realtime-chat-socketio).
+Reading is REST-only; sending works over **both** REST (`C-03`) and the socket — see [Realtime chat](#realtime-chat-socketio).
 
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
 | C-01 | GET | `/chat/conversations` | Bearer | Conversations with last message + unread count |
 | C-02 | GET | `/chat/conversations/:id/messages` | Bearer | Paginated history (`limit`, `offset`) |
+| C-03 | POST | `/chat/conversations/:id/messages` | Bearer | Send a message over REST — also broadcasts to the socket room |
 
 ### Games
 
@@ -369,7 +370,7 @@ Status machine: `PENDING` → `ACCEPTED` → `COMPLETED`, with `DECLINED` / `CAN
 
 ## Realtime chat (Socket.IO)
 
-Messages are **sent over Socket.IO and read over REST** — `C-01`/`C-02` are read-only and there is no REST send endpoint.
+Messages can be sent over Socket.IO (`sendMessage`) or over REST (`C-03`, which also broadcasts to the room); reading is REST-only (`C-01`/`C-02`).
 
 Connect to `ws://localhost:3000` (default namespace, path `/socket.io`) and authenticate with **either** an `Authorization: Bearer <accessToken>` header **or** `?token=<accessToken>` in the URL. Both are verified working. An invalid token connects and is then immediately disconnected by the server.
 
@@ -388,16 +389,16 @@ Folder **12 · Realtime (Socket.IO)** in the Postman collection documents the fu
 
 Import `postman/48date-backend.postman_collection.json`. Two root folders:
 
-- **USER** — all 54 endpoints across 11 subfolders, numbered `01 · Auth` → `11 · Success Stories` in integration order. Each folder carries its own serial prefix: `A` Auth, `P` Profile, `D` Discovery, `M` Matches, `C` Chat, `G` Games, `DT` Dates, `T` Trust Score, `S` Safety, `SB` Subscriptions, `SS` Success Stories — numbered `01..n` inside the folder.
-- **ADMIN** — an intentionally empty placeholder. No admin endpoints exist; nothing has been stubbed or invented.
+- **USER** — all 57 endpoints across 12 subfolders, numbered `01 · Auth` → `12 · Realtime (Socket.IO)` in integration order. Each folder carries its own serial prefix: `A` Auth, `P` Profile, `D` Discovery, `M` Matches, `C` Chat, `G` Games, `DT` Dates, `T` Trust Score, `S` Safety, `SB` Subscriptions, `SS` Success Stories — numbered `01..n` inside the folder.
+- **ADMIN** — an **80-request contract across 16 modules** for the React admin panel: the agreed Super-Admin API documented request-by-request with the enum values the schema actually accepts — but **none of it is implemented yet**; every ADMIN request returns `404` until the admin API is built. Module-by-module status: [`docs/BACKEND-STATUS.md`](docs/BACKEND-STATUS.md).
 
 Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints overriding to *No Auth*.
 
 **Every request is documented.** Each carries a description with a parameter table — type, required, and the **exact case-sensitive** values every enum accepts — plus the constraints the DTOs enforce (`heightCm` 50–250, `story` 20–5000 chars, and so on). JSON bodies have a `//` comment above each field (Postman strips them before sending); multipart bodies use per-field descriptions.
 
-**120 response examples, all captured from the running API** — not hand-written. Every endpoint has a filled success example, and 53 of 54 also carry their real error responses (400 validation with the actual `messages[]`, 401, 404, and the 409s for duplicate registration and for a second active date on one match). `SB-01` is the exception: a static public catalogue with no failure mode.
+**149 response examples, all captured from the running API** — not hand-written. Every endpoint has a filled success example, and 56 of 57 also carry their real error responses (400 validation with the actual `messages[]`, 401, 404, 429 cooldowns, and the 409s for duplicate registration and for a second active date on one match). `SB-01` is the exception: a static public catalogue with no failure mode.
 
-**27 variables**, deliberately limited to values that flow *between* requests — ids, tokens, and login identity. Everything else is literal text you can read and edit in place. Each variable's description says which request fills it and which consume it:
+**46 variables** — deliberately limited to values that flow *between* requests (ids, tokens, login identity), plus an `admin*` set that stays as placeholders until the admin API exists. Everything else is literal text you can read and edit in place. Each variable's description says which request fills it and which consume it:
 
 - `accessToken` / `refreshToken` / `userId` — captured on verify-otp, google login, refresh
 - **`otp` is captured automatically** — the API returns the dev OTP in the body while Twilio is unset, so `A-02` never needs it typed in
@@ -406,7 +407,7 @@ Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints o
 
 `userPhone` / `userEmail` have stable defaults pointing at the seeded Ava Stone account. Re-running `A-01.1` is always safe — there is no uniqueness conflict to hit, because login finds the existing account instead of creating a second one. To walk the genuine first-time onboarding path, set `userPhone` to `{{onboardingPhone}}` (`+8801811000008`), whose profile the seed leaves blank.
 
-> A clean run against a freshly seeded database passes **48/52**. The other 4 are expected: `P-01` needs a file picked in the GUI, and `DT-07`/`DT-09`/`DT-10` conflict with the date state machine when the folder is run top-to-bottom — `DT-06` has already accepted the date and `DT-08` has cancelled it. Each of those three says so in its description.
+> A clean run against a freshly seeded database passes **53/57**. The other 4 are expected: `P-01` needs a file picked in the GUI, and `DT-07`/`DT-09`/`DT-10` conflict with the date state machine when the folder is run top-to-bottom — `DT-06` has already accepted the date and `DT-08` has cancelled it. Each of those three says so in its description.
 
 ## Common commands
 
@@ -438,7 +439,8 @@ src/
 └── modules/       # auth, users, images, face-verification, discovery, matches,
                    # chat, games, dates, trust-score, blocks, reports,
                    # subscriptions, success-stories, notifications, ai*, admin*
-docs/              # project-guide.md (deep dive), 48Date-Backend-Tech-Stack.docx
+docs/              # project-guide.md (deep dive), BACKEND-STATUS.md,
+                   # DEVELOPER-DOC-DISCREPANCIES.md, 48Date-Backend-Tech-Stack.docx
 postman/           # Postman v2.1 collection
 ```
 
@@ -465,11 +467,14 @@ Verified against the running server:
 - **Fixed:** every `env.*` value sourced from `.env` used to be `undefined` at runtime. `env.config.ts` reads `process.env` when it is imported, which happens while resolving `AppModule` — before Nest's `ConfigModule` loads `.env`. Socket.IO auth failed outright (`secret or public key must be provided`), and Twilio, R2, SMTP, Mapbox, the RevenueCat secret and `REDIS_URL` all silently fell back to their no-op paths even when configured. `main.ts` now imports `dotenv/config` first.
 - **Success stories can never be published** — `SS-01` creates them as `PENDING` and no endpoint can approve them.
 - **Reports can never be actioned** — `S-04` creates them as `PENDING` with no review endpoint.
+- **The notifications module has no client-facing endpoints** — BullMQ jobs write `Notification` rows and send FCM pushes, but there is no `GET /notifications` and no device-token registration endpoint (the `Device` table is never written by any route).
 - `verifyOtpCode()` in `auth.service.ts` returns `true` for the dummy code `123456` **before** it consults Twilio, and there is no environment check around it. With `TWILIO_*` configured in production, `123456` would still verify any phone number.
 
 ## Docs
 
 - `docs/project-guide.md` — read this first if you're new to NestJS/Postgres/Prisma.
+- `docs/BACKEND-STATUS.md` — full audit of what is done / partial / missing, module by module, with a corrections table for the handoff documents.
+- `docs/DEVELOPER-DOC-DISCREPANCIES.md` — fact-check of the developer's handoff documents against the code (false claims, inconsistencies, omissions).
 - `AGENTS.md` — project rules and conventions (authoritative).
 - `docs/48Date-Backend-Tech-Stack.docx` — canonical requirements & tech-stack decisions.
 

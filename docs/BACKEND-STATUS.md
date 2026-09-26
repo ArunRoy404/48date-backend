@@ -19,7 +19,7 @@ This document supersedes the two earlier handoff documents ("48Date Backend API 
 | Face verification (real) | **0%** — see §2. Current "verification" only uploads a selfie and flips a flag |
 | Tests | **~0%** — 2 files total (`api-response.util.spec.ts`, scaffold `app.e2e-spec.ts`) |
 
-**Endpoint count note:** the README says 54; the actual count is **57** (the REST chat-send endpoint `POST /chat/conversations/:id/messages` was added after the README's last count, plus rounding differences). The Postman collection documents 51.
+**Endpoint count note:** earlier documentation disagreed (README 54, the Postman collection 51, the features doc 52). The actual count is **57** — the REST chat-send endpoint `POST /chat/conversations/:id/messages` (C-03) had been added after those documents' last counts. The README and Postman collection now both reflect 57; the ADMIN folder additionally documents the agreed 80-request admin contract (not implemented).
 
 ---
 

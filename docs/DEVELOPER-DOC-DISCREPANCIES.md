@@ -25,7 +25,7 @@ Every item below was verified directly against files in this repository (`src/`,
 
 ## ⚠️ INCONSISTENT information (docs contradict the code, each other, or themselves)
 
-1. **Endpoint counts don't match anything:** features doc says **52**, README says **54**, Postman says **51**, actual count is **57** (the REST chat-send endpoint `POST /chat/conversations/:id/messages` exists in code now — some sections of the docs still describe sending as WebSocket-only).
+1. **Endpoint counts didn't match anything:** features doc says **52**, the README said **54**, the Postman collection said **51**; the actual count is **57** (the REST chat-send endpoint `POST /chat/conversations/:id/messages`, C-03, exists in code — the older docs described sending as WebSocket-only). *Resolved since this report was first written: the README and the Postman collection now both reflect 57.*
 2. **The admin spec invents enums that don't exist in the schema** — none of these can be used without migrations:
    - Roles `SUPER_ADMIN` / `MODERATOR` / `SUPPORT` → actual `Role` enum (`prisma/enums/role.prisma`): `USER`, `ADMIN` only
    - Trust tiers `BRONZE` / `SILVER` / `GOLD` → contradicts the code **and** the developer's own features doc
@@ -33,7 +33,7 @@ Every item below was verified directly against files in this repository (`src/`,
    - Match status `EXPIRED` / `UNLINKED` / `DATE_PLANNED` → actual: `ACTIVE` / `UNMATCHED`
    - Story status `APPROVED` → actual: `PENDING` / `PUBLISHED` / `REJECTED`
    - Game types `TRUTH_OR_DARE` / `COMPATIBILITY` → actual: `THIS_OR_THAT` / `ICEBREAKER`
-3. **`DATABASE_URL` port:** the developer's doc and `.env.example` say **5432**, but `docker-compose.yml` maps Postgres to **5433** (`README.md` correctly says 5433). Copying their config breaks the database connection.
+3. **`DATABASE_URL` port:** the developer's doc and `.env.example` say **5432**, but `docker-compose.yml` maps Postgres to **5433** (`README.md` correctly says 5433). Copying their config breaks the database connection. ⚠️ Note `AGENTS.md` itself also used to show a 5432 compose snippet — it now matches the real file.
 4. **Admin doc claims "100% Non-Breaking: Zero changes made to existing application code"** — yet its own appendix requires new tables (`AdminAuditLog`, `SystemSetting`, `StaffPermission`), role-enum extensions, and tier rework. Not zero-change.
 5. **"Admin Module (Architecture Scaffolded)"** — overstated. It's a **commented-out empty file that isn't even registered** in `src/app.module.ts`. "Scaffolded" implies something usable exists.
 6. **The reusable-APIs section says `POST /images/upload` "processes images"** — it only validates and stores; contradicts itself with reality.
