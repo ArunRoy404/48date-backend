@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { formatUser } from '../../common/utils/user-formatter.js';
@@ -109,6 +110,7 @@ export class ChatService {
     senderId: string,
     content: string,
     type: MessageType = MessageType.TEXT,
+    mediaUrl?: string | null,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const message = await tx.message.create({
@@ -117,6 +119,7 @@ export class ChatService {
           senderId,
           content,
           type,
+          mediaUrl: mediaUrl ?? null,
         },
       });
 
@@ -128,5 +131,56 @@ export class ChatService {
 
       return message;
     });
+  }
+
+  /**
+   * Validates participant authorization and sends a message (text and/or image).
+   */
+  async sendMessage(
+    userId: string,
+    conversationId: string,
+    content?: string,
+    type?: MessageType,
+    mediaUrl?: string | null,
+  ) {
+    if (!content?.trim() && !mediaUrl?.trim()) {
+      throw new BadRequestException(
+        'Message content or mediaUrl must be provided',
+      );
+    }
+
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { match: true },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    const { match } = conversation;
+    if (match.userLowId !== userId && match.userHighId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to send messages in this conversation',
+      );
+    }
+
+    const msgType =
+      type || (mediaUrl ? MessageType.IMAGE : MessageType.TEXT);
+    const message = await this.saveMessage(
+      conversationId,
+      userId,
+      content ?? '',
+      msgType,
+      mediaUrl ?? null,
+    );
+
+    const partnerId =
+      match.userLowId === userId ? match.userHighId : match.userLowId;
+
+    return {
+      message,
+      partnerId,
+    };
   }
 }

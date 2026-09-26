@@ -13,6 +13,9 @@ export const env = {
   // Core
   PORT: process.env.PORT ?? 3000,
 
+  // Validation — see common/validators/is-public-url.validator.ts
+  STRICT_URL_VALIDATION: process.env.STRICT_URL_VALIDATION === 'true',
+
   // Database
   DATABASE_URL: process.env.DATABASE_URL!,
 

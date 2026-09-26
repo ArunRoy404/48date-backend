@@ -1,0 +1,8 @@
+/// Creative interests offered on the interests onboarding screen.
+enum CreativityInterest {
+  ART
+  DESIGN
+  MAKEUP
+  PHOTOGRAPHY
+  SINGING
+}

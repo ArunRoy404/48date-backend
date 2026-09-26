@@ -8,22 +8,18 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
-import twilio from 'twilio';
-import { env } from '../../config/env.config.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { formatUser } from '../../common/utils/user-formatter.js';
-import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import {
+  OTP_COOLDOWN_SECONDS,
+  OtpService,
+} from '../../common/otp/otp.service.js';
+import { UsersService } from '../users/users.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
-import { RegisterDto } from './dto/register.dto.js';
-import { ResetPasswordDto } from './dto/reset-password.dto.js';
-import { VerifyForgotPasswordDto } from './dto/verify-forgot-password.dto.js';
+import { ResendOtpDto } from './dto/resend-otp.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
+import { VerifyUserInformationDto } from './dto/verify-user-information.dto.js';
 import { GoogleLoginDto } from './dto/google-login.dto.js';
-
-const DUMMY_OTP = '123456';
-const RESET_TOKEN_PURPOSE = 'password-reset';
 
 @Injectable()
 export class AuthService {
@@ -33,295 +29,127 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
+    private readonly otp: OtpService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    if (!dto.phone && !dto.email) {
-      throw new BadRequestException('Either phone or email must be provided');
-    }
-
-    if (dto.images && dto.images.length > 0) {
-      const mainImages = dto.images.filter((image) => image.isMain);
-      if (mainImages.length !== 1) {
-        throw new BadRequestException(
-          'Exactly one image must be marked as main',
-        );
-      }
-    }
-
-    let birthDate: Date | undefined = undefined;
-    if (dto.birthDate) {
-      birthDate = new Date(dto.birthDate);
-      if (
-        Number.isNaN(birthDate.getTime()) ||
-        birthDate.getTime() > Date.now()
-      ) {
-        throw new BadRequestException(
-          'birthDate must be a valid date in the past',
-        );
-      }
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-
-    const user = await this.prisma.user
-      .create({
-        data: {
-          // Auth / identity
-          phone: dto.phone ?? null,
-          email: dto.email ?? null,
-          passwordHash,
-          // Basic profile
-          name: dto.name ?? null,
-          firstName: dto.firstName ?? null,
-          lastName: dto.lastName ?? null,
-          username: dto.username ?? null,
-          birthDate,
-          occupation: dto.occupation ?? null,
-          gender: dto.gender ?? null,
-          interestedIn: dto.interestedIn ?? null,
-          // Lifestyle
-          smoker: dto.smoker ?? null,
-          alcohol: dto.alcohol ?? null,
-          kids: dto.kids ?? null,
-          wantsKids: dto.wantsKids ?? null,
-          lookingFor: dto.lookingFor ?? null,
-          // Location
-          locations: dto.locations ?? [],
-          lastLocation: dto.lastLocation ?? null,
-          // Body
-          heightCm: dto.heightCm ?? null,
-          weightKg: dto.weightKg ?? null,
-          // Interests
-          creativity: dto.creativity ?? [],
-          sports: dto.sports ?? [],
-          moviesAndDramas: dto.moviesAndDramas ?? [],
-          // Media
-          selfieUrl: dto.selfieUrl ?? null,
-          notificationsEnabled: dto.notificationsEnabled ?? true,
-          images:
-            dto.images && dto.images.length > 0
-              ? {
-                  create: dto.images.map((image, index) => ({
-                    r2Key: image.url,
-                    isPrimary: image.isMain,
-                    sortOrder: image.sortOrder ?? index,
-                  })),
-                }
-              : undefined,
-        },
-        include: { images: { orderBy: { sortOrder: 'asc' } } },
-      })
-      .catch((error: unknown) => {
-        const conflictMessage = this.uniqueConflictMessage(error);
-        if (conflictMessage) {
-          throw new ConflictException(conflictMessage);
-        }
-        throw error;
-      });
-
-    const tokens = await this.issueTokens(user.id, user.role);
-    return { user: formatUser(user), ...tokens };
-  }
-
   /**
-   * Dispatches an OTP via Twilio Verify if configured in production,
-   * otherwise logs and returns the development dummy OTP.
-   */
-  private async sendOtp(
-    phone: string,
-  ): Promise<{ sent: boolean; message: string; otp?: string }> {
-    const accountSid = env.TWILIO_ACCOUNT_SID;
-    const authToken = env.TWILIO_AUTH_TOKEN;
-    const serviceSid = env.TWILIO_VERIFY_SERVICE_SID;
-
-    if (accountSid && authToken && serviceSid) {
-      try {
-        const client = twilio(accountSid, authToken);
-        await client.verify.v2.services(serviceSid).verifications.create({
-          to: phone,
-          channel: 'sms',
-        });
-        return { sent: true, message: 'OTP sent via SMS' };
-      } catch (error) {
-        this.logger.warn(
-          `Twilio Verify dispatch failed: ${(error as Error)?.message}. Falling back to dev OTP.`,
-        );
-        return {
-          sent: true,
-          message: 'Twilio Verify unavailable, using development dummy OTP',
-          otp: DUMMY_OTP,
-        };
-      }
-    }
-
-    return {
-      sent: true,
-      message: 'Development mode: dummy OTP active',
-      otp: DUMMY_OTP,
-    };
-  }
-
-  /**
-   * Verifies the OTP with Twilio Verify if configured,
-   * or matches against development dummy OTP.
-   */
-  private async verifyOtpCode(phone: string, otp: string): Promise<boolean> {
-    if (otp === DUMMY_OTP) {
-      return true;
-    }
-
-    const accountSid = env.TWILIO_ACCOUNT_SID;
-    const authToken = env.TWILIO_AUTH_TOKEN;
-    const serviceSid = env.TWILIO_VERIFY_SERVICE_SID;
-
-    if (accountSid && authToken && serviceSid) {
-      try {
-        const client = twilio(accountSid, authToken);
-        const check = await client.verify.v2
-          .services(serviceSid)
-          .verificationChecks.create({
-            to: phone,
-            code: otp,
-          });
-        return check.status === 'approved';
-      } catch (error) {
-        this.logger.warn(
-          `Twilio Verify check failed: ${(error as Error)?.message}`,
-        );
-        return false;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Unified login & sign-in handler:
-   * - If phone is supplied without password, automatically finds or creates the user.
-   *   If phone is unverified, sends OTP. If verified, returns tokens and routing step.
-   * - If password is supplied (e.g. email or admin login), verifies credentials with bcrypt.
+   * Unified login / sign-up handler — there is no separate register endpoint.
+   *
+   * - Accepts a phone OR an email. An identifier we have never seen creates
+   *   the account on the spot.
+   * - ALWAYS dispatches an OTP and returns `requiresOtp: true`. No tokens are
+   *   issued here, and an already-verified account is no exception: every
+   *   login is re-confirmed with an OTP.
+   * - The client continues with `POST /auth/verify-otp` (A-02), which issues
+   *   the token pair and routes on `nextStep`.
    */
   async login(dto: LoginDto) {
-    if (!dto.phone && !dto.email) {
-      throw new BadRequestException('Either phone or email must be provided');
-    }
+    let user = await this.prisma.user.findFirst({
+      where: { phone: dto.phone },
+    });
+    let isNewAccount = false;
 
-    // --- Phone-based passwordless login & auto-create flow ---
-    if (dto.phone && !dto.password) {
-      let user = await this.prisma.user.findFirst({
-        where: { phone: dto.phone },
-      });
-
-      if (!user) {
-        user = await this.prisma.user.create({
+    if (!user) {
+      isNewAccount = true;
+      user = await this.prisma.user
+        .create({
           data: {
             phone: dto.phone,
             isPhoneVerified: false,
-            isUserVerified: false,
           },
+        })
+        .catch((error: unknown) => {
+          // Two first-time logins for the same number can race here.
+          const conflictMessage = this.uniqueConflictMessage(error);
+          if (conflictMessage) {
+            throw new ConflictException(conflictMessage);
+          }
+          throw error;
         });
-      }
-
-      if (!user.isPhoneVerified) {
-        const otpResult = await this.sendOtp(dto.phone);
-        return {
-          requiresOtp: true,
-          phone: user.phone,
-          isPhoneVerified: false,
-          isUserVerified: false,
-          message: otpResult.message,
-          ...(otpResult.otp ? { otp: otpResult.otp } : {}),
-        };
-      }
-
-      // Phone is verified -> issue tokens and direct to main app or profile setup
-      const tokens = await this.issueTokens(user.id, user.role);
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      });
-
-      return {
-        requiresOtp: false,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        isPhoneVerified: true,
-        isEmailVerified: user.isEmailVerified,
-        isUserVerified: user.isUserVerified,
-        nextStep: user.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
-      };
     }
 
-    // --- Password-based login (e.g. email or admin account) ---
-    if (!dto.password) {
-      throw new BadRequestException('Password is required for email login');
+    // A brand-new account has never been sent anything, so it skips the wait.
+    if (!isNewAccount) {
+      this.otp.assertCooldown(user.lastOtpSentAt);
     }
 
-    const user = await this.prisma.user.findFirst({
-      where: dto.phone ? { phone: dto.phone } : { email: dto.email },
-    });
-    if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const passwordMatches = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
+    const otpResult = await this.otp.dispatchForUser(
+      user.id,
+      'PHONE',
+      dto.phone,
     );
-    if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    const tokens = await this.issueTokens(user.id, user.role);
     return {
-      requiresOtp: false,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      requiresOtp: true,
+      isNewAccount,
+      phone: user.phone,
       isPhoneVerified: user.isPhoneVerified,
       isEmailVerified: user.isEmailVerified,
+      isProfileComplete: user.isProfileComplete,
       isUserVerified: user.isUserVerified,
-      nextStep: user.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
+      // So the OTP screen can disable its resend button for the right length
+      // of time without hard-coding the window.
+      resendCooldownSeconds: OTP_COOLDOWN_SECONDS,
+      message: otpResult.message,
+      ...(otpResult.otp ? { otp: otpResult.otp } : {}),
     };
   }
 
   /** Verifies an OTP and flips the matching verification flag on the account. */
-  async verifyOtp(dto: VerifyOtpDto) {
-    const channel = dto.channel || (dto.phone ? 'phone' : 'email');
-    const user = await this.findByChannel({
-      channel,
-      phone: dto.phone,
-      email: dto.email,
+  /**
+   * Re-sends the OTP for an existing account.
+   *
+   * Never creates an account — a number we have not seen is a 404 here, unlike
+   * `login`, because resending implies something was sent in the first place.
+   */
+  async resendOtp(dto: ResendOtpDto) {
+    const user = await this.prisma.user.findFirst({
+      where: { phone: dto.phone },
     });
 
     if (!user) {
-      throw new NotFoundException(`No account found with this ${channel}`);
+      throw new NotFoundException('No account found with this phone number');
     }
 
-    let isValid = false;
-    if (channel === 'phone' && dto.phone) {
-      isValid = await this.verifyOtpCode(dto.phone, dto.otp);
-    } else if (channel === 'email') {
-      isValid = dto.otp === DUMMY_OTP;
+    this.otp.assertCooldown(user.lastOtpSentAt);
+
+    const otpResult = await this.otp.dispatchForUser(
+      user.id,
+      'PHONE',
+      dto.phone,
+    );
+
+    return {
+      requiresOtp: true,
+      phone: user.phone,
+      isPhoneVerified: user.isPhoneVerified,
+      isEmailVerified: user.isEmailVerified,
+      isProfileComplete: user.isProfileComplete,
+      isUserVerified: user.isUserVerified,
+      resendCooldownSeconds: OTP_COOLDOWN_SECONDS,
+      message: otpResult.message,
+      ...(otpResult.otp ? { otp: otpResult.otp } : {}),
+    };
+  }
+
+  async verifyOtp(dto: VerifyOtpDto) {
+    const user = await this.prisma.user.findFirst({
+      where: { phone: dto.phone },
+    });
+
+    if (!user) {
+      throw new NotFoundException('No account found with this phone number');
     }
 
+    const isValid = await this.otp.verify('PHONE', dto.phone, dto.otp);
     if (!isValid) {
       throw new UnauthorizedException('Invalid OTP');
     }
 
     const updated = await this.prisma.user.update({
       where: { id: user.id },
-      data: {
-        ...(channel === 'email'
-          ? { isEmailVerified: true }
-          : { isPhoneVerified: true }),
-        lastLoginAt: new Date(),
-      },
+      data: { isPhoneVerified: true, lastLoginAt: new Date() },
     });
 
     const tokens = await this.issueTokens(updated.id, updated.role);
@@ -330,73 +158,47 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       isPhoneVerified: updated.isPhoneVerified,
       isEmailVerified: updated.isEmailVerified,
+      isProfileComplete: updated.isProfileComplete,
       isUserVerified: updated.isUserVerified,
-      nextStep: updated.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
+      nextStep: updated.isProfileComplete ? 'MAIN_APP' : 'PROFILE_SETUP',
     };
   }
 
   /**
-   * Dummy OTP for password reset — same fixed code, no account enumeration.
-   * TODO: replace with Twilio Verify (phone) + transactional email (email).
+   * A-03 — the single onboarding submission.
+   *
+   * Called once the client holds a token pair (from A-02 verify-otp, or from
+   * A-01.2 Google login) and the account still reports
+   * `isUserVerified: false`. It writes the whole profile in one shot; the
+   * DTO requires every field the completeness check looks at, so a 200 here
+   * always means the account is now verified and routed to MAIN_APP.
+   *
+   * Later edits go through `PATCH /users/profile-setup` (P-02).
    */
-  forgotPassword(dto: ForgotPasswordDto) {
+  async verifyUserInformation(userId: string, dto: VerifyUserInformationDto) {
+    // `selfieVerificationImageUrl` is the wire name for what the model stores
+    // as `selfieUrl`; everything else maps across unchanged.
+    const { selfieVerificationImageUrl, ...profile } = dto;
+    const user = await this.usersService.setupProfile(userId, {
+      ...profile,
+      selfieUrl: selfieVerificationImageUrl,
+    });
+
+    // `formatUser` nests the verification flags under `auth`.
+    if (!user.auth.isProfileComplete) {
+      throw new BadRequestException(
+        'Profile is still incomplete — the account could not be verified.',
+      );
+    }
+
     return {
-      channel: dto.channel,
-      otp: DUMMY_OTP,
-      message: 'Dummy OTP — development only, no message was sent',
+      user,
+      isProfileComplete: user.auth.isProfileComplete,
+      // Stays false until an admin vouches for the account; completing
+      // onboarding is not the same thing.
+      isUserVerified: user.auth.isUserVerified,
+      nextStep: 'MAIN_APP',
     };
-  }
-
-  /** Verifies the reset OTP and issues a short-lived password-reset token. */
-  async verifyForgotPassword(dto: VerifyForgotPasswordDto) {
-    const channel = dto.channel || (dto.phone ? 'phone' : 'email');
-    const user = await this.findByChannel(dto);
-    if (!user) {
-      throw new NotFoundException(`No account found with this ${channel}`);
-    }
-    if (dto.otp !== DUMMY_OTP) {
-      throw new UnauthorizedException('Invalid OTP');
-    }
-
-    const resetToken = await this.jwtService.signAsync(
-      { sub: user.id, purpose: RESET_TOKEN_PURPOSE },
-      {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-        expiresIn: '15m',
-      },
-    );
-
-    return { resetToken, expiresIn: '15m' };
-  }
-
-  /** Sets a new password using a valid reset token. */
-  async resetPassword(dto: ResetPasswordDto) {
-    let payload: { sub: string; purpose?: string };
-    try {
-      payload = await this.jwtService.verifyAsync(dto.resetToken, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid or expired reset token');
-    }
-    if (payload.purpose !== RESET_TOKEN_PURPOSE) {
-      throw new UnauthorizedException('Invalid or expired reset token');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
-    if (!user) {
-      throw new NotFoundException('User no longer exists');
-    }
-
-    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash },
-    });
-
-    return { message: 'Password updated successfully' };
   }
 
   /** Refreshes the token pair using a valid refresh token. */
@@ -471,18 +273,6 @@ export class AuthService {
     return 'This account is already registered';
   }
 
-  /** Looks up an account by the identifier that matches the requested channel. */
-  private async findByChannel(dto: {
-    channel?: 'email' | 'phone';
-    phone?: string;
-    email?: string;
-  }) {
-    const channel = dto.channel || (dto.phone ? 'phone' : 'email');
-    return channel === 'email'
-      ? this.prisma.user.findFirst({ where: { email: dto.email! } })
-      : this.prisma.user.findFirst({ where: { phone: dto.phone! } });
-  }
-
   async googleLogin(dto: GoogleLoginDto) {
     let email: string;
     let name: string;
@@ -521,10 +311,14 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           email,
-          name,
+          // The model has no single `name` column; Google gives one string, so
+          // split on the first space and let the user correct it in A-03.
+          firstName: name.split(' ')[0] || null,
+          lastName: name.split(' ').slice(1).join(' ') || null,
+          // Google has already proven the address, so this is the one path
+          // that can set it without an OTP of our own.
           isEmailVerified: true,
           isPhoneVerified: false,
-          isUserVerified: false,
         },
       });
     } else {
@@ -543,8 +337,9 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       isEmailVerified: true,
       isPhoneVerified: user.isPhoneVerified,
+      isProfileComplete: user.isProfileComplete,
       isUserVerified: user.isUserVerified,
-      nextStep: user.isUserVerified ? 'MAIN_APP' : 'PROFILE_SETUP',
+      nextStep: user.isProfileComplete ? 'MAIN_APP' : 'PROFILE_SETUP',
     };
   }
 
