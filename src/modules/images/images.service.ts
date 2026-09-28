@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '../../config/env.config.js';
+import { detectImageFormat } from '../../common/utils/image-type.js';
 import type {
   ImageUploadResponse,
   MultiImageUploadResponse,
@@ -75,7 +76,17 @@ export class ImagesService {
       throw new BadRequestException('No file provided for upload.');
     }
 
-    // Basic file validation
+    // Size check first — cheaper than content sniffing.
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new BadRequestException('File size exceeds the 10MB limit.');
+    }
+
+    // Trust the content, not the client. The declared Content-Type and the
+    // original filename are attacker-controlled; sniffing magic bytes is what
+    // actually stops a renamed .html/.js landing in storage and being served
+    // from the API origin. The declared type is still checked so an obviously
+    // wrong category (a PDF renamed .png) gets a precise error message.
     const allowedMimeTypes = [
       'image/jpeg',
       'image/png',
@@ -88,14 +99,16 @@ export class ImagesService {
       );
     }
 
-    // Limit size to 10MB
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      throw new BadRequestException('File size exceeds the 10MB limit.');
+    const detected = detectImageFormat(file.buffer);
+    if (!detected) {
+      throw new BadRequestException(
+        'This file is not a valid image. Only real JPEG, PNG, WEBP, and GIF files are allowed.',
+      );
     }
 
-    const fileExt = file.originalname.split('.').pop() || 'png';
-    const filename = `${crypto.randomUUID()}-${Date.now()}.${fileExt}`;
+    // Extension and ContentType come from the detected format — never from
+    // originalname — so what lands in storage is exactly what the bytes say.
+    const filename = `${crypto.randomUUID()}-${Date.now()}.${detected.extension}`;
 
     if (this.s3Client && this.bucketName && this.publicUrl) {
       const key = `users/${userId}/images/${filename}`;
@@ -104,7 +117,8 @@ export class ImagesService {
           Bucket: this.bucketName,
           Key: key,
           Body: file.buffer,
-          ContentType: file.mimetype,
+          // Sniffed MIME, not the client-declared one — R2 serves this value.
+          ContentType: detected.mimeType,
         });
 
         await this.s3Client.send(command);
