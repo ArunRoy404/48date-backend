@@ -165,8 +165,7 @@ export class ChatService {
       );
     }
 
-    const msgType =
-      type || (mediaUrl ? MessageType.IMAGE : MessageType.TEXT);
+    const msgType = type || (mediaUrl ? MessageType.IMAGE : MessageType.TEXT);
     const message = await this.saveMessage(
       conversationId,
       userId,

@@ -32,4 +32,3 @@ export class CreateMessageDto {
   @IsOptional()
   mediaUrl?: string;
 }
-

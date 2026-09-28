@@ -88,4 +88,3 @@ export class ChatController {
     return successResponse(message, 'Message sent successfully');
   }
 }
-
