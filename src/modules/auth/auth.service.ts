@@ -6,9 +6,13 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import type { JwtSignOptions } from '@nestjs/jwt';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { env } from '../../config/env.config.js';
 import {
   OTP_COOLDOWN_SECONDS,
   OtpService,
@@ -203,13 +207,19 @@ export class AuthService {
 
   /** Refreshes the token pair using a valid refresh token. */
   async refresh(dto: RefreshDto) {
-    let payload: { sub: string };
+    let payload: { sub: string; tokenType?: string };
     try {
       payload = await this.jwtService.verifyAsync(dto.refreshToken, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    // A refresh token was presented — an access token (or any token without
+    // the explicit refresh marker) must never be accepted on this endpoint.
+    if (payload.tokenType !== 'refresh') {
+      throw new UnauthorizedException('A refresh token must be provided');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -278,28 +288,32 @@ export class AuthService {
     let name: string;
 
     try {
-      // Decode the JWT token payload (support standard JWT and raw base64)
-      const parts = dto.idToken.split('.');
-      const payloadBase64 = parts.length > 1 ? parts[1] : parts[0];
-      const payloadJson = Buffer.from(payloadBase64, 'base64').toString(
-        'utf-8',
-      );
-      const payload = JSON.parse(payloadJson) as {
-        email?: string;
-        name?: string;
-      };
+      // Cryptographically verify the ID token against Google's public keys.
+      // The old implementation base64-decoded the payload and trusted the email
+      // claim — any self-signed JWT could take over the matching account.
+      const payload = await this.verifyGoogleIdToken(dto.idToken);
 
       if (!payload.email) {
         throw new BadRequestException(
-          'Invalid Google ID token payload: missing email',
+          'Invalid Google ID token: missing email claim.',
+        );
+      }
+      if (payload.email_verified === false) {
+        throw new UnauthorizedException(
+          'This Google account email is not verified.',
         );
       }
       email = payload.email;
       name = payload.name || email.split('@')[0];
     } catch (e) {
-      throw new BadRequestException(
-        'Failed to parse Google ID token: ' +
-          (e instanceof Error ? e.message : String(e)),
+      if (
+        e instanceof BadRequestException ||
+        e instanceof UnauthorizedException
+      ) {
+        throw e;
+      }
+      throw new UnauthorizedException(
+        'Google sign-in failed: the ID token could not be verified.',
       );
     }
 
@@ -343,14 +357,67 @@ export class AuthService {
     };
   }
 
+  /**
+   * Verifies a Google ID token: signature against Google's JWKS, plus issuer,
+   * audience and expiry. GOOGLE_CLIENT_ID must be configured for the audience
+   * check; without it the method degrades to signature-only verification in
+   * development and rejects all tokens in production (see docs/KNOWN-GAPS.md).
+   */
+  private async verifyGoogleIdToken(idToken: string) {
+    const JWKS = createRemoteJWKSet(
+      new URL('https://www.googleapis.com/oauth2/v3/certs'),
+    );
+
+    const { payload } = await jwtVerify(idToken, JWKS, {
+      issuer: ['https://accounts.google.com', 'accounts.google.com'],
+      audience: env.GOOGLE_CLIENT_ID || undefined,
+      clockTolerance: 5,
+    });
+
+    if (env.IS_PRODUCTION && !env.GOOGLE_CLIENT_ID) {
+      throw new UnauthorizedException(
+        'Google sign-in is not configured on the server.',
+      );
+    }
+
+    return payload as {
+      email?: string;
+      email_verified?: boolean;
+      name?: string;
+    };
+  }
+
   private async issueTokens(userId: string, role: string) {
-    const payload = { sub: userId, role };
+    return this.issueTokenPair(userId, role);
+  }
+
+  /**
+   * Builds the JWT pair. The two token types are distinguished by the
+   * `tokenType` claim so a refresh token can never be smuggled in as an
+   * access token (and vice versa) — both were previously signed with
+   * interchangeable claims and only the secret differed.
+   */
+  private async issueTokenPair(
+    userId: string,
+    role: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    // env values are plain strings; JwtSignOptions['expiresIn'] is the
+    // ms-style union @nestjs/jwt accepts ('15m', '7d', seconds-as-number…).
+    const accessExpiresIn = env.JWT_ACCESS_EXPIRES_IN as JwtSignOptions['expiresIn'];
+    const refreshExpiresIn = env.JWT_REFRESH_EXPIRES_IN as JwtSignOptions['expiresIn'];
+
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, { expiresIn: '15m' }),
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: '7d',
-      }),
+      this.jwtService.signAsync(
+        { sub: userId, role, tokenType: 'access', jti: crypto.randomUUID() },
+        { expiresIn: accessExpiresIn },
+      ),
+      this.jwtService.signAsync(
+        { sub: userId, role, tokenType: 'refresh', jti: crypto.randomUUID() },
+        {
+          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+          expiresIn: refreshExpiresIn,
+        },
+      ),
     ]);
     return { accessToken, refreshToken };
   }
