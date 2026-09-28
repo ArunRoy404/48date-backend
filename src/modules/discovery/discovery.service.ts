@@ -241,23 +241,36 @@ export class DiscoveryService {
       throw new NotFoundException('Target profile not found');
     }
 
-    // Upsert action
-    await this.prisma.discoveryAction.upsert({
-      where: {
-        actorId_targetUserId: {
+    // Upsert action. Two rapid swipes from the same user can race the upsert;
+    // the (actorId, targetUserId) unique constraint makes the second write a
+    // no-op update, so re-throwing its P2002 as a 500 would be wrong.
+    try {
+      await this.prisma.discoveryAction.upsert({
+        where: {
+          actorId_targetUserId: {
+            actorId: userId,
+            targetUserId,
+          },
+        },
+        create: {
           actorId: userId,
           targetUserId,
+          action,
         },
-      },
-      create: {
-        actorId: userId,
-        targetUserId,
-        action,
-      },
-      update: {
-        action,
-      },
-    });
+        update: {
+          action,
+        },
+      });
+    } catch (error) {
+      if (
+        typeof error !== 'object' ||
+        error === null ||
+        (error as { code?: unknown }).code !== 'P2002'
+      ) {
+        throw error;
+      }
+      // Lost the race: the action row exists with equivalent content.
+    }
 
     // Check for mutual like
     if (action === 'LIKE' || action === 'SUPER_LIKE') {
@@ -275,17 +288,20 @@ export class DiscoveryService {
         (counterAction.action === 'LIKE' ||
           counterAction.action === 'SUPER_LIKE')
       ) {
-        // It's a match!
-        const { match, conversation } = await this.matchesService.createMatch(
-          userId,
-          targetUserId,
-        );
+        // It's a match! createMatch is race-safe: concurrent mutual swipes
+        // converge on one row, and `created` says whether this call is the
+        // one that (re)activated it — only then do we announce, so a re-like
+        // of an existing match never spams both users a second time.
+        const { match, conversation, created } =
+          await this.matchesService.createMatch(userId, targetUserId);
 
-        // Queue mutual match notifications in background
-        await this.notificationsService.queueMatchNotification(
-          userId,
-          targetUserId,
-        );
+        if (created) {
+          // Queue mutual match notifications in background
+          await this.notificationsService.queueMatchNotification(
+            userId,
+            targetUserId,
+          );
+        }
 
         const fullTargetUser = await this.prisma.user.findUnique({
           where: { id: targetUserId },
