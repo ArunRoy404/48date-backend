@@ -522,6 +522,7 @@ Verified against the running server:
 
 ## Docs
 
+- `docs/WORK-LOG.md` — **handoff log**: what was done across the hardening passes, decisions made, and what to verify first on a new machine. Read this before continuing the work.
 - `docs/project-guide.md` — read this first if you're new to NestJS/Postgres/Prisma.
 - `docs/BACKEND-STATUS.md` — full audit of what is done / partial / missing, module by module, with a corrections table for the handoff documents.
 - `docs/DEVELOPER-DOC-DISCREPANCIES.md` — fact-check of the developer's handoff documents against the code (false claims, inconsistencies, omissions).
