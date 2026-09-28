@@ -5,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from './common/prisma/prisma.module.js';
+import { HealthModule } from './common/health/health.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { ImagesModule } from './modules/images/images.module.js';
@@ -30,6 +31,7 @@ import { OtpModule } from './common/otp/otp.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    HealthModule,
     OtpModule,
     BullModule.forRoot({
       connection: {
