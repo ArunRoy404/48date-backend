@@ -7,6 +7,11 @@ model Match {
   status      MatchStatus @default(ACTIVE)
   matchedAt   DateTime    @default(now())
   unmatchedAt DateTime?
+  // Product rule (user-confirmed): a match expires 48h after creation unless
+  // a first message is sent — the first message nulls this and the match is
+  // permanent. Null on matches that were created before this column or are
+  // already permanent. The expiry sweep (matches queue) flips these to UNMATCHED.
+  expiresAt   DateTime?
 
   conversation Conversation?
   gameSessions GameSession[]
