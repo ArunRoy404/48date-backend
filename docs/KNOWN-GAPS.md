@@ -8,7 +8,9 @@ Companion documents: [`docs/BACKEND-STATUS.md`](./BACKEND-STATUS.md) (full modul
 
 ---
 
-## 1. What this hardening pass fixed (2026-09-28)
+## 1. What the hardening passes fixed (2026-09-28)
+
+**Pass 1 — auth & config:**
 
 | Issue | Fix |
 |---|---|
@@ -18,6 +20,8 @@ Companion documents: [`docs/BACKEND-STATUS.md`](./BACKEND-STATUS.md) (full modul
 | No rate limiting | `@nestjs/throttler` wired globally via `RateLimitGuard`, armed by `RATE_LIMIT_ENABLED` (default **false**); auth endpoints get a stricter cap (`RATE_LIMIT_AUTH_PER_MINUTE`) |
 | Email OTP had no real delivery path | Real flow: crypto-generated 6-digit code → hashed in Redis (10 min TTL, 5 attempts) → SMTP email. Responds with a readable, masked-destination message — never the code itself |
 | `.env` did not exist; `.env.example` wrong port, stray `[TEMPLATE]`, missing `TWILIO_PHONE_NUMBER` | `.env` created with generated secrets (gitignored); `.env.example` corrected (port **5433**, all vars documented) |
+
+**Pass 2 — P0 correctness & safety bugs (see §5 for the fixed list):** chat closed after unmatch/block, swipe-race 500, upload content-spoofing (magic-byte sniffing), Windows test scripts.
 
 ---
 
@@ -58,15 +62,18 @@ These work exactly as far as their current endpoints allow, then stop. All are u
 
 ## 5. Known bugs / gaps still open (from the full analysis)
 
-**Safety-relevant:**
-- **Chat works after unmatch/block** — `chat.service.ts` and the gateway verify match *participation* but not `status === 'ACTIVE'`. A blocked or unmatched user can keep reading history and sending messages. **Recommended next fix (one-line guards).**
+**Fixed since the last revision of this file (2026-09-28, P0 pass):**
+- ✅ Chat/games now **closed after unmatch or block** — `chat.service.ts` and the gateway require match `status === 'ACTIVE'`; history becomes unreadable and sends fail with 403. Regression tests added.
+- ✅ **Swipe race no longer 500s** — `createMatch` recovers from the P2002 unique-violation by returning the winner's row (with a `created` flag so re-likes don't re-announce); `discoveryAction` upsert race is tolerated.
+- ✅ **Upload content-spoofing fixed** — extension/ContentType now derive from sniffed magic bytes (`common/utils/image-type.ts`), not the client-declared MIME or original filename; a renamed `.html` is rejected. Tests added. (R2 and local paths both covered; face-verification uploads inherit the fix via `uploadImage`.)
+- ✅ **`npm test` works on Windows** — scripts use `cross-env`.
+
+**Still open:**
 
 **Reliability:**
-- `npm test` fails on Windows (`NODE_OPTIONS=...` prefix is POSIX-only) — needs `cross-env`.
 - `npm run test:e2e` fails — scaffold expects `GET /` → `Hello World!`, which doesn't exist.
-- Swipe race: two concurrent mutual swipes can both pass the counter-check; the second `createMatch` hits the unique constraint and surfaces as a 500 (P2002 not handled in `discovery.swipe`).
 - No `enableShutdownHooks()` in `main.ts` — SIGTERM skips Prisma disconnect / BullMQ worker close.
-- Local upload MIME check trusts the client-declared content type; extension from `originalname` — a mislabeled `.html` file is servable from `uploads/` (stored-XSS vector on the API origin).
+- Local-upload URLs are hardcoded `http://localhost:${port}` (dev-only path; matters if uploads/ fallback is ever used in a deployed env).
 
 **Scalability (fine for MVP, will bite later):**
 - Discovery: bounding box + in-memory Haversine over `take: 200` — needs PostGIS (`ST_DWithin`) once the candidate pool grows.
