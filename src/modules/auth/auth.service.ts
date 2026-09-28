@@ -403,8 +403,10 @@ export class AuthService {
   ): Promise<{ accessToken: string; refreshToken: string }> {
     // env values are plain strings; JwtSignOptions['expiresIn'] is the
     // ms-style union @nestjs/jwt accepts ('15m', '7d', seconds-as-number…).
-    const accessExpiresIn = env.JWT_ACCESS_EXPIRES_IN as JwtSignOptions['expiresIn'];
-    const refreshExpiresIn = env.JWT_REFRESH_EXPIRES_IN as JwtSignOptions['expiresIn'];
+    const accessExpiresIn =
+      env.JWT_ACCESS_EXPIRES_IN as JwtSignOptions['expiresIn'];
+    const refreshExpiresIn =
+      env.JWT_REFRESH_EXPIRES_IN as JwtSignOptions['expiresIn'];
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
