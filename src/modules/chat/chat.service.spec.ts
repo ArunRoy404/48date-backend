@@ -29,6 +29,7 @@ describe('ChatService — conversation access control', () => {
   let prisma: {
     conversation: { findUnique: jest.Mock; update: jest.Mock };
     message: { findMany: jest.Mock; create: jest.Mock };
+    match: { updateMany: jest.Mock };
     $transaction: jest.Mock;
   };
 
@@ -48,6 +49,7 @@ describe('ChatService — conversation access control', () => {
         update: jest.fn().mockResolvedValue({}),
       },
       message: { findMany: jest.fn(), create: jest.fn() },
+      match: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       $transaction: jest.fn(),
     };
 
@@ -135,6 +137,29 @@ describe('ChatService — conversation access control', () => {
       );
 
       expect(result.message).toEqual(saved);
+    });
+
+    it('the first message makes the match permanent (clears expiresAt)', async () => {
+      prisma.conversation.findUnique.mockResolvedValue(
+        conversationWith('ACTIVE'),
+      );
+      prisma.$transaction.mockImplementation((fn: unknown) =>
+        (fn as (tx: unknown) => Promise<unknown>)(prisma),
+      );
+      prisma.message.create.mockResolvedValue({ id: 'm3' });
+
+      await service.sendMessage(ALICE, CONVERSATION_ID, 'finally saying hi');
+
+      // The sweep only touches matches with a live countdown, so clearing it
+      // here is what exempts this match from the 48h expiry forever.
+      expect(prisma.match.updateMany).toHaveBeenCalledWith({
+        where: {
+          conversation: { id: CONVERSATION_ID },
+          status: 'ACTIVE',
+          expiresAt: { not: null },
+        },
+        data: { expiresAt: null },
+      });
     });
 
     it('rejects sending once the match is UNMATCHED (regression)', async () => {

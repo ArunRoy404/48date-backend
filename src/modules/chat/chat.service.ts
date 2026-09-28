@@ -149,6 +149,19 @@ export class ChatService {
         data: { updatedAt: new Date() },
       });
 
+      // First message makes the match permanent: clear the 48h countdown so
+      // the expiry sweep leaves this match alone from now on. One extra
+      // UPDATE per message; null-cleared matches are a no-op thereafter.
+      // (Match has no conversationId scalar — filter through the relation.)
+      await tx.match.updateMany({
+        where: {
+          conversation: { id: conversationId },
+          status: 'ACTIVE',
+          expiresAt: { not: null },
+        },
+        data: { expiresAt: null },
+      });
+
       return message;
     });
   }

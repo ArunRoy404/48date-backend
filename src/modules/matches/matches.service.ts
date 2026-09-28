@@ -7,6 +7,9 @@ import type { Conversation, Match } from '../../generated/prisma/client.js';
 export class MatchesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Product rule: an un-messaged match dies after 48 hours. */
+  static readonly EXPIRY_MS = 48 * 60 * 60 * 1000;
+
   /**
    * Internal method to create a mutual Match and associated Conversation.
    * Ensures userLowId is the lexicographically smaller UUID.
@@ -46,6 +49,8 @@ export class MatchesService {
               status: 'ACTIVE',
               matchedAt: new Date(),
               unmatchedAt: null,
+              // A re-like after an expiry is a brand-new 48h window.
+              expiresAt: new Date(Date.now() + MatchesService.EXPIRY_MS),
             },
           });
 
@@ -81,6 +86,9 @@ export class MatchesService {
             userLowId: lowId,
             userHighId: highId,
             status: 'ACTIVE',
+            // 48h countdown starts now — the first message (chat.service) or
+            // the expiry sweep's UNMATCHED flip decides how this ends.
+            expiresAt: new Date(Date.now() + MatchesService.EXPIRY_MS),
           },
         });
 
@@ -164,6 +172,9 @@ export class MatchesService {
         matchedUser: formatUser(targetUser),
         matchedAt: match.matchedAt,
         status: match.status,
+        // Countdown for the app's "say hi within 48h" banner; null once
+        // permanent (first message sent) or already expired.
+        expiresAt: match.expiresAt,
       };
     });
   }
