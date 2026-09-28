@@ -2,7 +2,7 @@
 
 Backend API for the **48Date** dating app — NestJS (TypeScript, ESM), PostgreSQL + Prisma, Redis, JWT auth. A Flutter user app and a React admin panel consume this API.
 
-> **Status:** 17 modules and **70 endpoints** are implemented and serving — auth, profile, images, face verification, discovery, matches, chat (REST + WebSocket), games, dates, trust score, blocks, reports, subscriptions, success stories, device registration, an in-app notification inbox, and the moderation core of the admin API. A BullMQ worker (FCM push) backs the notifications module.
+> **Status:** 17 modules and **71 endpoints** are implemented and serving — auth, profile, images (with an optimization + dedup pipeline), face verification, discovery, matches (48h expiry), chat (REST + WebSocket), games, dates, trust score, blocks, reports, subscriptions, success stories, device registration, an in-app notification inbox, and the moderation core of the admin API. BullMQ workers back push delivery, image optimization and match expiry; `GET /health` reports Postgres + Redis status for uptime monitoring.
 >
 > **Admin surface:** moderation-core only — 6 of the ~80 routes in the Postman ADMIN contract (reports, stories, verification badge, user moderation view), guarded by `JwtAuthGuard` + `RolesGuard` with `@Roles(Role.ADMIN)`. The rest of the admin API is still to come.
 
@@ -107,7 +107,7 @@ Re-running the seed also **prunes** swipes, matches, and the half-finished accou
 
 ## API
 
-All 70 endpoints. The user-facing sections keep their Postman serials, which run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows. The devices, notifications and admin sections are newer than the current collection and have no serials yet.
+All 71 endpoints. The user-facing sections keep their Postman serials, which run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows. The devices, notifications, admin and health sections are newer than the current collection and have no serials yet.
 
 Every response — success or error — uses the same envelope:
 
@@ -233,15 +233,26 @@ never offered, and they follow the same `UPPERCASE_UNDERSCORE` convention as eve
 
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| P-01 | POST | `/images/upload` | Bearer | Upload 1–6 images (multipart) |
+| P-01 | POST | `/images/upload` | Bearer | Upload 1–6 images (multipart) — optimized + deduplicated, see **Image pipeline** below |
 | P-02 | PATCH | `/users/profile-setup` | Bearer | Update any subset of profile fields |
 | P-03 | GET | `/users/profile` | Bearer | Categorized profile + images |
-| P-04 | POST | `/face-verification/verify` | Bearer | Submit selfie → `selfieVerified` |
+| P-04 | POST | `/face-verification/verify` | Bearer | Submit selfie → `selfieVerified` (self-declared for now — see Known gaps) |
 | P-05 | GET | `/face-verification/status` | Bearer | Verification flags + what's missing |
 | P-06 | PATCH | `/users/location` | Bearer | Coordinates and/or permission state — see **Location and distance** below |
 | P-07 | PATCH | `/users/contact` | Bearer | Add or replace the phone/email — lands **unverified** |
 | P-08 | POST | `/users/contact/request-otp` | Bearer | Send a code to the stored phone/email. 30s cooldown |
 | P-09 | POST | `/users/contact/verify-otp` | Bearer | Confirm the code → flips that one flag |
+
+### Image pipeline
+
+Every upload runs through the same pipeline (architecture rule #1):
+
+1. **Validate** — magic-byte sniffing decides what the file really is (the P0 fix); size capped at 10 MB.
+2. **Optimize** — `sharp` re-encodes to **WebP** (quality 82), caps the long edge at **1600 px**, strips EXIF (GPS coordinates never survive upload) and bakes orientation into pixels. GIFs pass through untouched so animations don't flatten. A typical 5 MB phone JPEG lands at 100–400 KB — roughly 25× more photos inside R2's free 10 GB.
+3. **Dedup** — the SHA-256 of the *processed* bytes is stored on the `Image` row; re-uploading the same photo returns the existing row instead of storing a second copy. Seed/legacy rows (null hash) are exempt.
+4. **Metadata only in Postgres** — the row carries hash, dimensions and byte size; the blob lives in R2 (or local `uploads/` in dev).
+
+Optimization runs in a BullMQ worker (`images` queue). The original is stored and served immediately (`processing: "queued"`) and the WebP replaces it within seconds; if Redis/the worker is down the upload still succeeds unoptimized rather than failing. `POST /users/profile-setup` attaches the stored row's metadata when images are re-pointed by URL, so dedup survives reordering.
 
 ### Discovery
 
@@ -292,8 +303,10 @@ Other users' raw coordinates are never returned — only `distanceKm`, rounded t
 
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| M-01 | GET | `/matches` | Bearer | Active matches + linked conversation |
+| M-01 | GET | `/matches` | Bearer | Active matches + linked conversation (each carries `expiresAt` while the match is provisional) |
 | M-02 | DELETE | `/matches/:id` | Bearer | Unmatch |
+
+**48-hour expiry.** A match is provisional for **48 hours** — if neither person sends a message in that window, a sweep (BullMQ `match-expiry` queue, every 5 minutes) closes it as `UNMATCHED`. The **first message makes it permanent**: `expiresAt` is cleared in the same transaction that saves the message, and the chat/games guards already refuse non-`ACTIVE` matches, so an expired match goes dark even in the seconds before the sweep reaches it. Re-liking after an expiry starts a fresh 48h window. `M-01` returns `expiresAt` (null = permanent) so the app can render its countdown banner.
 
 ### Chat
 
@@ -367,6 +380,12 @@ Status machine: `PENDING` → `ACCEPTED` → `COMPLETED`, with `DECLINED` / `CAN
 | SS-04 | POST | `/success-stories/:id/like` | Bearer | Toggle like |
 | SS-05 | POST | `/success-stories/:id/comments` | Bearer | Add a comment |
 | SS-06 | DELETE | `/success-stories/:id/comments/:commentId` | Bearer | Delete own comment |
+
+### Health
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/health` | — | Uptime-monitor target: pings Postgres + Redis with a 3s timeout each. `200` with `{ status: "ok", uptimeSeconds, checks }` when both are up, `503` naming the down dependency otherwise |
 
 ### Devices (FCM tokens)
 
@@ -494,11 +513,12 @@ Verified against the running server:
 
 - **Admin API is moderation-core only** — reports review, story approval, verification badge and the user moderation view are live; the remaining ~74 requests of the ADMIN contract (dashboard, user management, broadcasts, …) are not built.
 - **`POST /auth/register`, `POST /auth/forgot-password`, `POST /auth/verify-forgot-password`, `POST /auth/reset-password`, `POST /auth/request-otp` and `GET /auth/me` do not exist.** Registration was folded into `POST /auth/login` (which creates the account for an unknown identifier), the password-reset chain went away with passwords themselves, and `GET /users/profile` (P-03) replaces `/auth/me`.
-- **Google login does not verify the ID token signature** — it only base64-decodes the payload to read `email`.
+- **Face verification is self-declared** — `P-04` stores the selfie and sets `selfieVerified: true` without analyzing it (no face detection exists). Deferred by product decision: real server-side comparison is post-MVP; until then the flag is cosmetic and the trust system leans on phone/email verification and admin badges instead. See `docs/KNOWN-GAPS.md` §4.
 - **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.
 - **Fixed:** every `env.*` value sourced from `.env` used to be `undefined` at runtime. `env.config.ts` reads `process.env` when it is imported, which happens while resolving `AppModule` — before Nest's `ConfigModule` loads `.env`. Socket.IO auth failed outright (`secret or public key must be provided`), and Twilio, R2, SMTP, Mapbox, the RevenueCat secret and `REDIS_URL` all silently fell back to their no-op paths even when configured. `main.ts` now imports `dotenv/config` first.
 - **Push delivery needs real FCM credentials** — device registration (`POST /devices`) and the inbox (`GET /notifications`) now exist; without `FCM_SERVICE_ACCOUNT_JSON` the worker only logs pushes to the console.
-- `verifyOtpCode()` in `auth.service.ts` returns `true` for the dummy code `123456` **before** it consults Twilio, and there is no environment check around it. With `TWILIO_*` configured in production, `123456` would still verify any phone number.
+
+> The dummy-OTP and Google-signature holes flagged here in earlier revisions were **fixed in the security-hardening pass** — Google ID tokens are now verified against Google's JWKS, and the `123456` dummy code is only accepted in development when no SMS provider is configured (production fails closed with 503).
 
 ## Docs
 

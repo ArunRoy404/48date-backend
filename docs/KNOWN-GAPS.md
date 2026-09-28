@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-09-28 · **Branch:** `roy`
 
-This file tracks everything that was **deliberately skipped, deferred, or simplified** during the security-hardening pass — plus the longer-term issues identified in the full project analysis that are not yet fixed. Read this before assuming any feature is production-complete.
+This file tracks everything that was **deliberately skipped, deferred, or simplified** during the hardening passes — plus the longer-term issues identified in the full project analysis that are not yet fixed. Read this before assuming any feature is production-complete.
 
 Companion documents: [`docs/BACKEND-STATUS.md`](./BACKEND-STATUS.md) (full module-by-module status), [`docs/DEVELOPER-DOC-DISCREPANCIES.md`](./DEVELOPER-DOC-DISCREPANCIES.md) (fact-check of the handoff docs).
 
@@ -23,6 +23,21 @@ Companion documents: [`docs/BACKEND-STATUS.md`](./BACKEND-STATUS.md) (full modul
 
 **Pass 2 — P0 correctness & safety bugs (see §5 for the fixed list):** chat closed after unmatch/block, swipe-race 500, upload content-spoofing (magic-byte sniffing), Windows test scripts.
 
+**Pass 3 — P1 dead-ended features (see §3):** devices/FCM, notifications inbox, admin moderation core.
+
+**Pass 4 — P2 architecture gaps (see §4/§5):**
+
+| Item | What was built |
+|---|---|
+| Graceful shutdown | `main.ts` enables shutdown hooks — SIGTERM drains the HTTP server, stops the BullMQ worker, disconnects sockets, closes Prisma last |
+| Health check | `GET /health` (public) pings Postgres + Redis with a 3s timeout; `200 { status, uptimeSeconds, checks }` or `503` naming the down dependency |
+| Image pipeline (rule #1) | `sharp` WebP optimization (1600px cap, EXIF strip, orientation bake) via the `images` BullMQ queue; SHA-256 of processed bytes → dedup; `Image` rows now carry hash/width/height/bytes. Uploads succeed even when the queue is down (just unoptimized) |
+| 48h match expiry | `Match.expiresAt` set at creation; the **first message clears it** (same transaction) making the match permanent; a repeatable `match-expiry` sweep (5 min) flips lapsed matches to `UNMATCHED`; `M-01` returns `expiresAt` for the app's countdown banner |
+| e2e scaffold | Replaced the `Hello World!` relic with a real smoke test: boots AppModule against Docker Postgres/Redis, asserts `/health` 200 + guarded-route 401 |
+| Face verification | **Deferred by product decision** — see §2 item 6. `selfieVerified` is self-declared for now |
+
+⚠️ **Deploy note:** this pass ships a Prisma migration (`20260928120000_image_hash_and_match_expiry`) and a new native dependency (`sharp`) — run `npx prisma migrate deploy` and rebuild the Docker image on deploy.
+
 ---
 
 ## 2. Deliberately deferred (by decision, this pass)
@@ -32,8 +47,9 @@ Companion documents: [`docs/BACKEND-STATUS.md`](./BACKEND-STATUS.md) (full modul
 | 1 | **RevenueCat webhook authentication** | Per decision: "keep as is for now, do after production planning" | Set `REVENUECAT_WEBHOOK_SECRET` in production env. **Until then anyone can POST a fake purchase and grant themselves premium.** The code already supports the check — it is skipped only while the secret is unset |
 | 2 | **CORS lockdown** | Per decision: "keep as is, we are in development" | `main.ts` (`app.enableCors()`) and `chat.gateway.ts` (`origin: '*'`) must be restricted to the real app/admin domains |
 | 3 | **Socket.IO `?token=` query auth** | Kept for Flutter client compatibility | Move the gateway to the `auth` handshake payload only; query-string tokens leak into logs/proxies |
-| 4 | **Local-upload URL hardcoding** | Dev-only path | `images.service.ts` builds `http://localhost:${port}/uploads/...` — must use the real origin/CDN base in any deployed environment |
+| 4 | **Local-upload URL fallback** | Dev-only path; P2 pass centralized all URL building in `image-metadata.util.ts` (`buildImageUrl`/`urlToStorageKey`) driven by `R2_PUBLIC_URL` | Configure `R2_PUBLIC_URL` in any deployed environment; without it URLs still point at `http://localhost` |
 | 5 | **Logout is stateless** | Acceptable for MVP | Redis JWT blacklist / token revocation if "log out everywhere" is ever required |
+| 6 | **Face verification (rule #2)** | **Deferred by product decision (2026-09-28):** no face analysis now; `P-04` stores the selfie and sets `selfieVerified: true` unconditionally — the flag is **self-declared/cosmetic**. The trust system leans on phone/email verification + admin badges until then | Server-side selfie-vs-photos comparison (`@vladmandic/face-api` or a Python microservice) in a BullMQ worker, threshold tuning, and honest client copy before marketing any "verified" badge |
 
 ---
 
@@ -53,14 +69,14 @@ Admin routes are built against the enums the schema actually accepts (see §5 of
 
 ---
 
-## 4. Architecture-rule violations (per AGENTS.md, still open)
+## 4. Architecture-rule status (per AGENTS.md)
 
 | Rule | Status |
 |---|---|
-| #1 Image pipeline: BullMQ optimize/dedup → R2, DB stores hash+metadata only | ❌ Not built. Upload streams straight to R2/local; no hash, no dedup, no DB metadata write |
-| #2 Face verification: server-side detection/comparison | ❌ Not built. `face-verification` module uploads a selfie and sets `selfieVerified: true` — no face analysis of any kind |
-| Trust score via background jobs | ⚠️ Updates run synchronously in request paths; only notifications use BullMQ |
-| 48-hour match expiry | ❌ Does not exist in schema or code — decide: build it or remove it from the product spec |
+| #1 Image pipeline: BullMQ optimize/dedup → R2, DB stores hash+metadata only | ✅ **Built in the P2 pass.** Validate (magic bytes) → optimize (`sharp` → WebP, 1600px, EXIF stripped) via the `images` queue → dedup (SHA-256 of processed bytes) → `Image` row with hash/width/height/bytes. Blobs only in R2/local; queue-down degrades to unoptimized, never to failure |
+| #2 Face verification: server-side detection/comparison | ⏸️ **Deferred by product decision** (§2 item 6). `selfieVerified` is set unconditionally — self-declared, not verified |
+| Trust score via background jobs | ⚠️ Trust updates still run synchronously in request paths; the async jobs that exist are notifications, image optimization and match expiry |
+| 48-hour match expiry | ✅ **Built in the P2 pass** — `Match.expiresAt` + first-message permanence + 5-minute sweep (see §1) |
 
 ---
 
@@ -77,25 +93,28 @@ Admin routes are built against the enums the schema actually accepts (see §5 of
 - ✅ Notifications read API (`user-notifications.service.spec.ts` — 7 tests: list filters/pagination, markRead ownership, markAllRead, delete)
 - ✅ Admin moderation core (`admin.service.spec.ts` — 13 tests: report lifecycle + trust refund, story approval, badge idempotency, moderation view)
 
+**Fixed in the P2 pass (architecture gaps, see §1/§4):**
+- ✅ Graceful shutdown — `enableShutdownHooks()`; SIGTERM now drains HTTP → BullMQ worker → sockets → Prisma instead of killing mid-request
+- ✅ `GET /health` — Postgres + Redis ping with timeouts; the uptime-monitor target for the single VPS
+- ✅ Image pipeline — sharp WebP optimization + hash dedup + metadata rows (rule #1)
+- ✅ 48h match expiry — first-message permanence + repeatable sweep; expired matches go dark immediately via the existing chat guards
+- ✅ e2e scaffold — replaced `Hello World!` with a real bootstrap smoke test (`npm run test:e2e`, needs Docker Postgres/Redis)
+
 **Still open:**
 
 **Reliability:**
-- `npm run test:e2e` fails — scaffold expects `GET /` → `Hello World!`, which doesn't exist.
-- No `enableShutdownHooks()` in `main.ts` — SIGTERM skips Prisma disconnect / BullMQ worker close.
-- Local-upload URLs are hardcoded `http://localhost:${port}` (dev-only path; matters if uploads/ fallback is ever used in a deployed env).
+- Local-upload URL fallback still `http://localhost:${port}` when R2 is unset (dev-only; `R2_PUBLIC_URL` covers every deployed environment — see §2 item 4).
 
 **Scalability (fine for MVP, will bite later):**
 - Discovery: bounding box + in-memory Haversine over `take: 200` — needs PostGIS (`ST_DWithin`) once the candidate pool grows.
 - Socket.IO: single instance only — Redis presence is written but never read; no socket.io-redis adapter.
 - Subscription plan inference substring-matches product IDs and defaults unknowns to `MONTHLY`.
-- No health-check endpoint (important on a single self-hosted VPS).
 - Abandoned game sessions stay `IN_PROGRESS` forever (no TTL job).
 - Refresh tokens: no rotation, no reuse detection (rotation on refresh is the standard fix).
 
 **Environment notes:**
 - `FCM_SERVICE_ACCOUNT_JSON` is read via raw `process.env` in two services, bypassing `env.config.ts` — consolidate when touched next.
 - Two lockfiles exist (`package-lock.json` + `pnpm-lock.yaml`); pick one package manager.
-- `test/app.e2e-spec.ts` warning (`no-unsafe-argument`) is pre-existing scaffold noise.
 
 ---
 
@@ -104,11 +123,14 @@ Admin routes are built against the enums the schema actually accepts (see §5 of
 - `api-response.util.spec.ts` — response envelope (4 tests, passing)
 - `otp.service.spec.ts` — cooldown, dispatch stamping, and the dev/prod/provider dummy-code matrix
 - `image-type.spec.ts` — magic-byte sniffing (upload spoofing fix)
-- `chat.service.spec.ts` — chat/games closed after unmatch/block (P0 fix)
+- `chat.service.spec.ts` — chat/games closed after unmatch/block (P0 fix) + first message clears the 48h timer (P2)
 - `devices.service.spec.ts` — **P1 pass**: device upsert/reassignment/unregister/list (6 tests)
 - `user-notifications.service.spec.ts` — **P1 pass**: inbox list/mark-read/delete (7 tests)
 - `admin.service.spec.ts` — **P1 pass**: report review lifecycle + trust refund, story approval, badge granting (13 tests)
-- Everything else — **untested** (7 suites / 56 tests total, all passing). Priority when adding coverage: auth flows, discovery/swipe, dates state machine, trust-score math.
+- `image-pipeline.util.spec.ts` — **P2 pass**: WebP conversion, 1600px cap, EXIF strip + orientation bake, GIF passthrough, hash determinism (9 tests)
+- `match-expiry.processor.spec.ts` — **P2 pass**: sweep filter (ACTIVE + lapsed), UNMATCHED flip, countdown cleared (3 tests)
+- `app.e2e-spec.ts` — **P2 pass**: bootstrap smoke test (`/health` 200, guarded route 401) — needs Docker Postgres/Redis
+- Everything else — **untested** (9 unit suites / 69 tests, all passing). Priority when adding coverage: auth flows, discovery/swipe, dates state machine, trust-score math.
 
 ---
 
@@ -123,3 +145,6 @@ Admin routes are built against the enums the schema actually accepts (see §5 of
 7. Set Twilio/SMTP credentials — missing providers **fail closed** in production; sign-in/verification return 503 rather than dummy codes.
 8. ~~Build admin moderation (reports/stories/badge)~~ ✅ Done in the P1 pass — promote a user to `ADMIN` directly in the DB (no bootstrap endpoint exists) before onboarding real users.
 9. ~~Add device-token registration + `GET /notifications`~~ ✅ Done in the P1 pass — set `FCM_SERVICE_ACCOUNT_JSON` for real push delivery.
+10. On deploy: `npx prisma migrate deploy` (P2 ships `20260928120000_image_hash_and_match_expiry`) and rebuild the image — `sharp` is a native dependency.
+11. Point the uptime monitor at `GET /health` (P2) — it 503s naming the down dependency.
+12. `R2_PUBLIC_URL` **must** be set in production — without it image URLs fall back to `http://localhost` (§2 item 4).
