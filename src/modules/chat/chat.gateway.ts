@@ -138,7 +138,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return { error: 'Invalid joinRoom request' };
     }
 
-    // Verify room authorization
+    // Verify room authorization — participant of an ACTIVE match only.
+    // Unmatched/blocked users cannot re-enter the room (chat.service enforces
+    // the same rule for REST reads and sends).
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       include: { match: true },
@@ -151,6 +153,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { match } = conversation;
     if (match.userLowId !== userId && match.userHighId !== userId) {
       return { error: 'You are not a participant in this conversation' };
+    }
+
+    if (match.status !== 'ACTIVE') {
+      return { error: 'This conversation is no longer active' };
     }
 
     await client.join(conversationId);
@@ -200,6 +206,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
+      // chatService.sendMessage re-validates participation AND that the match
+      // is still ACTIVE — the gateway relies on that guard rather than
+      // duplicating the check (socket payloads are untrusted input).
       const { message: savedMessage, partnerId } =
         await this.chatService.sendMessage(
           userId,
