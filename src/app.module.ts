@@ -19,6 +19,8 @@ import { BlocksModule } from './modules/blocks/blocks.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module.js';
 import { SuccessStoriesModule } from './modules/success-stories/success-stories.module.js';
+import { DevicesModule } from './modules/devices/devices.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { FaceVerificationModule } from './modules/face-verification/face-verification.module.js';
 import { env } from './config/env.config.js';
 
@@ -60,6 +62,8 @@ import { OtpModule } from './common/otp/otp.module.js';
     ReportsModule,
     SubscriptionsModule,
     SuccessStoriesModule,
+    DevicesModule,
+    AdminModule,
   ],
   providers: [
     // Global guard — no-ops unless RATE_LIMIT_ENABLED=true (see the guard).

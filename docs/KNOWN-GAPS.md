@@ -37,15 +37,19 @@ Companion documents: [`docs/BACKEND-STATUS.md`](./BACKEND-STATUS.md) (full modul
 
 ---
 
-## 3. Dead-ended features — blocked until the admin API exists
+## 3. Dead-ended features — ✅ all five resolved in the P1 pass (2026-09-28)
 
-These work exactly as far as their current endpoints allow, then stop. All are unblocked by building the admin module (currently a commented-out, unregistered stub):
+These worked exactly as far as their current endpoints allowed, then stopped. All five are now built and registered in `app.module.ts` (devices module, notifications read API, admin module — the previously commented-out stub is now live):
 
-1. **Reports** — created `PENDING`; no endpoint can transition status. Moderation is impossible.
-2. **Success stories** — created `PENDING`; no endpoint can publish/reject. `GET /success-stories` defaults to `PUBLISHED`, so new stories are invisible forever.
-3. **`isUserVerified` badge** — schema says admin-granted; no setter exists anywhere, not even for admins. The Flutter app gates discovery on it.
-4. **Device/FCM registration** — the `Device` table and FCM sending code exist, but **no endpoint writes a device token**. Push notifications have no production path.
-5. **In-app notifications** — rows are written by the processor and date flows, but there is no `GET /notifications` and `readAt` is never set. Unreadable by clients.
+1. ✅ **Reports** — `GET /admin/reports` (+ status filter) and `POST /admin/reports/:id/review` (`REVIEWING` / `RESOLVED` / `DISMISSED`, `resolution` note, `reviewedBy`/`reviewedAt` stamped). Terminal reports cannot be re-reviewed. Dismissing a report refunds the −10 trust penalty; RESOLVED keeps it.
+2. ✅ **Success stories** — `GET /admin/stories` (oldest-first FIFO) and `POST /admin/stories/:id/review` (`PUBLISHED` / `REJECTED`, PENDING-only). New stories are finally visible in `SS-02`.
+3. ✅ **`isUserVerified` badge** — `PUT /admin/users/:id/verification-badge` grants/revokes (idempotent); the false→true flip records a `VERIFICATION` trust event. `RolesGuard` + `@Roles(Role.ADMIN)` guard every `/admin/*` route — their first real use.
+4. ✅ **Device/FCM registration** — new `DevicesModule`: `POST /devices` (upsert keyed on `fcmToken`, reassigning ownership when a token moves between accounts), `DELETE /devices/:token` (ownership-checked, 404s identically for foreign/missing tokens), `GET /devices` (token masked to an 8-char preview). Push now has a production path.
+5. ✅ **In-app notifications** — `GET /notifications` (limit/offset/unread/type + `unreadCount`/`total`), `POST /notifications/:id/read`, `POST /notifications/read-all`, `DELETE /notifications/:id`. Rows expose `isRead` (`readAt !== null`); all ownership-checked.
+
+Admin routes are built against the enums the schema actually accepts (see §5 of [`BACKEND-STATUS.md`](./BACKEND-STATUS.md)), not the invented ones in the Postman ADMIN spec — the remaining ~74 admin requests (dashboard, user management, broadcasts, …) are still unbuilt.
+
+> ⚠️ To actually create an admin: `UPDATE "User" SET role = 'ADMIN' WHERE id = '…'` — there is no bootstrap endpoint or CLI, by design (no self-service privilege escalation).
 
 ---
 
@@ -67,6 +71,11 @@ These work exactly as far as their current endpoints allow, then stop. All are u
 - ✅ **Swipe race no longer 500s** — `createMatch` recovers from the P2002 unique-violation by returning the winner's row (with a `created` flag so re-likes don't re-announce); `discoveryAction` upsert race is tolerated.
 - ✅ **Upload content-spoofing fixed** — extension/ContentType now derive from sniffed magic bytes (`common/utils/image-type.ts`), not the client-declared MIME or original filename; a renamed `.html` is rejected. Tests added. (R2 and local paths both covered; face-verification uploads inherit the fix via `uploadImage`.)
 - ✅ **`npm test` works on Windows** — scripts use `cross-env`.
+
+**Fixed in the P1 pass (dead-ended features, see §3):**
+- ✅ Devices/FCM registration module (`devices.service.spec.ts` — 6 tests: upsert, reassignment, ownership-checked unregister, list)
+- ✅ Notifications read API (`user-notifications.service.spec.ts` — 7 tests: list filters/pagination, markRead ownership, markAllRead, delete)
+- ✅ Admin moderation core (`admin.service.spec.ts` — 13 tests: report lifecycle + trust refund, story approval, badge idempotency, moderation view)
 
 **Still open:**
 
@@ -93,8 +102,13 @@ These work exactly as far as their current endpoints allow, then stop. All are u
 ## 6. Test coverage status
 
 - `api-response.util.spec.ts` — response envelope (4 tests, passing)
-- `otp.service.spec.ts` — **new**: cooldown, dispatch stamping, and the dev/prod/provider dummy-code matrix
-- Everything else — **untested**. Priority when adding coverage: auth flows, chat authorization (incl. the block/unmatch gap), dates state machine, trust-score math.
+- `otp.service.spec.ts` — cooldown, dispatch stamping, and the dev/prod/provider dummy-code matrix
+- `image-type.spec.ts` — magic-byte sniffing (upload spoofing fix)
+- `chat.service.spec.ts` — chat/games closed after unmatch/block (P0 fix)
+- `devices.service.spec.ts` — **P1 pass**: device upsert/reassignment/unregister/list (6 tests)
+- `user-notifications.service.spec.ts` — **P1 pass**: inbox list/mark-read/delete (7 tests)
+- `admin.service.spec.ts` — **P1 pass**: report review lifecycle + trust refund, story approval, badge granting (13 tests)
+- Everything else — **untested** (7 suites / 56 tests total, all passing). Priority when adding coverage: auth flows, discovery/swipe, dates state machine, trust-score math.
 
 ---
 
@@ -107,5 +121,5 @@ These work exactly as far as their current endpoints allow, then stop. All are u
 5. `RATE_LIMIT_ENABLED=true`.
 6. Set `GOOGLE_CLIENT_ID` (Google sign-in rejects all tokens without it in production).
 7. Set Twilio/SMTP credentials — missing providers **fail closed** in production; sign-in/verification return 503 rather than dummy codes.
-8. Build admin moderation (reports/stories/badge) before onboarding real users — otherwise safety reports go nowhere.
-9. Add device-token registration + `GET /notifications` before relying on push.
+8. ~~Build admin moderation (reports/stories/badge)~~ ✅ Done in the P1 pass — promote a user to `ADMIN` directly in the DB (no bootstrap endpoint exists) before onboarding real users.
+9. ~~Add device-token registration + `GET /notifications`~~ ✅ Done in the P1 pass — set `FCM_SERVICE_ACCOUNT_JSON` for real push delivery.
