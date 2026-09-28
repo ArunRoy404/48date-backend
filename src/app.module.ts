@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -31,6 +34,17 @@ import { OtpModule } from './common/otp/otp.module.js';
         url: env.REDIS_URL,
       },
     }),
+    // Global rate limiting, off by default (RATE_LIMIT_ENABLED=false).
+    // When enabled: a general per-IP cap on every route plus a stricter cap
+    // on auth routes (see RateLimitGuard + @Throttle on auth controller).
+    // The RateLimitGuard is the on/off switch; this registration only feeds
+    // it the limits, so a plain env read here is enough.
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: env.RATE_LIMIT_PER_MINUTE,
+      },
+    ]),
     AuthModule,
     UsersModule,
     ImagesModule,
@@ -46,6 +60,13 @@ import { OtpModule } from './common/otp/otp.module.js';
     ReportsModule,
     SubscriptionsModule,
     SuccessStoriesModule,
+  ],
+  providers: [
+    // Global guard — no-ops unless RATE_LIMIT_ENABLED=true (see the guard).
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
   ],
 })
 export class AppModule {}
