@@ -1,0 +1,217 @@
+48DATE — HOSTING & SERVICES CHECKLIST
+=====================================
+
+The client bought AWS, so this list covers where each piece goes on AWS
+and which outside services we still need.
+
+The original plan (docs/48Date-Backend-Tech-Stack.docx) was a Hostinger VPS
+with Cloudflare R2 and Hostinger SMTP. On AWS, those three are replaced by
+AWS services (see the "AWS REPLACES" notes below). Everything else stays
+the same.
+
+Prices are rough estimates in USD. Check each provider's pricing page
+before committing, because prices change.
+
+
+WHAT WE ARE HOSTING (3 pieces)
+------------------------------
+1. Backend API (this repo, NestJS)  -> AWS server
+2. Admin panel (React website)       -> AWS static website hosting
+3. User app (Flutter mobile app)     -> Apple App Store + Google Play Store
+                                        (NOT hosted on AWS; it only calls the backend API)
+
+
+=====================================================================
+PART 1 — PAID SERVICES
+=====================================================================
+
+1. AWS EC2 — the main server                         [PAID]
+   What:   The virtual machine that runs the backend API, the Socket.IO chat,
+           and the BullMQ background worker (notifications).
+   Where:  AWS -> EC2
+   Size:   Start with t3.medium (2 vCPU, 4 GB RAM), about $30/month.
+           t3.small (2 GB) is about $15/month but is tight if Postgres and
+           Redis run on the same machine.
+   Note:   The free tier (t2.micro/t3.micro, 1 GB RAM, 12 months) is too
+           small for production. It is fine for testing only.
+   Alternative: AWS Lightsail has fixed monthly pricing (e.g. $20–40/mo with
+           storage and bandwidth included) and is simpler for a solo setup.
+
+2. PostgreSQL database                                [PAID — two options]
+   What:   The main database (users, matches, chats, dates, subscriptions...).
+   Option A (cheaper): Run Postgres in Docker on the same EC2 server
+           (the docker-compose.yml already does this). Cost is included in
+           the EC2 price, but WE handle backups.
+   Option B (safer): AWS RDS for PostgreSQL (managed, automatic backups).
+           db.t4g.micro is about $15–20/month. It has a 12-month free tier
+           for new accounts.
+   Recommendation: RDS if the client can pay about $15–20/month more,
+           because backups and patching are handled for us.
+
+3. Redis                                              [PAID — two options]
+   What:   Cache, chat online status, and the queue for background jobs.
+   Option A (cheaper): Run Redis in Docker on the EC2 server (included in
+           the EC2 cost).
+   Option B: AWS ElastiCache for Redis, about $12+/month.
+   Recommendation: Keep Redis on the EC2 server. It is small and losing
+           it does not lose important data.
+
+4. Server disk (EBS) + backups                        [PAID, small]
+   What:   The hard disk attached to EC2 (about $0.08/GB/month; 30 GB is
+           about $2.40/month) plus snapshots for backups.
+
+5. Image storage — AWS S3                             [PAID, pay per use]
+   AWS REPLACES: Cloudflare R2
+   What:   Stores user photos and selfies. The database only stores the
+           link and metadata.
+   Cost:   About $0.023/GB/month plus download bandwidth. It is cheap at the
+           start (a few dollars per month).
+   Dev note: The code already uses the AWS S3 SDK but points it at R2
+           (src/modules/images/images.service.ts). Switching to S3 is a
+           small config change: remove the R2 endpoint and set the AWS
+           region.
+   Optional: Add CloudFront (CDN) in front of S3 for faster image loading.
+           It includes 1 TB/month of free data transfer.
+
+6. Data transfer out of AWS                           [PAID, pay per use]
+   What:   AWS charges for data sent to users (about $0.09/GB after the
+           first 100 GB/month, which are free). This is mostly images and
+           API responses.
+
+7. Twilio Verify — phone OTP                          [PAID, per user]
+   What:   Sends the SMS/voice code during login.
+   Where:  twilio.com (external, not AWS)
+   Cost:   About $0.05 per verification plus SMS cost, which varies by
+           country. THIS GROWS WITH EVERY USER.
+   Also:   A Twilio phone number (about $1–2/month) is needed for the SMS
+           fallback notifications (TWILIO_PHONE_NUMBER).
+   Alternative: AWS SNS or AWS End User Messaging can send SMS, but the
+           code is written for Twilio. Switching would take dev work.
+
+8. Domain name                                        [PAID]
+   What:   For example 48date.com, with api.48date.com for the backend and
+           admin.48date.com for the admin panel.
+   Where:  Any registrar, or AWS Route 53 (about $10–15/year).
+
+9. AWS Route 53 — DNS                                 [PAID, very small]
+   What:   Points the domain to the server. About $0.50/month per domain.
+   Note:   Only needed if DNS is managed in AWS. Cloudflare DNS is free.
+
+10. Apple Developer account                           [PAID]
+    What:   Needed to publish the Flutter app on the App Store.
+    Cost:   $99/year.
+
+11. Google Play Developer account                     [PAID, one time]
+    What:   Needed to publish the Flutter app on Google Play.
+    Cost:   $25 one time.
+
+12. AI suggestions — OpenAI or Anthropic API          [PAID, per use]
+    What:   Chat suggestions and matching text.
+    Status: NOT BUILT YET (the ai module is an empty stub). Not needed
+            until this feature is built.
+    Cost:   Pay per request. Usually a few dollars/month at small scale.
+
+13. Email sending — AWS SES                           [PAID, very cheap]
+    AWS REPLACES: Hostinger SMTP
+    What:   Email notifications and admin emails.
+    Cost:   About $0.10 per 1,000 emails.
+    Dev note: The code uses nodemailer with SMTP. SES provides SMTP login
+            details, so it only needs SMTP_HOST/USER/PASS changed.
+    Note:   New SES accounts start in "sandbox mode". You must request
+            production access from AWS before sending to real users.
+
+
+=====================================================================
+PART 2 — FREE SERVICES (free at the start, paid only at scale)
+=====================================================================
+
+14. Firebase Cloud Messaging (FCM) — push notifications   [FREE]
+    Where:  Firebase console (Google), external.
+    What:   Match alerts, new message alerts, admin broadcasts.
+    Needs:  A Firebase project and a service account JSON file
+            (FCM_SERVICE_ACCOUNT_JSON). The Flutter app also needs its
+            Firebase config files.
+
+15. Mapbox — maps and places for the date planner     [FREE tier]
+    Where:  mapbox.com, external.
+    Cost:   Free up to a monthly usage limit. Paid only after that.
+
+16. RevenueCat — in-app subscriptions                 [FREE tier]
+    Where:  revenuecat.com, external.
+    Cost:   Free until about $2,500/month in app revenue, then a small %.
+    Needs:  Connected to the App Store and Google Play accounts.
+    Note:   Apple and Google take their own 15–30% of subscription sales.
+            That is separate from RevenueCat.
+
+17. Admin panel hosting — S3 + CloudFront, or AWS Amplify  [FREE / nearly free]
+    What:   The React admin panel is a static website.
+    Cost:   Pennies per month at admin-level traffic. It fits in the free tier.
+    Status: The admin API in the backend is NOT BUILT YET.
+
+18. SSL certificates (HTTPS)                          [FREE]
+    Option A: Let's Encrypt on the EC2 server with Nginx (free).
+    Option B: AWS Certificate Manager (free), but only works with a load
+              balancer (ALB, about $16+/month) or CloudFront.
+    Recommendation: Nginx + Let's Encrypt on the EC2 server.
+
+19. Face verification                                 [FREE — self-hosted]
+    What:   Server-side face matching on selfies.
+    Where:  Runs on our own EC2 server (open-source library).
+    Status: NOT BUILT YET (currently it only accepts the selfie upload).
+            When it is built, the server may need more RAM/CPU.
+
+20. Software (all free, open source)
+    Node.js 22, NestJS, PostgreSQL, Redis, Docker, Nginx, PM2.
+
+21. Monitoring — AWS CloudWatch                       [FREE tier]
+    Basic server metrics and alarms are free. Set a billing alarm on
+    day one so AWS costs do not surprise the client.
+
+
+=====================================================================
+ESTIMATED MONTHLY COST (MVP, small user base)
+=====================================================================
+Cheapest (everything on one EC2, Postgres + Redis in Docker):
+    EC2 t3.medium ........................ ~$30
+    Disk + snapshots ..................... ~$3–5
+    S3 images + data transfer ............ ~$1–5
+    SES email ............................ ~$0–1
+    Route 53 ............................. ~$0.50
+    Twilio ............................... ~$0.05+ per login/verification
+    ---------------------------------------------
+    About $35–45/month + Twilio per user
+
+With managed database (RDS):              add ~$15–20/month
+Yearly: domain ~$12, Apple $99. One time: Google Play $25.
+
+
+=====================================================================
+ACCOUNTS THE CLIENT MUST CREATE / GIVE US ACCESS TO
+=====================================================================
+[ ] AWS (already bought) — create an IAM user for the developer; do not share the root login
+[ ] Twilio
+[ ] Firebase (Google)
+[ ] Mapbox
+[ ] RevenueCat
+[ ] Apple Developer ($99/yr)
+[ ] Google Play Console ($25)
+[ ] Domain registrar (or Route 53)
+[ ] OpenAI or Anthropic (later, when AI features are built)
+
+
+=====================================================================
+WHERE EACH THING RUNS (summary)
+=====================================================================
+AWS EC2 ............ Backend API, chat (Socket.IO), background worker,
+                     Postgres + Redis (if not using RDS/ElastiCache),
+                     Nginx + SSL, face verification (later)
+AWS RDS ............ Postgres (optional, managed)
+AWS S3 ............. User photos (replaces Cloudflare R2)
+AWS S3/CloudFront .. Admin panel website
+AWS SES ............ Emails (replaces Hostinger SMTP)
+AWS Route 53 ....... DNS (optional)
+Twilio ............. Phone OTP + SMS
+Firebase ........... Push notifications
+Mapbox ............. Maps / places
+RevenueCat ......... Subscriptions
+App Store / Play ... Flutter mobile app

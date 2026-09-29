@@ -28,6 +28,13 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
+  // SIGTERM (deploys, `docker compose stop`, VPS reboots) now drains instead
+  // of killing mid-request: Nest closes the HTTP server first — new
+  // connections are refused while in-flight requests finish — then runs the
+  // destroy hooks in dependency order: the BullMQ worker stops fetching
+  // (in-progress jobs are re-delivered by Redis), the chat gateway
+  // disconnects sockets, and Prisma's pool closes last.
+  app.enableShutdownHooks();
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();
