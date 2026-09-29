@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from './common/prisma/prisma.module.js';
+import { HealthModule } from './common/health/health.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { ImagesModule } from './modules/images/images.module.js';
@@ -16,6 +20,8 @@ import { BlocksModule } from './modules/blocks/blocks.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module.js';
 import { SuccessStoriesModule } from './modules/success-stories/success-stories.module.js';
+import { DevicesModule } from './modules/devices/devices.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { FaceVerificationModule } from './modules/face-verification/face-verification.module.js';
 import { env } from './config/env.config.js';
 
@@ -25,12 +31,24 @@ import { OtpModule } from './common/otp/otp.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    HealthModule,
     OtpModule,
     BullModule.forRoot({
       connection: {
         url: env.REDIS_URL,
       },
     }),
+    // Global rate limiting, off by default (RATE_LIMIT_ENABLED=false).
+    // When enabled: a general per-IP cap on every route plus a stricter cap
+    // on auth routes (see RateLimitGuard + @Throttle on auth controller).
+    // The RateLimitGuard is the on/off switch; this registration only feeds
+    // it the limits, so a plain env read here is enough.
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: env.RATE_LIMIT_PER_MINUTE,
+      },
+    ]),
     AuthModule,
     UsersModule,
     ImagesModule,
@@ -46,6 +64,15 @@ import { OtpModule } from './common/otp/otp.module.js';
     ReportsModule,
     SubscriptionsModule,
     SuccessStoriesModule,
+    DevicesModule,
+    AdminModule,
+  ],
+  providers: [
+    // Global guard — no-ops unless RATE_LIMIT_ENABLED=true (see the guard).
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
   ],
 })
 export class AppModule {}

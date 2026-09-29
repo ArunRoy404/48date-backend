@@ -64,11 +64,36 @@ export class ChatService {
     return conversations.sort(
       (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
     );
+  } /**
+   * Guard shared by every conversation read/write: the caller must be a
+   * participant of the underlying match, and the match must still be ACTIVE.
+   * Unmatching or blocking closes the conversation — history becomes unreadable
+   * and no further messages can be sent (a blocked user must never keep a DM
+   * channel open).
+   */
+  private assertAccessibleConversation(
+    userId: string,
+    conversation: {
+      match: { userLowId: string; userHighId: string; status: string };
+    },
+  ): void {
+    const { match } = conversation;
+    if (match.userLowId !== userId && match.userHighId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to access this conversation',
+      );
+    }
+
+    if (match.status !== 'ACTIVE') {
+      // The conversation disappears from both users' lists when the match
+      // closes; direct API access gets the same treatment.
+      throw new ForbiddenException('This conversation is no longer active');
+    }
   }
 
   /**
    * Retrieves paginated messages for a specific conversation.
-   * Verifies the user is a participant of the underlying match.
+   * Verifies the user is a participant of an ACTIVE match.
    */
   async getMessages(
     userId: string,
@@ -85,12 +110,7 @@ export class ChatService {
       throw new NotFoundException('Conversation not found');
     }
 
-    const { match } = conversation;
-    if (match.userLowId !== userId && match.userHighId !== userId) {
-      throw new ForbiddenException(
-        'You are not authorized to access this conversation',
-      );
-    }
+    this.assertAccessibleConversation(userId, conversation);
 
     const messages = await this.prisma.message.findMany({
       where: { conversationId },
@@ -129,6 +149,19 @@ export class ChatService {
         data: { updatedAt: new Date() },
       });
 
+      // First message makes the match permanent: clear the 48h countdown so
+      // the expiry sweep leaves this match alone from now on. One extra
+      // UPDATE per message; null-cleared matches are a no-op thereafter.
+      // (Match has no conversationId scalar — filter through the relation.)
+      await tx.match.updateMany({
+        where: {
+          conversation: { id: conversationId },
+          status: 'ACTIVE',
+          expiresAt: { not: null },
+        },
+        data: { expiresAt: null },
+      });
+
       return message;
     });
   }
@@ -158,15 +191,16 @@ export class ChatService {
       throw new NotFoundException('Conversation not found');
     }
 
-    const { match } = conversation;
-    if (match.userLowId !== userId && match.userHighId !== userId) {
-      throw new ForbiddenException(
-        'You are not authorized to send messages in this conversation',
-      );
-    }
+    // Participant + ACTIVE-match check — sending into an unmatched/blocked
+    // conversation must fail even though the room itself still exists.
+    this.assertAccessibleConversation(userId, conversation);
 
-    const msgType =
-      type || (mediaUrl ? MessageType.IMAGE : MessageType.TEXT);
+    const partnerId =
+      conversation.match.userLowId === userId
+        ? conversation.match.userHighId
+        : conversation.match.userLowId;
+
+    const msgType = type || (mediaUrl ? MessageType.IMAGE : MessageType.TEXT);
     const message = await this.saveMessage(
       conversationId,
       userId,
@@ -174,9 +208,6 @@ export class ChatService {
       msgType,
       mediaUrl ?? null,
     );
-
-    const partnerId =
-      match.userLowId === userId ? match.userHighId : match.userLowId;
 
     return {
       message,

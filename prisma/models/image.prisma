@@ -3,10 +3,20 @@ model Image {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   r2Key     String
+  // SHA-256 of the processed bytes — dedup key. Upload short-circuits when
+  // this user already has a row with the same hash; null only for rows
+  // created before the pipeline (seed/legacy), which are exempt from dedup.
+  hash      String?
+  width     Int?
+  height    Int?
+  // Processed byte size — the number that actually lands in R2, not the
+  // original upload size. Optimization gains are measured against this.
+  bytes     Int?
   isPrimary Boolean  @default(false)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([hash])
   @@map("images")
 }

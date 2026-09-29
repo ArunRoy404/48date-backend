@@ -11,6 +11,7 @@ import {
   OtpService,
 } from '../../common/otp/otp.service.js';
 import { formatUser } from '../../common/utils/user-formatter.js';
+import { urlToStorageKey } from '../images/image-metadata.util.js';
 import { SetupProfileDto } from './dto/setup-profile.dto.js';
 import { UpdateLocationDto } from './dto/update-location.dto.js';
 import type {
@@ -121,15 +122,35 @@ export class UsersService {
     if (dto.notificationsEnabled !== undefined)
       updateData.notificationsEnabled = dto.notificationsEnabled;
 
-    // Handle nested images update if provided
+    // Handle nested images update if provided.
+    // The pipeline (P-01) already stored the bytes and wrote a metadata row
+    // keyed by the processed content hash. Attaching that row's hash/dimensions
+    // here keeps dedup working when images are re-pointed by URL — external
+    // (seed/CDN) URLs have no pipeline row and carry nulls, same as before.
     if (dto.images) {
       updateData.images = {
         deleteMany: {},
-        create: dto.images.map((img, index) => ({
-          r2Key: img.url,
-          isPrimary: img.isMain,
-          sortOrder: img.sortOrder ?? index,
-        })),
+        create: await Promise.all(
+          dto.images.map(async (img, index) => {
+            // A URL this API issued maps back to its stored row; foreign URLs
+            // (seed/CDN) have no row and carry null metadata, as before.
+            const storageKey = urlToStorageKey(img.url);
+            const stored = storageKey
+              ? await this.prisma.image.findFirst({
+                  where: { userId, r2Key: storageKey },
+                })
+              : null;
+            return {
+              r2Key: img.url,
+              hash: stored?.hash ?? null,
+              width: stored?.width ?? null,
+              height: stored?.height ?? null,
+              bytes: stored?.bytes ?? null,
+              isPrimary: img.isMain,
+              sortOrder: img.sortOrder ?? index,
+            };
+          }),
+        ),
       };
     }
 

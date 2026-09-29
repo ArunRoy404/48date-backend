@@ -2,9 +2,9 @@
 
 Backend API for the **48Date** dating app — NestJS (TypeScript, ESM), PostgreSQL + Prisma, Redis, JWT auth. A Flutter user app and a React admin panel consume this API.
 
-> **Status:** 15 modules and **57 endpoints** are implemented and serving — auth, profile, images, face verification, discovery, matches, chat (REST + WebSocket), games, dates, trust score, blocks, reports, subscriptions, success stories and a notifications worker (BullMQ + FCM).
+> **Status:** 17 modules and **71 endpoints** are implemented and serving — auth, profile, images (with an optimization + dedup pipeline), face verification, discovery, matches (48h expiry), chat (REST + WebSocket), games, dates, trust score, blocks, reports, subscriptions, success stories, device registration, an in-app notification inbox, and the moderation core of the admin API. BullMQ workers back push delivery, image optimization and match expiry; `GET /health` reports Postgres + Redis status for uptime monitoring.
 >
-> **Not implemented:** the **admin API**. `AdminModule` is a commented-out stub that is not imported into `app.module.ts`, and `@Roles()` / `RolesGuard` are applied to zero controllers. Every endpoint below is user-facing.
+> **Admin surface:** moderation-core only — 6 of the ~80 routes in the Postman ADMIN contract (reports, stories, verification badge, user moderation view), guarded by `JwtAuthGuard` + `RolesGuard` with `@Roles(Role.ADMIN)`. The rest of the admin API is still to come.
 
 ## Stack
 
@@ -107,7 +107,7 @@ Re-running the seed also **prunes** swipes, matches, and the half-finished accou
 
 ## API
 
-All 57 endpoints, grouped as they appear in the Postman collection. Serials run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows.
+All 71 endpoints. The user-facing sections keep their Postman serials, which run in **integration order** — anything numbered lower is either a dependency of, or independent from, what follows. The devices, notifications, admin and health sections are newer than the current collection and have no serials yet.
 
 Every response — success or error — uses the same envelope:
 
@@ -233,15 +233,26 @@ never offered, and they follow the same `UPPERCASE_UNDERSCORE` convention as eve
 
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| P-01 | POST | `/images/upload` | Bearer | Upload 1–6 images (multipart) |
+| P-01 | POST | `/images/upload` | Bearer | Upload 1–6 images (multipart) — optimized + deduplicated, see **Image pipeline** below |
 | P-02 | PATCH | `/users/profile-setup` | Bearer | Update any subset of profile fields |
 | P-03 | GET | `/users/profile` | Bearer | Categorized profile + images |
-| P-04 | POST | `/face-verification/verify` | Bearer | Submit selfie → `selfieVerified` |
+| P-04 | POST | `/face-verification/verify` | Bearer | Submit selfie → `selfieVerified` (self-declared for now — see Known gaps) |
 | P-05 | GET | `/face-verification/status` | Bearer | Verification flags + what's missing |
 | P-06 | PATCH | `/users/location` | Bearer | Coordinates and/or permission state — see **Location and distance** below |
 | P-07 | PATCH | `/users/contact` | Bearer | Add or replace the phone/email — lands **unverified** |
 | P-08 | POST | `/users/contact/request-otp` | Bearer | Send a code to the stored phone/email. 30s cooldown |
 | P-09 | POST | `/users/contact/verify-otp` | Bearer | Confirm the code → flips that one flag |
+
+### Image pipeline
+
+Every upload runs through the same pipeline (architecture rule #1):
+
+1. **Validate** — magic-byte sniffing decides what the file really is (the P0 fix); size capped at 10 MB.
+2. **Optimize** — `sharp` re-encodes to **WebP** (quality 82), caps the long edge at **1600 px**, strips EXIF (GPS coordinates never survive upload) and bakes orientation into pixels. GIFs pass through untouched so animations don't flatten. A typical 5 MB phone JPEG lands at 100–400 KB — roughly 25× more photos inside R2's free 10 GB.
+3. **Dedup** — the SHA-256 of the *processed* bytes is stored on the `Image` row; re-uploading the same photo returns the existing row instead of storing a second copy. Seed/legacy rows (null hash) are exempt.
+4. **Metadata only in Postgres** — the row carries hash, dimensions and byte size; the blob lives in R2 (or local `uploads/` in dev).
+
+Optimization runs in a BullMQ worker (`images` queue). The original is stored and served immediately (`processing: "queued"`) and the WebP replaces it within seconds; if Redis/the worker is down the upload still succeeds unoptimized rather than failing. `POST /users/profile-setup` attaches the stored row's metadata when images are re-pointed by URL, so dedup survives reordering.
 
 ### Discovery
 
@@ -292,8 +303,10 @@ Other users' raw coordinates are never returned — only `distanceKm`, rounded t
 
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
-| M-01 | GET | `/matches` | Bearer | Active matches + linked conversation |
+| M-01 | GET | `/matches` | Bearer | Active matches + linked conversation (each carries `expiresAt` while the match is provisional) |
 | M-02 | DELETE | `/matches/:id` | Bearer | Unmatch |
+
+**48-hour expiry.** A match is provisional for **48 hours** — if neither person sends a message in that window, a sweep (BullMQ `match-expiry` queue, every 5 minutes) closes it as `UNMATCHED`. The **first message makes it permanent**: `expiresAt` is cleared in the same transaction that saves the message, and the chat/games guards already refuse non-`ACTIVE` matches, so an expired match goes dark even in the seconds before the sweep reaches it. Re-liking after an expiry starts a fresh 48h window. `M-01` returns `expiresAt` (null = permanent) so the app can render its countdown banner.
 
 ### Chat
 
@@ -368,6 +381,44 @@ Status machine: `PENDING` → `ACCEPTED` → `COMPLETED`, with `DECLINED` / `CAN
 | SS-05 | POST | `/success-stories/:id/comments` | Bearer | Add a comment |
 | SS-06 | DELETE | `/success-stories/:id/comments/:commentId` | Bearer | Delete own comment |
 
+### Health
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/health` | — | Uptime-monitor target: pings Postgres + Redis with a 3s timeout each. `200` with `{ status: "ok", uptimeSeconds, checks }` when both are up, `503` naming the down dependency otherwise |
+
+### Devices (FCM tokens)
+
+The production path for push: the app registers its FCM token on login (and whenever Firebase refreshes it), and unregisters on logout so push stops on that device. The notification worker sends to exactly these rows.
+
+| # | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| DEV-1 | POST | `/devices` | Bearer | Register or refresh a device — `{ fcmToken, platform: IOS \| ANDROID }`. Upsert keyed on `fcmToken`: re-registering a token **reassigns** it to the current account (tokens survive reinstalls/logins). Returns `{ id, platform, registeredAt }` |
+| DEV-2 | DELETE | `/devices/:token` | Bearer | Unregister a token (logout path). Ownership-checked — a foreign or unknown token returns the **same 404** (no probing) |
+| DEV-3 | GET | `/devices` | Bearer | Caller's registered devices — platform, `lastActiveAt`, and the token **masked to an 8-char preview** |### Notifications (in-app inbox)
+
+The read side of the rows the BullMQ worker and date flows have been writing all along. Every row carries `type` (`MATCH` · `MESSAGE` · `DATE_REMINDER` · `DATE_INVITE` · `SUBSCRIPTION` · `SYSTEM`) and `isRead` (`readAt !== null`). All routes are ownership-checked.
+
+| # | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| N-01 | GET | `/notifications` | Bearer | Inbox, newest first. Query: `limit` (1–100, default 20), `offset`, `unread=true`, `type`. Returns `notifications[]` + `unreadCount` + `total` |
+| N-02 | POST | `/notifications/:id/read` | Bearer | Mark one notification read |
+| N-03 | POST | `/notifications/read-all` | Bearer | Mark everything read — returns `{ updated }` |
+| N-04 | DELETE | `/notifications/:id` | Bearer | Remove one notification from the inbox |
+
+### Admin (moderation core)
+
+The first slice of the admin API — **every route requires a JWT whose `role` claim is `ADMIN`** (`RolesGuard`; a non-admin gets `403`). Built against the enums the schema actually accepts, not the invented ones in the Postman ADMIN spec.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/reports?status=PENDING` | Moderation queue — paginated, optional `status` filter (`PENDING` · `REVIEWING` · `RESOLVED` · `DISMISSED`), returns `reports[]` + `total` |
+| POST | `/admin/reports/:id/review` | Transition a report — `{ status: REVIEWING \| RESOLVED \| DISMISSED, resolution? }`, stamped with `reviewedBy` / `reviewedAt`. Terminal reports cannot be re-reviewed (400). **Dismissing refunds** the −10 trust penalty; RESOLVED keeps it |
+| GET | `/admin/stories?status=PENDING` | Story approval queue — paginated, oldest-first FIFO, optional `status` filter (`PENDING` · `PUBLISHED` · `REJECTED`) |
+| POST | `/admin/stories/:id/review` | Publish or reject — `{ status: PUBLISHED \| REJECTED }`, `PENDING` only (400 on terminal stories). This is what finally unblocks `SS-01` |
+| GET | `/admin/users/:id/moderation-view` | Profile + report counters (received/filed) + completed-date count — the context an admin needs before acting |
+| PUT | `/admin/users/:id/verification-badge` | Grant/revoke the `isUserVerified` badge — `{ isVerified }`, idempotent, returns `{ userId, isUserVerified, changed }`; the false→true flip records a `VERIFICATION` trust event |
+
 ## Realtime chat (Socket.IO)
 
 Messages can be sent over Socket.IO (`sendMessage`) or over REST (`C-03`, which also broadcasts to the room); reading is REST-only (`C-01`/`C-02`).
@@ -389,8 +440,8 @@ Folder **12 · Realtime (Socket.IO)** in the Postman collection documents the fu
 
 Import `postman/48date-backend.postman_collection.json`. Two root folders:
 
-- **USER** — all 57 endpoints across 12 subfolders, numbered `01 · Auth` → `12 · Realtime (Socket.IO)` in integration order. Each folder carries its own serial prefix: `A` Auth, `P` Profile, `D` Discovery, `M` Matches, `C` Chat, `G` Games, `DT` Dates, `T` Trust Score, `S` Safety, `SB` Subscriptions, `SS` Success Stories — numbered `01..n` inside the folder.
-- **ADMIN** — an **80-request contract across 16 modules** for the React admin panel: the agreed Super-Admin API documented request-by-request with the enum values the schema actually accepts — but **none of it is implemented yet**; every ADMIN request returns `404` until the admin API is built. Module-by-module status: [`docs/BACKEND-STATUS.md`](docs/BACKEND-STATUS.md).
+- **USER** — the 57 user-facing endpoints across 12 subfolders, numbered `01 · Auth` → `12 · Realtime (Socket.IO)` in integration order. The devices, notifications and admin routes added later are **not in the collection yet**. Each folder carries its own serial prefix: `A` Auth, `P` Profile, `D` Discovery, `M` Matches, `C` Chat, `G` Games, `DT` Dates, `T` Trust Score, `S` Safety, `SB` Subscriptions, `SS` Success Stories — numbered `01..n` inside the folder.
+- **ADMIN** — an **80-request contract across 16 modules** for the React admin panel: the agreed Super-Admin API documented request-by-request with the enum values the schema actually accepts — with the **six moderation-core routes** (`reports`, `stories`, `verification-badge`, `moderation-view`) now live at `/admin/*`; the remaining ~74 still return `404`. Module-by-module status: [`docs/BACKEND-STATUS.md`](docs/BACKEND-STATUS.md).
 
 Auth is set collection-wide to `Bearer {{accessToken}}`, with public endpoints overriding to *No Auth*.
 
@@ -433,12 +484,12 @@ npx prisma generate    # regenerate client after schema changes (Prisma 7)
 prisma/            # schema: models/ + enums/, migrations/, seed.ts, seeds/
 src/
 ├── main.ts        # bootstrap: CORS, static /uploads, validation pipe, error filter
-├── app.module.ts  # root module: Config, Prisma, BullMQ + 15 feature modules
+├── app.module.ts  # root module: Config, Prisma, BullMQ + 17 feature modules
 ├── config/        # env.config.ts (central env access), database.config.ts
 ├── common/        # prisma service, response envelope, guards, filters, user-formatter
 └── modules/       # auth, users, images, face-verification, discovery, matches,
                    # chat, games, dates, trust-score, blocks, reports,
-                   # subscriptions, success-stories, notifications, ai*, admin*
+                   # subscriptions, success-stories, notifications, devices, admin, ai*
 docs/              # project-guide.md (deep dive), BACKEND-STATUS.md,
                    # DEVELOPER-DOC-DISCREPANCIES.md, 48Date-Backend-Tech-Stack.docx
 postman/           # Postman v2.1 collection
@@ -460,18 +511,18 @@ The `app` service builds the Dockerfile and runs `prisma migrate deploy` before 
 
 Verified against the running server:
 
-- **No admin API.** `AdminModule` is commented out and unregistered; `@Roles()` / `RolesGuard` exist but are unused.
+- **Admin API is moderation-core only** — reports review, story approval, verification badge and the user moderation view are live; the remaining ~74 requests of the ADMIN contract (dashboard, user management, broadcasts, …) are not built.
 - **`POST /auth/register`, `POST /auth/forgot-password`, `POST /auth/verify-forgot-password`, `POST /auth/reset-password`, `POST /auth/request-otp` and `GET /auth/me` do not exist.** Registration was folded into `POST /auth/login` (which creates the account for an unknown identifier), the password-reset chain went away with passwords themselves, and `GET /users/profile` (P-03) replaces `/auth/me`.
-- **Google login does not verify the ID token signature** — it only base64-decodes the payload to read `email`.
+- **Face verification is self-declared** — `P-04` stores the selfie and sets `selfieVerified: true` without analyzing it (no face detection exists). Deferred by product decision: real server-side comparison is post-MVP; until then the flag is cosmetic and the trust system leans on phone/email verification and admin badges instead. See `docs/KNOWN-GAPS.md` §4.
 - **The RevenueCat webhook skips auth entirely** when `REVENUECAT_WEBHOOK_SECRET` is unset.
 - **Fixed:** every `env.*` value sourced from `.env` used to be `undefined` at runtime. `env.config.ts` reads `process.env` when it is imported, which happens while resolving `AppModule` — before Nest's `ConfigModule` loads `.env`. Socket.IO auth failed outright (`secret or public key must be provided`), and Twilio, R2, SMTP, Mapbox, the RevenueCat secret and `REDIS_URL` all silently fell back to their no-op paths even when configured. `main.ts` now imports `dotenv/config` first.
-- **Success stories can never be published** — `SS-01` creates them as `PENDING` and no endpoint can approve them.
-- **Reports can never be actioned** — `S-04` creates them as `PENDING` with no review endpoint.
-- **The notifications module has no client-facing endpoints** — BullMQ jobs write `Notification` rows and send FCM pushes, but there is no `GET /notifications` and no device-token registration endpoint (the `Device` table is never written by any route).
-- `verifyOtpCode()` in `auth.service.ts` returns `true` for the dummy code `123456` **before** it consults Twilio, and there is no environment check around it. With `TWILIO_*` configured in production, `123456` would still verify any phone number.
+- **Push delivery needs real FCM credentials** — device registration (`POST /devices`) and the inbox (`GET /notifications`) now exist; without `FCM_SERVICE_ACCOUNT_JSON` the worker only logs pushes to the console.
+
+> The dummy-OTP and Google-signature holes flagged here in earlier revisions were **fixed in the security-hardening pass** — Google ID tokens are now verified against Google's JWKS, and the `123456` dummy code is only accepted in development when no SMS provider is configured (production fails closed with 503).
 
 ## Docs
 
+- `docs/WORK-LOG.md` — **handoff log**: what was done across the hardening passes, decisions made, and what to verify first on a new machine. Read this before continuing the work.
 - `docs/project-guide.md` — read this first if you're new to NestJS/Postgres/Prisma.
 - `docs/BACKEND-STATUS.md` — full audit of what is done / partial / missing, module by module, with a corrections table for the handoff documents.
 - `docs/DEVELOPER-DOC-DISCREPANCIES.md` — fact-check of the developer's handoff documents against the code (false claims, inconsistencies, omissions).

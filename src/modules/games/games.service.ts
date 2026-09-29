@@ -139,6 +139,12 @@ export class GamesService {
       );
     }
 
+    // Same rule as chat: an unmatched/blocked match loses access to its
+    // shared activity history, not just new actions.
+    if (match.status !== 'ACTIVE') {
+      throw new ForbiddenException('This match is no longer active');
+    }
+
     return session;
   }
 
@@ -166,6 +172,10 @@ export class GamesService {
       throw new ForbiddenException(
         'You are not authorized to participate in this session',
       );
+    }
+
+    if (match.status !== 'ACTIVE') {
+      throw new BadRequestException('Cannot play in an inactive match');
     }
 
     // Verify question belongs to the game

@@ -1,7 +1,9 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { successResponse } from '../../common/response/api-response.util.js';
+import { env } from '../../config/env.config.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
@@ -10,7 +12,15 @@ import { VerifyOtpDto } from './dto/verify-otp.dto.js';
 import { VerifyUserInformationDto } from './dto/verify-user-information.dto.js';
 import { GoogleLoginDto } from './dto/google-login.dto.js';
 
+// Stricter per-IP cap for the unauthenticated auth endpoints — applied when
+// rate limiting is armed (RATE_LIMIT_ENABLED=true); see RateLimitGuard.
+// The 30s OTP cooldown in OtpService remains the second line of defense.
+const AUTH_THROTTLE = {
+  default: { limit: env.RATE_LIMIT_AUTH_PER_MINUTE, ttl: 60_000 },
+};
+
 @Controller('auth')
+@Throttle(AUTH_THROTTLE)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
