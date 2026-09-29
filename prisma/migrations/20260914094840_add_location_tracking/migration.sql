@@ -15,6 +15,8 @@ CREATE TYPE "LocationPermission" AS ENUM (
 );
 
 ALTER TABLE "users"
+  ADD COLUMN IF NOT EXISTS "latitude" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "longitude" DOUBLE PRECISION,
   ADD COLUMN "locationUpdatedAt" TIMESTAMP(3),
   ADD COLUMN "locationPermission" "LocationPermission" NOT NULL DEFAULT 'NOT_ASKED';
 
