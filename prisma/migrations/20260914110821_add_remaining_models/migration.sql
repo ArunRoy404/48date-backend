@@ -526,12 +526,4 @@ ALTER TYPE "KidsStatus_new" RENAME TO "KidsStatus";
 DROP TYPE "public"."KidsStatus_old";
 COMMIT;
 
--- AlterEnum
-BEGIN;
-CREATE TYPE "LookingFor_new" AS ENUM ('LONG_TERM', 'SHORT_TERM', 'FRIENDSHIP', 'CASUAL', 'STILL_FIGURING_OUT');
-ALTER TABLE "users" ALTER COLUMN "lookingFor" TYPE "LookingFor_new" USING ("lookingFor"::text::"LookingFor_new");
-ALTER TYPE "LookingFor" RENAME TO "LookingFor_old";
-ALTER TYPE "LookingFor_new" RENAME TO "LookingFor";
-DROP TYPE "public"."LookingFor_old";
-COMMIT;
 
