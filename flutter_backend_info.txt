@@ -1,0 +1,318 @@
+================================================================================
+48DATE BACKEND API & WEBSOCKET SPECIFICATION (FOR FLUTTER DEVELOPER)
+================================================================================
+Last Updated: September 2026
+Environment: AWS Development Cloud Server
+
+--------------------------------------------------------------------------------
+1. SERVER CONNECTION DETAILS
+--------------------------------------------------------------------------------
+Base REST API URL:      http://32.195.54.237:3000
+WebSocket (Socket.IO):  http://32.195.54.237:3000
+Health Check Endpoint:  http://32.195.54.237:3000/health
+Static Media Base:      http://32.195.54.237:3000/uploads/
+
+NOTE: Currently running over HTTP (port 3000). Always use `http://`, not `https://`.
+
+--------------------------------------------------------------------------------
+2. STANDARD RESPONSE ENVELOPE
+--------------------------------------------------------------------------------
+Every single API response follows this unified format:
+
+Success Response (HTTP 200/201):
+{
+  "success": true,
+  "message": "Human readable summary message",
+  "messages": [],
+  "data": { ... }
+}
+
+Error Response (HTTP 400/401/404/500):
+{
+  "success": false,
+  "message": "Human readable error summary",
+  "messages": ["Validation error detail 1", "Validation error detail 2"],
+  "statusCode": 400
+}
+
+--------------------------------------------------------------------------------
+3. AUTHENTICATION & LOGIN FLOW
+--------------------------------------------------------------------------------
+The app uses Phone OTP authentication (JWT Bearer Token).
+
+A. Request OTP (Login / Register):
+   Method: POST
+   URL:    http://32.195.54.237:3000/auth/login
+   Body:
+   {
+     "phone": "+8801811000001"
+   }
+   Response:
+   Returns `{ success: true, message: "...", data: { sent: true, otp: "123456" } }`
+   *DEV NOTE: In development mode, the OTP is ALWAYS 123456.*
+
+B. Verify OTP (Obtain Tokens):
+   Method: POST
+   URL:    http://32.195.54.237:3000/auth/verify-otp
+   Body:
+   {
+     "phone": "+8801811000001",
+     "otp": "123456"
+   }
+   Response Data:
+   {
+     "accessToken": "eyJhbGciOi...",
+     "refreshToken": "eyJhbGciOi...",
+     "user": {
+       "id": "uuid-here",
+       "phone": "+8801811000001",
+       "isProfileComplete": true,
+       "nextStep": "MAIN_APP"    // or "PROFILE_SETUP"
+     }
+   }
+
+C. Authorization Header (for all protected endpoints):
+   Authorization: Bearer <accessToken>
+
+D. Refresh Token:
+   Method: POST
+   URL:    http://32.195.54.237:3000/auth/refresh-token
+   Body:
+   {
+     "refreshToken": "eyJhbGciOi..."
+   }
+
+E. Pre-Seeded Test Accounts:
+   Phones: +8801811000001 through +8801811000008
+   OTP:    123456 (valid for all seeded accounts)
+
+--------------------------------------------------------------------------------
+4. ONBOARDING & PROFILE SETUP
+--------------------------------------------------------------------------------
+A. Get Current User Profile:
+   Method: GET
+   URL:    http://32.195.54.237:3000/users/me
+   Header: Authorization: Bearer <accessToken>
+
+B. Setup / Complete Profile:
+   Method: POST
+   URL:    http://32.195.54.237:3000/users/setup-profile
+   Header: Authorization: Bearer <accessToken>
+   Body:
+   {
+     "firstName": "John",
+     "lastName": "Doe",
+     "username": "johndoe",
+     "birthDate": "2000-01-15T00:00:00.000Z",
+     "gender": "MALE",                     // MALE | FEMALE | NON_BINARY | OTHER
+     "interestedIn": "FEMALE",             // MALE | FEMALE | NON_BINARY | OTHER
+     "lookingFor": "REAL_RELATIONSHIP",    // REAL_RELATIONSHIP | SOMETHING_MEANINGFUL | SEE_WHERE_IT_GOES | NEW_FRIENDS_FIRST
+     "occupation": "Software Engineer",
+     "heightCm": 180,
+     "weightKg": 75,
+     "smoker": "NEVER",                    // NEVER | SOMETHING | DAILY
+     "alcohol": "SOMETIMES",               // NEVER | SOMETHING | DAILY
+     "kids": "DOESNT_HAVE_KIDS",           // HAS_KIDS | DOESNT_HAVE_KIDS | PREFER_NOT_TO_SAY
+     "wantsKids": true,
+     "creativity": ["PHOTOGRAPHY", "MUSIC"],
+     "sports": ["RUNNING", "SWIMMING"],
+     "moviesAndDramas": ["ACTION", "SCI_FI"],
+     "images": ["http://32.195.54.237:3000/uploads/..."]
+   }
+
+C. Update Live Location:
+   Method: PUT
+   URL:    http://32.195.54.237:3000/users/location
+   Body:
+   {
+     "latitude": 23.8103,
+     "longitude": 90.4125,
+     "locationPermission": "WHILE_IN_USE"  // WHILE_IN_USE | ALWAYS | ONE_TIME | DENIED | DENIED_FOREVER
+   }
+
+--------------------------------------------------------------------------------
+5. PHOTO & IMAGE UPLOADS
+--------------------------------------------------------------------------------
+A. Upload Single Image:
+   Method: POST
+   URL:    http://32.195.54.237:3000/images/upload
+   Type:   multipart/form-data
+   Field:  image (File)
+   Response Data:
+   {
+     "imageId": "uuid",
+     "url": "http://32.195.54.237:3000/uploads/users/...jpg",
+     "key": "users/...jpg",
+     "processing": "completed" // or "queued" (worker optimizes to WebP in background)
+   }
+
+B. Upload Multiple Images (Max 6):
+   Method: POST
+   URL:    http://32.195.54.237:3000/images/upload-multiple
+   Type:   multipart/form-data
+   Field:  images (Array of Files)
+
+C. Face Verification (Selfie):
+   Method: POST
+   URL:    http://32.195.54.237:3000/face-verification/verify
+   Type:   multipart/form-data
+   Field:  selfie (File)
+
+--------------------------------------------------------------------------------
+6. DISCOVERY & SWIPING
+--------------------------------------------------------------------------------
+A. Get Discovery Feed (Card Stack):
+   Method: GET
+   URL:    http://32.195.54.237:3000/discovery/feed?limit=10
+   Response: List of user profiles with photos, distance in km, bio, and interests.
+
+B. Swipe Action:
+   Method: POST
+   URL:    http://32.195.54.237:3000/discovery/action
+   Body:
+   {
+     "targetUserId": "uuid-of-swiped-user",
+     "action": "LIKE" // LIKE | PASS | SUPERLIKE
+   }
+   Response:
+   If mutual match: `{ "match": true, "matchId": "uuid" }`
+
+C. Get / Update Discovery Preferences:
+   Method: GET / PUT
+   URL:    http://32.195.54.237:3000/discovery/preferences
+   Body (for PUT):
+   {
+     "minAge": 20,
+     "maxAge": 32,
+     "maxDistanceKm": 50,
+     "preferredGender": "FEMALE"
+   }
+
+--------------------------------------------------------------------------------
+7. MATCHES & CHAT (REST + WEBSOCKETS)
+--------------------------------------------------------------------------------
+A. List Matches:
+   Method: GET
+   URL:    http://32.195.54.237:3000/matches
+
+B. 48-Hour Match Expiration Rule:
+   Matches expire 48 hours after creation unless a first message is sent!
+   Sending a message makes the match permanent.
+
+C. List Conversations:
+   Method: GET
+   URL:    http://32.195.54.237:3000/chat/conversations
+
+D. Get Message History:
+   Method: GET
+   URL:    http://32.195.54.237:3000/chat/messages/:conversationId?page=1&limit=30
+
+E. Send Message via REST:
+   Method: POST
+   URL:    http://32.195.54.237:3000/chat/messages
+   Body:
+   {
+     "conversationId": "uuid",
+     "content": "Hello there!",
+     "type": "TEXT" // TEXT | IMAGE | LOCATION
+   }
+
+F. Real-Time Chat (Socket.IO):
+   Client Library: socket_io_client (Flutter)
+   Connection URL: http://32.195.54.237:3000
+   Connection Options:
+   {
+     "transports": ["websocket"],
+     "query": { "token": "YOUR_JWT_ACCESS_TOKEN" }
+   }
+
+   Socket Events:
+   - Emit 'join_room':        { "conversationId": "uuid" }
+   - Emit 'send_message':     { "conversationId": "uuid", "content": "Hi", "type": "TEXT" }
+   - Listen 'receive_message': Receives incoming message payload
+   - Emit 'typing':           { "conversationId": "uuid", "isTyping": true }
+   - Listen 'user_typing':     Receives typing status of partner
+   - Listen 'user_status':     Receives online/offline updates ({ "userId": "uuid", "online": true })
+
+--------------------------------------------------------------------------------
+8. ICEBREAKER GAMES
+--------------------------------------------------------------------------------
+A. Get Available Games Catalogue:
+   Method: GET
+   URL:    http://32.195.54.237:3000/games
+   (Includes: "This or That", "Icebreaker Games", "Deep Connections", "Date Night Dilemmas")
+
+B. Start a Game Session with a Match:
+   Method: POST
+   URL:    http://32.195.54.237:3000/games/start
+   Body:   { "gameId": "uuid", "conversationId": "uuid" }
+
+C. Answer Question:
+   Method: POST
+   URL:    http://32.195.54.237:3000/games/answer
+   Body:   { "sessionId": "uuid", "questionId": "uuid", "answer": "Option A" }
+
+--------------------------------------------------------------------------------
+9. DATE PLANNER
+--------------------------------------------------------------------------------
+A. Search Venues / Cafes (Mapbox Powered):
+   Method: GET
+   URL:    http://32.195.54.237:3000/dates/places?query=Coffee&latitude=23.8103&longitude=90.4125
+
+B. Propose Date Plan:
+   Method: POST
+   URL:    http://32.195.54.237:3000/dates/propose
+   Body:
+   {
+     "matchId": "uuid",
+     "receiverId": "uuid",
+     "venueName": "Gloria Jean's Coffees",
+     "venueAddress": "Gulshan-1, Dhaka",
+     "latitude": 23.7788,
+     "longitude": 90.4172,
+     "date": "2026-10-10T18:00:00.000Z",
+     "startTime": "2026-10-10T18:00:00.000Z"
+   }
+
+C. Respond to Date Plan (Accept / Decline):
+   Method: PATCH
+   URL:    http://32.195.54.237:3000/dates/:datePlanId/status
+   Body:   { "status": "ACCEPTED" } // ACCEPTED | DECLINED
+
+--------------------------------------------------------------------------------
+10. PUSH NOTIFICATIONS (FCM DEVICE REGISTRATION)
+--------------------------------------------------------------------------------
+Register Mobile Device Token for Push Notifications:
+   Method: POST
+   URL:    http://32.195.54.237:3000/devices
+   Body:
+   {
+     "token": "fcm_device_token_from_firebase",
+     "platform": "ANDROID" // ANDROID | IOS
+   }
+
+Unregister on Logout:
+   Method: DELETE
+   URL:    http://32.195.54.237:3000/devices/:token
+
+--------------------------------------------------------------------------------
+11. SAFETY: BLOCKS & REPORTS
+--------------------------------------------------------------------------------
+Block User:
+   Method: POST
+   URL:    http://32.195.54.237:3000/blocks
+   Body:   { "blockedUserId": "uuid" }
+
+Report User:
+   Method: POST
+   URL:    http://32.195.54.237:3000/reports
+   Body:
+   {
+     "reportedUserId": "uuid",
+     "reason": "HARASSMENT", // SPAM | INAPPROPRIATE_CONTENT | HARASSMENT | FAKE_PROFILE | OTHER
+     "description": "Optional notes"
+   }
+
+================================================================================
+END OF SPECIFICATION
+================================================================================
